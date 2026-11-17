@@ -34,6 +34,8 @@
     requested: 'Diminta', confirmed: 'Dikonfirmasi', paid: 'Sudah dibayar', shipped: 'Dikirim',
     delivered: 'Sudah diantar', completed: 'Selesai', cancelled: 'Dibatalkan',
   };
+  const LOT_STATUS = { received: 'Diterima', graded: 'Dinilai', listed: 'Tayang', withdrawn: 'Ditarik', rejected: 'Ditolak' };
+  const CHECK_TEKS = { passed: 'Lolos', adjusted: 'Dipotong', rejected: 'Ditolak' };
   const JENIS_PEMBELI = [
     ['specialty_cafe', 'Kafe spesialti'], ['premium_roaster', 'Roaster premium'], ['roaster', 'Roaster'],
     ['papua_business', 'Kafe atau usaha di Papua'], ['other', 'Lainnya'],
@@ -767,6 +769,12 @@ const ICONS = {
           <div class="field"><label for="i-kg">Kg diterima</label><input id="i-kg" name="kgIn" type="number" min="1" step="1" required></div>
           <div class="field"><label for="i-price">Harga beli per kg (Rp)</label><input id="i-price" name="buyPricePerKg" type="number" min="1000" step="1000" value="${esc(state.config.buyPricePerKg || 120000)}"></div>
           <div class="field"><label for="i-process">Proses</label><input id="i-process" name="process" placeholder="Dicuci, natural, honey"></div>
+          <div class="field wide"><h3 style="margin:8px 0 4px">Pemeriksaan sampel</h3></div>
+          <div class="field"><label for="i-sample">Nomor sampel</label><input id="i-sample" name="sampleId" required placeholder="S-2611-001"></div>
+          <div class="field"><label for="i-moist">Kadar air %</label><input id="i-moist" name="moisturePct" type="number" min="5" max="20" step="0.1" required><p class="help">Ideal 10 sampai 12.</p></div>
+          <div class="field"><label for="i-defect">Cacat per 300 g</label><input id="i-defect" name="defectCount" type="number" min="0" max="300" step="1" required><p class="help">Hitung cacat dari sampel 300 g.</p></div>
+          <div class="field"><label for="i-gabah">Kg gabah (opsional)</label><input id="i-gabah" name="gabahKg" type="number" min="0.1" step="0.1"></div>
+          <div class="field"><label for="i-green">Kg biji hijau setelah hulling (opsional)</label><input id="i-green" name="greenKg" type="number" min="0.1" step="0.1"></div>
           <div class="field wide"><label for="i-notes">Catatan</label><textarea id="i-notes" name="notes"></textarea></div>
         </div>
         <div class="btn-row"><button class="btn" type="submit" id="i-save">Simpan pembelian</button></div>
@@ -791,8 +799,14 @@ const ICONS = {
       busy(btn, true, 'Menyimpan…');
       try {
         const { lot } = await api('/api/admin/lots', { method: 'POST', admin: true, body: formData(form) });
-        toast(`${lot.code} tersimpan. Silakan dinilai.`);
-        location.hash = '#/admin/lots/' + encodeURIComponent(lot.id);
+        const c = lot.intakeCheck;
+        if (c.result === 'rejected') {
+          toast(`${lot.code} ditolak. Tidak ada pembayaran.`);
+          location.hash = '#/admin/lots';
+        } else {
+          toast(`${lot.code} ${c.result === 'passed' ? 'lolos' : 'dipotong'}. Bayar ${rp(c.amountDue)}.`);
+          location.hash = '#/admin/lots/' + encodeURIComponent(lot.id);
+        }
       } catch (err) { busy(btn, false); showFormError(form, err); if (err.status === 401) adminFail(err); }
     });
     document.getElementById('group').addEventListener('submit', async (e) => {
@@ -820,7 +834,7 @@ const ICONS = {
             <tr>
               <td>${esc(l.code)}${l.sample ? ' <span class="demo">contoh</span>' : ''}</td>
               <td>${esc(l.groupName)}</td>
-              <td><span class="pill">${esc(l.status)}</span></td>
+              <td><span class="pill">${esc(LOT_STATUS[l.status] || l.status)}</span>${l.intakeCheck ? `<br><span class="muted" style="font-size:13px">${esc(CHECK_TEKS[l.intakeCheck.result])} · ${rp(l.intakeCheck.amountDue)}</span>` : ''}</td>
               <td>${l.tier ? `<span class="${tierClass(l.tier)}">${esc(tierLabel(l.tier))}</span>` : '—'}</td>
               <td class="num">${l.cupScore || '—'}</td>
               <td class="num">${l.sellableKg ? kg(l.sellableKg) : '—'}</td>
