@@ -2037,6 +2037,12 @@ const ICONS = {
     paintThemeToggle();
   }
 
+  // Tombol kembali ke atas di footer.
+  function wireBackToTop() {
+    const b = document.getElementById('back-to-top');
+    if (b) b.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+
   // Tandai halaman aktif di navigasi.
   function markNav() {
     const raw = location.hash || '#/';
@@ -2052,6 +2058,7 @@ const ICONS = {
   async function boot() {
     wireThemeToggle();
     wireSearch();
+    wireBackToTop();
     try {
       state.config = await api('/api/config');
       applyTheme(state.config.theme);
