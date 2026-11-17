@@ -165,12 +165,35 @@ test('intake creates a received lot; it must be graded before publishing', () =>
   const db = freshDb();
   const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 200, process: 'Washed', sampleId: 'S-001', moisturePct: 11, defectCount: 10 }, NOW);
   assert.equal(lot.status, 'received');
-  assert.throws(() => domain.publishLot(db, lot.id, NOW), (e) => e.status === 409);
+  const grader = { id: 'u-grader', name: 'Penilai' };
+  const admin = { id: 'u-admin', name: 'Admin' };
+  assert.throws(() => domain.publishLot(db, lot.id, admin, NOW), (e) => e.status === 409);
   domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '190', moisturePct: '11' });
   assert.equal(lot.status, 'graded');
-  domain.publishLot(db, lot.id, NOW);
+  assert.throws(() => domain.publishLot(db, lot.id, admin, NOW), (e) => e.status === 409, 'must be verified first');
+  domain.verifyLot(db, lot.id, grader, NOW);
+  assert.equal(lot.status, 'verified');
+  domain.publishLot(db, lot.id, admin, NOW);
   assert.equal(lot.status, 'listed');
+  assert.equal(lot.publishedBy.name, 'Admin');
   assert.ok(lot.passportHash);
+});
+
+test('the person who verified a lot cannot publish it', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, process: 'Washed', sampleId: 'S-WF', moisturePct: 11, defectCount: 10 }, NOW);
+  domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '90', moisturePct: '11' });
+  const same = { id: 'u-1', name: 'Pemilik' };
+  domain.verifyLot(db, lot.id, same, NOW);
+  assert.throws(() => domain.publishLot(db, lot.id, same, NOW), (e) => e.code === 'same_person');
+});
+
+test('a verified lot is locked against grading changes', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, process: 'Washed', sampleId: 'S-LK', moisturePct: 11, defectCount: 10 }, NOW);
+  domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '90', moisturePct: '11' });
+  domain.verifyLot(db, lot.id, { id: 'u-1', name: 'Penilai' }, NOW);
+  assert.throws(() => domain.gradeLot(db, lot.id, { cupScore: 80 }), (e) => e.status === 409);
 });
 
 test('a listed lot cannot be graded until withdrawn, and withdrawal needs no open orders', () => {

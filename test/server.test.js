@@ -117,7 +117,12 @@ test('admin can publish a new lot and see it on the storefront only after gradin
     token: TOKEN, body: { tier: 'reserve', grade: 'SNI Grade 1', cupScore: '87', sellableKg: '140', moisturePct: '11.5' },
   });
   assert.equal(grade.status, 200);
-  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: TOKEN })).status, 200);
+  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: TOKEN })).status, 409, 'not verified yet');
+  assert.equal((await call('POST', `/api/admin/lots/${id}/verify`, { token: TOKEN })).status, 200);
+  // Penerbitan dilakukan orang lain (admin kedua), sesuai aturan dua orang
+  await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Admin Kedua', email: 'admin2@test.local', role: 'admin', password: 'admin-kedua-123' } });
+  const second = (await call('POST', '/api/auth/login', { body: { email: 'admin2@test.local', password: 'admin-kedua-123' } })).json.token;
+  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: second })).status, 200);
   const visible = await call('GET', `/api/lots/${code}`);
   assert.equal(visible.status, 200);
   assert.equal(visible.json.lot.availableKg, 140);
@@ -192,4 +197,61 @@ test('the owner cannot deactivate their own account', async () => {
   const me = await call('GET', '/api/auth/me', { token: TOKEN });
   const r = await call('PATCH', `/api/admin/users/${me.json.user.id}`, { token: TOKEN, body: { active: false } });
   assert.equal(r.status, 400);
+});
+
+// ---------- pengelolaan staf ----------
+test('admin resets a password: old sessions end, the new password must be changed at next sign-in', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Penilai Uji', email: 'penilai@test.local', role: 'grader', password: 'penilai-awal-123' } });
+  const uid = made.json.user.id;
+  const first = await call('POST', '/api/auth/login', { body: { email: 'penilai@test.local', password: 'penilai-awal-123' } });
+  const oldToken = first.json.token;
+  const reset = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { password: 'penilai-baru-456' } });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.json.user.mustChangePassword, true);
+  assert.equal((await call('GET', '/api/auth/me', { token: oldToken })).status, 401, 'old session ended');
+  const again = await call('POST', '/api/auth/login', { body: { email: 'penilai@test.local', password: 'penilai-baru-456' } });
+  const t = again.json.token;
+  assert.equal(again.json.user.mustChangePassword, true);
+  assert.equal((await call('GET', '/api/admin/lots', { token: t })).status, 403, 'blocked until password changed');
+  const wrong = await call('POST', '/api/auth/password', { token: t, body: { current: 'salah-sekali', password: 'penilai-final-789' } });
+  assert.equal(wrong.status, 400);
+  const ok = await call('POST', '/api/auth/password', { token: t, body: { current: 'penilai-baru-456', password: 'penilai-final-789' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.user.mustChangePassword, false);
+  assert.equal((await call('GET', '/api/admin/lots', { token: t })).status, 200);
+});
+
+test('admin edits name and email and sees a user activity list', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Nama Lama', email: 'lama@test.local', role: 'field_agent', password: 'lama-awal-12345' } });
+  const uid = made.json.user.id;
+  const edit = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { name: 'Nama Baru', email: 'baru@test.local' } });
+  assert.equal(edit.status, 200);
+  assert.equal(edit.json.user.name, 'Nama Baru');
+  const dup = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { email: 'owner@test.local' } });
+  assert.equal(dup.status, 400);
+  await call('POST', '/api/auth/login', { body: { email: 'baru@test.local', password: 'lama-awal-12345' } });
+  const act = await call('GET', `/api/admin/users/${uid}/activity`, { token: TOKEN });
+  assert.equal(act.status, 200);
+  assert.ok(act.json.entries.some((e) => e.action === 'login'));
+});
+
+// ---------- akun demo ----------
+test('demo accounts exist and sign in only when demo mode is on', async () => {
+  const demoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-demo-'));
+  const demo = createApp({ dataFile: path.join(demoDir, 'app.db'), owner: { name: 'Pemilik', email: 'o@test.local', password: 'owner-demo-123' }, demo: true });
+  await new Promise((r) => demo.server.listen(0, '127.0.0.1', r));
+  const dbase = `http://127.0.0.1:${demo.server.address().port}`;
+  try {
+    const cfg = await (await fetch(dbase + '/api/config')).json();
+    assert.equal(cfg.demoAccounts.length, 3);
+    const admin = cfg.demoAccounts.find((d) => d.role === 'admin');
+    const res = await fetch(dbase + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: admin.email, password: admin.password }) });
+    assert.equal(res.status, 200);
+    assert.equal((await fetch(dbase + '/api/admin/summary', { headers: { Authorization: 'Bearer ' + (await res.json()).token } })).status, 200);
+  } finally {
+    await new Promise((r) => demo.server.close(r));
+    fs.rmSync(demoDir, { recursive: true, force: true });
+  }
+  const cfgOff = await call('GET', '/api/config');
+  assert.deepEqual(cfgOff.json.demoAccounts, []);
 });

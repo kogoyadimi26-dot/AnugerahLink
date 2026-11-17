@@ -34,7 +34,7 @@
     requested: 'Diminta', confirmed: 'Dikonfirmasi', paid: 'Sudah dibayar', shipped: 'Dikirim',
     delivered: 'Sudah diantar', completed: 'Selesai', cancelled: 'Dibatalkan',
   };
-  const LOT_STATUS = { received: 'Diterima', graded: 'Dinilai', listed: 'Tayang', withdrawn: 'Ditarik', rejected: 'Ditolak' };
+  const LOT_STATUS = { received: 'Diterima', graded: 'Menunggu verifikasi', verified: 'Siap diterbitkan', listed: 'Tayang', withdrawn: 'Ditarik', rejected: 'Ditolak' };
   const CHECK_TEKS = { passed: 'Lolos', adjusted: 'Dipotong', rejected: 'Ditolak' };
   const JENIS_PEMBELI = [
     ['specialty_cafe', 'Kafe spesialti'], ['premium_roaster', 'Roaster premium'], ['roaster', 'Roaster'],
@@ -64,7 +64,13 @@
 
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
   function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
-  const ROLE_PAGES = { admin: ['dashboard', 'intake', 'lots', 'orders', 'feedback', 'users', 'audit', 'settings'], grader: ['lots'], field_agent: ['intake', 'lots'] };
+  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'feedback', 'users', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
+  function canDo(action) {
+    const r = (currentUser() || {}).role;
+    if (action === 'verify') return r === 'admin' || r === 'grader';
+    if (action === 'publish') return r === 'admin';
+    return false;
+  }
   function allowedPages() { const u = currentUser(); return (u && ROLE_PAGES[u.role]) || []; }
   function setAdminToken(t) { try { sessionStorage.setItem('al-admin', t); } catch { /* abaikan */ } }
   function clearAdminToken() { try { sessionStorage.removeItem('al-admin'); sessionStorage.removeItem('al-user'); } catch { /* abaikan */ } }
@@ -727,7 +733,7 @@ const ICONS = {
 
   // ---------- tim (admin) ----------
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -767,7 +773,18 @@ const ICONS = {
         <div class="field"><label for="login-email">Email</label><input id="login-email" name="email" type="email" required autocomplete="username"></div>
         <div class="field"><label for="login-pass">Kata sandi</label><input id="login-pass" name="password" type="password" required autocomplete="current-password"></div>
         <button class="btn" type="submit" id="login-btn">Masuk</button>
-      </form>`);
+      </form>
+      ${(state.config.demoAccounts || []).length ? `
+      <section class="card" style="max-width:420px;margin-top:16px" aria-label="Akun demo">
+        <p class="notice">Akun demo untuk uji coba. Jangan dipakai untuk data sungguhan.</p>
+        <div class="btn-row">${state.config.demoAccounts.map((d, i) => `<button class="btn secondary small" type="button" data-demo="${i}">Masuk sebagai ${esc(d.roleLabel)} (demo)</button>`).join('')}</div>
+      </section>` : ''}`);
+    main.querySelectorAll('button[data-demo]').forEach((b) => b.addEventListener('click', () => {
+      const d = state.config.demoAccounts[Number(b.dataset.demo)];
+      document.getElementById('login-email').value = d.email;
+      document.getElementById('login-pass').value = d.password;
+      document.getElementById('login').requestSubmit();
+    }));
     document.getElementById('login').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
@@ -787,45 +804,83 @@ const ICONS = {
     });
   }
 
-  // Pengguna: daftar, tambah, ubah peran, aktif/nonaktif, dan kata sandi baru (admin).
-  async function viewAdminUsers() {
+  // Pengguna: daftar, tambah, dan pengelolaan per orang (ubah data, reset kata sandi, aktif/nonaktif, riwayat).
+  const ROLE_OPTIONS = [['admin', 'Admin'], ['grader', 'Penilai'], ['field_agent', 'Petugas lapangan']];
+
+  async function viewAdminUsers(selectedId) {
     const { users } = await api('/api/admin/users', { admin: true });
     const me = currentUser();
-    const roles = [['admin', 'Admin'], ['grader', 'Penilai'], ['field_agent', 'Petugas lapangan']];
+    const sel = selectedId ? users.find((u) => u.id === selectedId) : null;
+    const when = (iso) => (iso ? tanggal(iso) : 'Belum pernah');
     setMain(adminShell('users', `
-      <h2 style="margin-top:0">Pengguna</h2>
+      <h2 style="margin-top:0">Staf dan pengguna</h2>
       <div class="table-wrap"><table>
-        <thead><tr><th>Nama</th><th>Email</th><th>Peran</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Nama</th><th>Email</th><th>Peran</th><th>Status</th><th>Terakhir masuk</th><th></th></tr></thead>
         <tbody>
           ${users.map((u) => `
-            <tr>
+            <tr ${sel && sel.id === u.id ? 'style="background:var(--green-soft)"' : ''}>
               <td>${esc(u.name)}${me && me.id === u.id ? ' <span class="muted">(Anda)</span>' : ''}</td>
               <td>${esc(u.email)}</td>
-              <td><select data-role="${esc(u.id)}" aria-label="Peran ${esc(u.name)}">${roles.map(([k, l]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-              <td><span class="pill ${u.active ? 'ok' : ''}">${u.active ? 'Aktif' : 'Nonaktif'}</span></td>
-              <td><button class="btn secondary small" data-toggle="${esc(u.id)}" data-active="${u.active ? '1' : '0'}">${u.active ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
+              <td>${esc(u.roleLabel || u.role)}</td>
+              <td><span class="pill ${u.active ? 'ok' : ''}">${u.active ? 'Aktif' : 'Nonaktif'}</span>${u.mustChangePassword ? ' <span class="pill warn">Ganti kata sandi</span>' : ''}</td>
+              <td>${esc(when(u.lastSignInAt))}</td>
+              <td><a class="btn secondary small" href="#/admin/users/${encodeURIComponent(u.id)}">Kelola</a></td>
             </tr>`).join('')}
         </tbody></table></div>
+      ${sel ? `
+      <section class="card" style="margin-top:20px" aria-labelledby="edit-user">
+        <h2 id="edit-user" style="margin-top:0">Kelola ${esc(sel.name)}</h2>
+        <form id="edit-form" novalidate>
+          <div class="notice" data-form-error hidden role="alert"></div>
+          <div class="form-grid">
+            <div class="field"><label for="e-name">Nama</label><input id="e-name" name="name" required minlength="2" value="${esc(sel.name)}"></div>
+            <div class="field"><label for="e-email">Email</label><input id="e-email" name="email" type="email" required value="${esc(sel.email)}"></div>
+            <div class="field"><label for="e-role">Peran</label><select id="e-role" name="role">${ROLE_OPTIONS.map(([k, l]) => `<option value="${k}" ${sel.role === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+            <div class="field"><label for="e-active">Status</label><select id="e-active" name="active"><option value="true" ${sel.active ? 'selected' : ''}>Aktif</option><option value="false" ${!sel.active ? 'selected' : ''}>Nonaktif</option></select></div>
+            <div class="field wide"><label for="e-pass">Reset kata sandi (opsional)</label><input id="e-pass" name="password" type="password" minlength="10" autocomplete="new-password"><p class="help">Isi hanya jika ingin mengganti kata sandi. Pengguna harus membuat kata sandi baru saat masuk berikutnya, dan sesi lamanya berakhir.</p></div>
+          </div>
+          <div class="btn-row"><button class="btn" type="submit" id="e-save">Simpan perubahan</button><a class="btn secondary" href="#/admin/users">Tutup</a></div>
+        </form>
+        <h3 style="margin-top:24px">Riwayat ${esc(sel.name)}</h3>
+        <div id="activity" class="muted" style="font-size:14px">Memuat…</div>
+      </section>` : ''}
       <h2>Tambah pengguna</h2>
       <form id="new-user" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="form-grid">
           <div class="field"><label for="u-name">Nama</label><input id="u-name" name="name" required minlength="2"></div>
           <div class="field"><label for="u-email">Email</label><input id="u-email" name="email" type="email" required></div>
-          <div class="field"><label for="u-role">Peran</label><select id="u-role" name="role">${roles.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
-          <div class="field"><label for="u-pass">Kata sandi awal</label><input id="u-pass" name="password" type="password" required minlength="10"><p class="help">Minimal 10 karakter. Berikan kepada pengguna secara langsung.</p></div>
+          <div class="field"><label for="u-role">Peran</label><select id="u-role" name="role">${ROLE_OPTIONS.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+          <div class="field"><label for="u-pass">Kata sandi awal</label><input id="u-pass" name="password" type="password" required minlength="10" autocomplete="new-password"><p class="help">Minimal 10 karakter. Pengguna akan diminta menggantinya saat masuk pertama kali.</p></div>
         </div>
         <button class="btn" type="submit" id="u-save">Tambah pengguna</button>
       </form>`));
     wireSignOut();
-    main.querySelectorAll('select[data-role]').forEach((sel) => sel.addEventListener('change', async () => {
-      try { await api(`/api/admin/users/${encodeURIComponent(sel.dataset.role)}`, { method: 'PATCH', admin: true, body: { role: sel.value } }); toast('Peran diperbarui'); }
-      catch (err) { toast(err.message); viewAdminUsers(); }
-    }));
-    main.querySelectorAll('button[data-toggle]').forEach((b) => b.addEventListener('click', async () => {
-      try { await api(`/api/admin/users/${encodeURIComponent(b.dataset.toggle)}`, { method: 'PATCH', admin: true, body: { active: b.dataset.active !== '1' } }); toast('Status diperbarui'); viewAdminUsers(); }
-      catch (err) { toast(err.message); }
-    }));
+
+    if (sel) {
+      const act = await api(`/api/admin/users/${encodeURIComponent(sel.id)}/activity`, { admin: true });
+      const box = document.getElementById('activity');
+      if (box) box.innerHTML = act.entries.length
+        ? `<ul style="padding-left:18px;margin:0">${act.entries.map((x) => `<li>${tanggal(x.at)} · ${esc(x.action)} · ${esc(x.status)}</li>`).join('')}</ul>`
+        : 'Belum ada riwayat.';
+      document.getElementById('edit-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+        form.querySelector('[data-form-error]').hidden = true;
+        const f = formData(form);
+        const body = { name: f.name, email: f.email, role: f.role, active: f.active === 'true' };
+        if (f.password) body.password = f.password;
+        const btn = document.getElementById('e-save');
+        busy(btn, true, 'Menyimpan…');
+        try {
+          await api(`/api/admin/users/${encodeURIComponent(sel.id)}`, { method: 'PATCH', admin: true, body });
+          toast(f.password ? 'Perubahan disimpan. Kata sandi baru berlaku.' : 'Perubahan disimpan');
+          viewAdminUsers(sel.id);
+        } catch (err) { busy(btn, false); showFormError(form, err); }
+      });
+    }
+
     document.getElementById('new-user').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
@@ -839,6 +894,80 @@ const ICONS = {
         viewAdminUsers();
       } catch (err) { busy(btn, false); showFormError(form, err); }
     });
+  }
+
+  // Ganti kata sandi sendiri (wajib setelah reset oleh admin).
+  function viewChangePassword() {
+    setMain(`
+      <h1>Buat kata sandi baru</h1>
+      <p class="muted">Admin telah mengatur ulang kata sandi Anda. Silakan buat kata sandi baru untuk melanjutkan.</p>
+      <form id="change-pass" class="card" style="max-width:420px" novalidate>
+        <div class="notice" data-form-error hidden role="alert"></div>
+        <div class="field"><label for="cp-cur">Kata sandi sementara</label><input id="cp-cur" name="current" type="password" required autocomplete="current-password"></div>
+        <div class="field"><label for="cp-new">Kata sandi baru</label><input id="cp-new" name="password" type="password" required minlength="10" autocomplete="new-password"><p class="help">Minimal 10 karakter.</p></div>
+        <div class="field"><label for="cp-conf">Ulangi kata sandi baru</label><input id="cp-conf" name="confirm" type="password" required minlength="10" autocomplete="new-password"></div>
+        <button class="btn" type="submit" id="cp-save">Simpan kata sandi</button>
+      </form>`);
+    document.getElementById('change-pass').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      form.querySelector('[data-form-error]').hidden = true;
+      const f = formData(form);
+      if (f.password !== f.confirm) { showFormError(form, { message: 'Kata sandi baru dan ulangannya tidak sama.', fields: { confirm: 'Tidak sama.' } }); return; }
+      const btn = document.getElementById('cp-save');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        const out = await api('/api/auth/password', { method: 'POST', admin: true, body: { current: f.current, password: f.password } });
+        try { sessionStorage.setItem('al-user', JSON.stringify(out.user)); } catch { /* abaikan */ }
+        toast('Kata sandi berhasil diganti');
+        location.hash = '#/admin/' + landingPage();
+      } catch (err) { busy(btn, false); showFormError(form, err); }
+    });
+  }
+
+  // Alur kerja: setiap lot di tahap mana, dan langkah berikutnya untuk peran Anda.
+  async function viewWorkflow() {
+    const { lots } = await api('/api/admin/lots', { admin: true });
+    const stages = [
+      ['received', 'Perlu dinilai', 'Nilai lot di halaman Lot. Isi grade, skor cupping, dan kg siap jual.'],
+      ['graded', 'Menunggu verifikasi', 'Penilai memeriksa nilai, lalu menekan Verifikasi.'],
+      ['verified', 'Siap diterbitkan', 'Admin (orang yang berbeda dari penilai) menerbitkan ke aplikasi.'],
+      ['listed', 'Tayang di aplikasi', 'Lot dapat dilihat dan dipesan pembeli.'],
+    ];
+    const cols = stages.map(([key, title, hint]) => {
+      const items = lots.filter((l) => l.status === key);
+      const actions = (l) => {
+        if (key === 'received') return `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>`;
+        if (key === 'graded' && canDo('verify')) return `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>`;
+        if (key === 'verified' && canDo('publish')) return `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>`;
+        return '';
+      };
+      return `
+        <section class="card" aria-labelledby="st-${key}" style="min-width:0">
+          <h3 id="st-${key}">${esc(title)} <span class="pill">${items.length}</span></h3>
+          <p class="help" style="margin-bottom:12px">${esc(hint)}</p>
+          ${items.length ? items.map((l) => `
+            <div style="border-top:1px solid var(--line);padding:10px 0">
+              <div><strong>${esc(l.code)}</strong> <span class="muted" style="font-size:14px">${esc(l.groupName)}</span></div>
+              <div class="muted" style="font-size:13px;margin:2px 0 8px">${l.tier ? esc(tierLabel(l.tier)) + ' · Cupping ' + esc(l.cupScore || '—') : 'Belum dinilai'}${l.verifiedBy ? ' · Diverifikasi ' + esc(l.verifiedBy.name) : ''}</div>
+              <div class="btn-row">${actions(l)}</div>
+            </div>`).join('') : '<p class="muted" style="font-size:14px">Tidak ada lot.</p>'}
+        </section>`;
+    }).join('');
+    setMain(adminShell('alur', `
+      <h2 style="margin-top:0">Alur kerja lot</h2>
+      <p class="muted" style="font-size:14px">Setiap lot melewati empat tahap. Nilai, verifikasi, lalu terbitkan. Penerbitan dilakukan orang yang berbeda dari yang memverifikasi.</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">${cols}</div>`));
+    wireSignOut();
+    main.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.verify)}/verify`, { method: 'POST', admin: true }); toast('Lot diverifikasi'); viewWorkflow(); }
+      catch (err) { toast(err.message); }
+    }));
+    main.querySelectorAll('[data-publish]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan ke aplikasi'); viewWorkflow(); }
+      catch (err) { toast(err.message); }
+    }));
   }
 
   // Riwayat: siapa mengubah apa dan kapan (tanpa isi data).
@@ -985,14 +1114,19 @@ const ICONS = {
               <td class="num">${kg(l.availableKg)}</td>
               <td><div class="btn-row">
                 ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>` : ''}
-                ${l.status === 'graded' ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan</button>` : ''}
-                ${l.status === 'listed' ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
+                ${l.status === 'graded' && canDo('verify') ? `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>` : ''}
+                ${l.status === 'verified' && canDo('publish') ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>` : ''}
+                ${l.status === 'listed' && canDo('publish') ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
               </div></td>
             </tr>`).join('') || '<tr><td colspan="8">Belum ada lot. Catat pembelian di menu Pembelian.</td></tr>'}
         </tbody></table></div>`));
     wireSignOut();
+    main.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.verify)}/verify`, { method: 'POST', admin: true }); toast('Lot diverifikasi'); viewAdminLots(); }
+      catch (err) { toast(err.message); }
+    }));
     main.querySelectorAll('[data-publish]').forEach((b) => b.addEventListener('click', async () => {
-      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan. Paspor dibuat.'); viewAdminLots(); }
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan ke aplikasi. Paspor dibuat.'); viewAdminLots(); }
       catch (err) { toast(err.message); }
     }));
     main.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', async () => {
@@ -1190,10 +1324,13 @@ const ICONS = {
       if (head === 'about') return viewAbout();
       if (head === 'admin') {
         if (!adminToken()) return viewAdminLogin();
+        const cu = currentUser();
+        if (cu && cu.mustChangePassword) return viewChangePassword();
         const pages = allowedPages();
         const sec = a || landingPage();
         if (!pages.includes(sec)) { location.hash = '#/admin/' + landingPage(); return; }
-        if (sec === 'users') return await viewAdminUsers();
+        if (sec === 'users') return await viewAdminUsers(b);
+        if (sec === 'alur') return await viewWorkflow();
         if (sec === 'audit') return await viewAdminAudit();
         if (sec === 'dashboard') return await viewAdminDashboard();
         if (sec === 'intake') return await viewAdminIntake();
