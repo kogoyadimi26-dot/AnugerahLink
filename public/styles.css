@@ -398,10 +398,6 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .searchbox input::placeholder { color: var(--ink-muted); opacity: 1; }
 .topbar-right { flex: none; }
 .topbar-right .acct-pesanan { display: flex; }
-.topbar .wrap { max-width: 1400px; }
-@media (max-width: 1279px) {
-  .locate { display: none; }
-  .topbar-right .acct-pesanan { display: none; }
 /* Layar lebar sedang: teks lokasi dan tautan Pesanan disembunyikan agar kotak cari tetap lebar */
 @media (max-width: 1359px) { .locate { display: none; } }
 @media (max-width: 1279px) { .topbar-right .acct-pesanan { display: none; } }
