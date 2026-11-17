@@ -18,7 +18,9 @@ module.exports = {
   feesPerKg: 2000, // samples, claims, payment charges
 
   // Fixed costs (full team) used for break-even
-  fixedCostsPerYear: 400000000,
+  // Biaya tetap per tahun (Rp). Dasar: staf Rp471 juta (6 orang, tengah) + software Rp26 juta + sewa gudang Rp119 juta
+  // (150 m2, Rp60.000/m2/bulan, PPN 10%). Lihat docs/business/CAPEX_v1.md bagian 6-10. Bukan dari sumber; asumsi.
+  fixedCostsPerYear: 616000000,
 
   // Estimasi tiba (asumsi perencanaan, perlu dikonfirmasi dengan kurir): dihitung dari tanggal dikirim.
   // Batas akhir dipakai sebagai janji agar keterlambatan tidak dihitung terlalu cepat.

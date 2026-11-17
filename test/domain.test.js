@@ -32,12 +32,12 @@ test('economics with the default mix uses the repriced Local tier', () => {
   assert.equal(e.shippingPerKgBought, 5700);
   assert.equal(e.feesPerKgBought, 1900);
   assert.equal(e.grossMarginPerKgBought, 42450);
-  assert.equal(e.breakEvenKgPerYear, 9423);  // 400M / 42,450 = 9,422.9, rounded up
+  assert.equal(e.breakEvenKgPerYear, 14512);  // 616M / 42,450 = 14,511.2, rounded up
 });
 
 test('economics with the v2 Local price still matches the v2 spreadsheet', () => {
   const tiers = { ...config.tiers, local: { ...config.tiers.local, pricePerKg: 100000 } };
-  const e = pricing.economics({ mix: config.defaultMix, tiers });
+  const e = pricing.economics({ mix: config.defaultMix, tiers, fixedCostsPerYear: 400000000 });
   assert.equal(e.salesPerKgBought, 161500);
   assert.equal(e.grossMarginPerKgBought, 33900);
   // 400M / 33,900 = 11,799.4, rounded up to 11,800 (plan shows 11,799)
