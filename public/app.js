@@ -261,10 +261,10 @@
           </select></div>
         <div class="field"><label for="f-sort">Urutkan</label>
           <select id="f-sort" name="sort">
-            <option value="cup_desc" ${!query.sort || query.sort === 'cup_desc' ? 'selected' : ''}>Skor cupping, tertinggi dulu</option>
-            <option value="price_asc" ${query.sort === 'price_asc' ? 'selected' : ''}>Harga, termurah dulu</option>
-            <option value="price_desc" ${query.sort === 'price_desc' ? 'selected' : ''}>Harga, termahal dulu</option>
-            <option value="freshest" ${query.sort === 'freshest' ? 'selected' : ''}>Panen, terbaru dulu</option>
+            <option value="cup_desc" ${!query.sort || query.sort === 'cup_desc' ? 'selected' : ''}>Skor tertinggi</option>
+            <option value="price_asc" ${query.sort === 'price_asc' ? 'selected' : ''}>Harga terendah</option>
+            <option value="price_desc" ${query.sort === 'price_desc' ? 'selected' : ''}>Harga tertinggi</option>
+            <option value="freshest" ${query.sort === 'freshest' ? 'selected' : ''}>Panen terbaru</option>
           </select></div>
         <div class="field"><label class="check"><input type="checkbox" name="inStock" value="1" ${query.inStock !== '0' ? 'checked' : ''}> Hanya yang tersedia</label></div>
       </form>
