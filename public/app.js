@@ -678,6 +678,15 @@
           ${o.shipment && (o.shipment.courier || o.shipment.waybill) ? `<p style="margin-top:12px"><strong>Pengiriman:</strong> ${esc(o.shipment.courier || 'Kurir')}${o.shipment.waybill ? ' · No. resi <span class="num">' + esc(o.shipment.waybill) + '</span>' : ''}</p>` : ''}
           ${o.payment.reference ? `<p class="muted" style="margin-top:12px">Referensi pembayaran: ${esc(o.payment.reference)}</p>` : '<p class="muted" style="margin-top:12px">Pembayaran belum diterima.</p>'}
         </section>
+        ${o.delivery && o.delivery.status !== 'dibatalkan' ? `
+        <section class="card" aria-labelledby="eta">
+          <h2 id="eta" style="margin-top:0">Estimasi tiba</h2>
+          ${o.delivery.status === 'belum_dikirim'
+            ? '<p class="muted">Estimasi tiba akan muncul setelah pesanan dikirim.</p>'
+            : `<p class="num" style="font-size:18px;margin:0 0 8px">${tanggal(o.delivery.earliest)} &ndash; ${tanggal(o.delivery.latest)}</p>
+               <p><span class="pill ${o.delivery.status === 'terlambat' ? 'bad' : 'ok'}">${esc(o.delivery.label)}</span></p>
+               ${o.delivery.status === 'terlambat' ? '<p class="muted" style="margin-top:8px">Mohon maaf atas keterlambatannya. Tim kami sedang memantau pengiriman dan akan mengabari Anda.</p>' : ''}`}
+        </section>` : ''}
         <section class="card" aria-labelledby="items">
           <h2 id="items" style="margin-top:0">Barang</h2>
           <div class="table-wrap"><table>
