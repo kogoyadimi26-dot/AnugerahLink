@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Store } = require('./lib/store');
-const { seed } = require('./lib/seed');
+const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
@@ -263,6 +263,7 @@ function serveStatic(req, res, pathname) {
 function createApp({ dataFile, adminToken }) {
   const store = new Store(dataFile, seed);
   store.load();
+  if (domain.ensureRegions(store.db, regionDefaults()) > 0) store.save(store.db);
   const migrated = domain.ensurePassportHashes(store.db);
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
