@@ -46,3 +46,13 @@ test('everyday product keywords work: kopi, papua, indonesia, and class descript
   assert.equal(listPublicLots(db, { q: 'kopi tiom' }).length, all.filter((l) => l.regionName === 'Tiom').length, 'kopi plus a region narrows the results');
   assert.equal(listPublicLots(db, { q: 'kakao' }).length, 0, 'kakao is not in stock');
 });
+
+test('a small typing mistake still finds the closest lots; nonsense finds nothing', () => {
+  const db = seed.seed();
+  const all = listPublicLots(db, {});
+  const tiom = all.find((l) => l.regionName === 'Tiom');
+  assert.ok(tiom, 'seed has a Tiom lot');
+  assert.equal(listPublicLots(db, { q: 'tiomm' })[0].code, tiom.code, 'one extra letter still finds Tiom first');
+  assert.equal(listPublicLots(db, { q: 'kopy' }).length, all.length, 'kopy is close to kopi');
+  assert.equal(listPublicLots(db, { q: 'zzzzqqq' }).length, 0, 'nonsense finds nothing');
+});
