@@ -192,15 +192,6 @@
             </article>`).join('')}
         </div>
       </section>
-      <section aria-labelledby="tiers">
-        <h2 id="tiers">Empat kategori</h2>
-        <div class="steps">
-          ${Object.entries(tiers).map(([code, t]) => `
-            <div class="card"><span class="${tierClass(code)}">${esc(t.label)}</span>
-              <p class="price num" style="margin-top:8px;font-weight:700">${rp(t.pricePerKg)} <span class="muted" style="font-weight:400;font-size:14px">per kg</span></p>
-              </div>`).join('')}
-        </div>
-      </section>
       <section aria-labelledby="values">
         <h2 id="values">Nilai kami</h2>
         <div class="pillars">
