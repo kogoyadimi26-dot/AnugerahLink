@@ -12,6 +12,7 @@ const { productionProblems } = require('./lib/prodcheck');
 const content = require('./lib/content');
 const buyers = require('./lib/buyers');
 const notify = require('./lib/notify');
+const invoice = require('./lib/invoice');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -541,6 +542,28 @@ function createApp({ dataFile, owner, demo = false }) {
     if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
     if (pathname === '/api/payments/webhook' && req.method === 'POST') {
       return handlePaymentWebhook(req, res, store);
+    }
+    // Faktur PDF: tamu memakai nomor pesanan dan email (seperti melacak); pembeli memakai akunnya.
+    const invoiceGuest = pathname.match(/^\/api\/orders\/(ALO-\d{4}-\d{3})\/invoice$/);
+    const invoiceBuyer = pathname.match(/^\/api\/buyer\/orders\/(ALO-\d{4}-\d{3})\/invoice$/);
+    if ((invoiceGuest || invoiceBuyer) && req.method === 'GET') {
+      try {
+        const db = store.read();
+        let order;
+        if (invoiceGuest) {
+          order = domain.findOrderForBuyer(db, invoiceGuest[1], url.searchParams.get('email'));
+        } else {
+          const b = buyers.buyerFromToken(db, bearer(req), new Date().toISOString());
+          if (!b) throw new ApiError(401, 'unauthorized', 'Silakan masuk ke akun Anda.');
+          order = db.orders.find((o) => o.number === invoiceBuyer[1] && o.buyerId === b.id);
+        }
+        if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
+        const pdf = invoice.invoicePdf(order, new Date().toISOString());
+        res.writeHead(200, baseHeaders({ 'Content-Type': 'application/pdf', 'Content-Length': pdf.length, 'Content-Disposition': `attachment; filename="faktur-${order.number}.pdf"`, 'Cache-Control': 'private, no-store' }));
+        return res.end(pdf);
+      } catch (err) {
+        return sendError(res, err);
+      }
     }
     const publicPhoto = pathname.match(/^\/api\/lots\/([\w-]+)\/photos\/([\w-]+)$/);
     if (publicPhoto && req.method === 'GET') {
