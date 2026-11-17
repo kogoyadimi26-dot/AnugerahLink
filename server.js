@@ -11,6 +11,7 @@ const { LoginLimiter } = require('./lib/ratelimit');
 const { productionProblems } = require('./lib/prodcheck');
 const content = require('./lib/content');
 const buyers = require('./lib/buyers');
+const notify = require('./lib/notify');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -348,6 +349,10 @@ function buildRoutes(ctx) {
   route('POST', /^\/api\/admin\/lots\/([\w-]+)\/verify$/, ([id], _b, _q, req) => ({ status: 200, body: { lot: store.update((db) => domain.verifyLot(db, id, requirePerm(req, store, 'grade'), now())) } }), { perm: 'grade' });
   route('POST', /^\/api\/admin\/lots\/([\w-]+)\/publish$/, ([id], _b, _q, req) => ({ status: 200, body: { lot: store.update((db) => domain.publishLot(db, id, requirePerm(req, store, 'publish'), now())) } }), { perm: 'publish' });
   route('POST', /^\/api\/admin\/lots\/([\w-]+)\/withdraw$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.withdrawLot(db, id)) } }), { perm: 'publish' });
+  route('GET', /^\/api\/admin\/outbox$/, () => {
+    const items = (store.read().outbox || []).slice(-200).reverse().map((m) => ({ id: m.id, orderNumber: m.orderNumber, event: m.event, channel: m.channel, to: m.to, subject: m.subject, status: m.status, attempts: m.attempts, lastError: m.lastError, createdAt: m.createdAt, sentAt: m.sentAt || null }));
+    return { status: 200, body: { items, providers: notify.providerStatus() }, headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'orders' });
   route('GET', /^\/api\/admin\/orders$/, () => ({ status: 200, body: { orders: store.read().orders }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('PATCH', /^\/api\/admin\/orders\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { order: store.update((db) => domain.updateOrderStatus(db, id, body, now())) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('GET', /^\/api\/admin\/feedback$/, () => ({ status: 200, body: { feedback: store.read().feedback } }), { perm: 'feedback' });
@@ -618,8 +623,12 @@ if (require.main === module) {
   }
   const demo = process.env.DEMO_ACCOUNTS === '1';
   if (demo) console.warn('[demo] Akun demo aktif. Jangan gunakan mode ini untuk data sungguhan.');
-  const { server } = createApp({ dataFile, owner, demo });
+  const { server, store } = createApp({ dataFile, owner, demo });
   if (DEV) { startDevWatch(); console.log('[dev] live reload is on: the browser refreshes when public/ changes'); }
+  // Pengirim pesan berkala. Tanpa penyedia yang diatur, pesan tetap menunggu.
+  setInterval(() => {
+    notify.dispatchOutbox(store).catch((err) => console.error('[notify] gagal mengirim:', err.message));
+  }, 60000).unref();
   server.listen(port, () => console.log(`AnugerahLink running at http://localhost:${port}`));
 }
 

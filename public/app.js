@@ -589,6 +589,7 @@
             }).join('')}
             ${cancelled ? `<li class="cancelled current">Dibatalkan ${tanggal(o.updatedAt)}</li>` : ''}
           </ol>
+          ${o.shipment && (o.shipment.courier || o.shipment.waybill) ? `<p style="margin-top:12px"><strong>Pengiriman:</strong> ${esc(o.shipment.courier || 'Kurir')}${o.shipment.waybill ? ' · No. resi <span class="num">' + esc(o.shipment.waybill) + '</span>' : ''}</p>` : ''}
           ${o.payment.reference ? `<p class="muted" style="margin-top:12px">Referensi pembayaran: ${esc(o.payment.reference)}</p>` : '<p class="muted" style="margin-top:12px">Pembayaran belum diterima.</p>'}
         </section>
         <section class="card" aria-labelledby="items">
@@ -1237,7 +1238,7 @@ const ICONS = {
   }
 
   async function viewAdminOrders() {
-    const { orders } = await api('/api/admin/orders', { admin: true });
+    const [{ orders }, box] = await Promise.all([api('/api/admin/orders', { admin: true }), api('/api/admin/outbox', { admin: true })]);
     const statuses = ['requested', 'confirmed', 'paid', 'shipped', 'delivered', 'cancelled'];
     setMain(adminShell('orders', `
       <h2 style="margin-top:0">Pesanan</h2>
@@ -1257,13 +1258,20 @@ const ICONS = {
                     ${statuses.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${esc(STATUS_TEKS[s])}</option>`).join('')}
                   </select>
                   <input name="paymentReference" aria-label="Nomor referensi bayar" placeholder="Ref transfer" value="${esc(o.payment.reference || '')}" style="min-width:120px">
+                  <input name="courier" aria-label="Kurir" placeholder="Kurir" value="${esc((o.shipment || {}).courier || '')}" style="min-width:100px">
+                  <input name="waybill" aria-label="Nomor resi" placeholder="No. resi" value="${esc((o.shipment || {}).waybill || '')}" style="min-width:120px">
                   <button class="btn small" type="submit">Simpan</button>
                 </form>
                 ${(state.config.demoAccounts || []).length ? (o.payments || []).filter((p) => p.status === 'pending').map((p) => `<button class="btn secondary small" type="button" data-sim="${esc(p.providerRef || '')}" style="margin-top:6px">Simulasi bayar (demo)</button>`).join('') : ''}
                 <p class="error" data-row-error hidden></p>
               </td>
             </tr>`).join('') || '<tr><td colspan="5">Belum ada pesanan.</td></tr>'}
-        </tbody></table></div>`));
+        </tbody></table></div>
+      <h2>Pesan ke pelanggan</h2>
+      <p class="muted" style="font-size:14px">Email: ${box.providers.email ? 'terhubung' : 'belum diatur, pesan menunggu'} · WhatsApp: ${box.providers.whatsapp ? 'terhubung' : 'belum diatur, pesan menunggu'}</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Pesanan</th><th>Kanal</th><th>Kepada</th><th>Status</th><th>Waktu</th></tr></thead>
+        <tbody>${box.items.map((m) => `<tr><td>${esc(m.orderNumber)}</td><td>${esc(m.channel === 'email' ? 'Email' : 'WhatsApp')}</td><td>${esc(m.to)}</td><td><span class="pill ${m.status === 'sent' ? 'ok' : m.status === 'failed' ? 'bad' : 'warn'}">${esc({ queued: 'Menunggu', sent: 'Terkirim', failed: 'Gagal' }[m.status] || m.status)}</span>${m.lastError ? `<br><span class="muted" style="font-size:12px">${esc(m.lastError)}</span>` : ''}</td><td>${tanggal(m.createdAt)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada pesan.</td></tr>'}</tbody></table></div>`));
     wireSignOut();
     main.querySelectorAll('button[data-sim]').forEach((b) => b.addEventListener('click', async () => {
       try { await api(`/api/admin/payments/${encodeURIComponent(b.dataset.sim)}/simulate`, { method: 'POST', admin: true }); toast('Pembayaran simulasi diterima'); viewAdminOrders(); }
