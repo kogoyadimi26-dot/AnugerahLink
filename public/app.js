@@ -82,6 +82,7 @@
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (admin) headers.Authorization = 'Bearer ' + adminToken();
+    else if (buyerToken() && isBuyerPath(path)) headers.Authorization = 'Bearer ' + buyerToken();
     let res;
     try {
       res = await fetch(path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
@@ -93,6 +94,7 @@
     if (!res.ok) {
       const err = (data && data.error) || { message: 'Ada kendala di sisi kami. Coba lagi sebentar lagi.' };
       if (res.status === 401 && admin) { clearAdminToken(); }
+      if (res.status === 401 && !admin && isBuyerPath(path)) { setBuyerToken(''); }
       throw { message: err.message, fields: err.fields || {}, status: res.status, code: err.code, extra: err };
     }
     return data;
@@ -449,6 +451,7 @@
     setMain(`
       <h1>Pembayaran</h1>
       <p class="muted">Untuk pembeli usaha. Pembayaran dengan transfer bank.</p>
+      ${buyerToken() ? '' : '<p class="notice ok">Punya akun? <a href="#/masuk">Masuk</a> untuk memakai alamat tersimpan dan melihat riwayat pesanan.</p>'}
       <form id="checkout" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <h2 style="margin-top:0">Pembeli</h2>
@@ -468,6 +471,8 @@
         <div class="form-grid">
           <div class="field"><label for="c-city">Kota pengiriman <span class="muted">(wajib)</span></label>
             <input id="c-city" name="city" required autocomplete="address-level2"></div>
+          <div class="field wide"><label for="c-street">Alamat lengkap</label>
+            <textarea id="c-street" name="street" maxlength="200" autocomplete="street-address"></textarea></div>
           <div class="field wide"><label for="c-notes">Catatan untuk tim</label>
             <textarea id="c-notes" name="notes" maxlength="500"></textarea></div>
         </div>
@@ -476,6 +481,7 @@
         <div class="btn-row"><button class="btn" type="submit" id="place">Buat pesanan</button><a class="btn secondary" href="#/cart">Kembali ke keranjang</a></div>
       </form>`);
     const form = document.getElementById('checkout');
+    if (buyerToken()) prefillCheckout();
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
@@ -488,7 +494,7 @@
           method: 'POST',
           body: {
             lines: state.cart,
-            customer: { name: f.name, company: f.company, buyerType: f.buyerType, phone: f.phone, email: f.email, city: f.city, notes: f.notes },
+            customer: { name: f.name, company: f.company, buyerType: f.buyerType, phone: f.phone, email: f.email, city: f.city, street: f.street, notes: f.notes },
           },
         });
         setSession('al-last-order', { number: order.number, email: f.email });
@@ -1583,6 +1589,197 @@ const ICONS = {
     });
   }
 
+  // ---------- akun pembeli ----------
+  const BUYER_PATHS = ['/api/buyer', '/api/orders'];
+  function isBuyerPath(path) { return BUYER_PATHS.some((b) => path === b || path.startsWith(b + '/') || path.startsWith(b + '?')); }
+  function buyerToken() { try { return localStorage.getItem('al-buyer') || ''; } catch { return ''; } }
+  function setBuyerToken(t) { try { if (t) localStorage.setItem('al-buyer', t); else localStorage.removeItem('al-buyer'); } catch { /* abaikan */ } }
+
+  function addressFieldsHtml(a) {
+    return `
+      <div class="form-grid">
+        <div class="field"><label for="a-label">Label</label><input id="a-label" name="label" maxlength="40" value="${esc(a.label || '')}" placeholder="Kafe, Gudang"></div>
+        <div class="field"><label for="a-recipient">Penerima</label><input id="a-recipient" name="recipient" required minlength="2" maxlength="80" value="${esc(a.recipient || '')}"></div>
+        <div class="field"><label for="a-phone">Telepon</label><input id="a-phone" name="phone" type="tel" required value="${esc(a.phone || '')}"></div>
+        <div class="field"><label for="a-postal">Kode pos</label><input id="a-postal" name="postal" inputmode="numeric" maxlength="5" value="${esc(a.postal || '')}"></div>
+        <div class="field"><label for="a-city">Kota</label><input id="a-city" name="city" required minlength="2" maxlength="80" value="${esc(a.city || '')}"></div>
+        <div class="field"><label for="a-province">Provinsi</label><input id="a-province" name="province" maxlength="80" value="${esc(a.province || '')}"></div>
+        <div class="field wide"><label for="a-street">Alamat lengkap</label><textarea id="a-street" name="street" required minlength="5" maxlength="200">${esc(a.street || '')}</textarea></div>
+        <div class="field wide"><label class="check"><input type="checkbox" name="isDefault"> Jadikan alamat utama</label></div>
+      </div>`;
+  }
+
+  async function viewAccount() {
+    if (!buyerToken()) return viewBuyerAuth();
+    let me;
+    try { me = (await api('/api/buyer/me')).buyer; } catch { setBuyerToken(''); return viewBuyerAuth(); }
+    const { orders } = await api('/api/buyer/orders');
+    setMain(`
+      <div class="btn-row" style="justify-content:space-between;align-items:flex-end">
+        <div><h1 style="margin-bottom:4px">Akun saya</h1><p class="muted" style="margin:0">Halo, ${esc(me.name)}. ${esc(me.email)}</p></div>
+        <button class="btn secondary small" type="button" id="buyer-out">Keluar</button>
+      </div>
+      <h2>Pesanan saya</h2>
+      ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
+        ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/track/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a></td></tr>`).join('')}
+        </tbody></table></div>` : `<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat saat masuk akan muncul di sini.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>`}
+      <h2>Alamat tersimpan</h2>
+      <div class="grid">${me.addresses.map((a) => `
+        <div class="card"><div class="btn-row" style="justify-content:space-between"><strong>${esc(a.label)}</strong>${a.isDefault ? '<span class="pill ok">Utama</span>' : ''}</div>
+          <p style="margin:8px 0 0">${esc(a.recipient)} · ${esc(a.phone)}</p>
+          <p class="muted" style="margin:4px 0">${esc(a.street)}, ${esc(a.city)}${a.province ? ', ' + esc(a.province) : ''}${a.postal ? ' ' + esc(a.postal) : ''}</p>
+          <div class="btn-row" style="margin-top:8px">
+            ${a.isDefault ? '' : `<button class="btn secondary small" type="button" data-default="${esc(a.id)}">Jadikan utama</button>`}
+            <button class="btn danger small" type="button" data-remove="${esc(a.id)}">Hapus</button>
+          </div></div>`).join('') || '<p class="muted">Belum ada alamat tersimpan.</p>'}</div>
+      <h3 style="margin-top:20px">Tambah alamat</h3>
+      <form id="addr-form" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
+        ${addressFieldsHtml({})}
+        <div class="btn-row"><button class="btn" type="submit" data-save>Simpan alamat</button></div></form>
+      <h2>Profil</h2>
+      <form id="profile" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="form-grid">
+          <div class="field"><label for="pf-name">Nama</label><input id="pf-name" name="name" required minlength="2" maxlength="80" value="${esc(me.name)}"></div>
+          <div class="field"><label for="pf-phone">Telepon</label><input id="pf-phone" name="phone" type="tel" required value="${esc(me.phone || '')}"></div>
+          <div class="field"><label for="pf-company">Nama kafe atau perusahaan</label><input id="pf-company" name="company" maxlength="120" value="${esc(me.company || '')}"></div>
+          <div class="field"><label for="pf-type">Jenis pembeli</label><select id="pf-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}" ${me.buyerType === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+        </div>
+        <div class="btn-row"><button class="btn" type="submit" data-save>Simpan profil</button></div></form>
+      <h2>Ganti kata sandi</h2>
+      <form id="pwd" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="form-grid">
+          <div class="field"><label for="pw-cur">Kata sandi lama</label><input id="pw-cur" name="current" type="password" required autocomplete="current-password"></div>
+          <div class="field"><label for="pw-new">Kata sandi baru (minimal 8 karakter)</label><input id="pw-new" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
+        </div>
+        <div class="btn-row"><button class="btn" type="submit" data-save>Ganti kata sandi</button></div></form>`);
+    wireAccount(me);
+  }
+
+  function wireAccount(me) {
+    document.getElementById('buyer-out').addEventListener('click', async () => {
+      try { await api('/api/buyer/logout', { method: 'POST' }); } catch { /* sesi sudah habis */ }
+      setBuyerToken('');
+      toast('Anda sudah keluar.');
+      location.hash = '#/';
+    });
+    const addrForm = document.getElementById('addr-form');
+    addrForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addrForm.querySelector('[data-form-error]').hidden = true;
+      const btn = addrForm.querySelector('[data-save]'); busy(btn, true, 'Menyimpan…');
+      try { await api('/api/buyer/addresses', { method: 'POST', body: formData(addrForm) }); toast('Alamat disimpan.'); viewAccount(); }
+      catch (err) { showFormError(addrForm, err); busy(btn, false); }
+    });
+    main.querySelectorAll('[data-default]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api('/api/buyer/addresses/' + encodeURIComponent(b.dataset.default), { method: 'PATCH', body: { ...addrBody(me, b.dataset.default), isDefault: true } }); viewAccount(); }
+      catch (err) { toast(err.message || 'Belum bisa diubah.'); }
+    }));
+    main.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Hapus alamat ini?')) return;
+      try { await api('/api/buyer/addresses/' + encodeURIComponent(b.dataset.remove), { method: 'DELETE' }); viewAccount(); }
+      catch (err) { toast(err.message || 'Belum bisa dihapus.'); }
+    }));
+    const profile = document.getElementById('profile');
+    profile.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      profile.querySelector('[data-form-error]').hidden = true;
+      const btn = profile.querySelector('[data-save]'); busy(btn, true, 'Menyimpan…');
+      try { await api('/api/buyer/me', { method: 'PATCH', body: formData(profile) }); toast('Profil disimpan.'); viewAccount(); }
+      catch (err) { showFormError(profile, err); busy(btn, false); }
+    });
+    const pwd = document.getElementById('pwd');
+    pwd.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      pwd.querySelector('[data-form-error]').hidden = true;
+      const btn = pwd.querySelector('[data-save]'); busy(btn, true, 'Menyimpan…');
+      try { await api('/api/buyer/password', { method: 'POST', body: formData(pwd) }); pwd.reset(); toast('Kata sandi diganti.'); busy(btn, false); }
+      catch (err) { showFormError(pwd, err); busy(btn, false); }
+    });
+  }
+
+  // Data alamat yang sudah ada, untuk tombol "Jadikan utama". Server mengganti semua kolom yang dikirim.
+  function addrBody(me, id) {
+    const a = me.addresses.find((x) => x.id === id) || {};
+    return { label: a.label, recipient: a.recipient, phone: a.phone, street: a.street, city: a.city, province: a.province, postal: a.postal };
+  }
+
+  // Pindah ke Akun. Bila hash sudah #/akun, router tidak dipanggil ulang, jadi halaman digambar langsung.
+  function goAccount() {
+    if (location.hash === '#/akun' || location.hash === '#/masuk') viewAccount();
+    else location.hash = '#/akun';
+  }
+
+  function viewBuyerAuth() {
+    setMain(`
+      <h1>Akun pembeli</h1>
+      <p class="muted">Masuk untuk menyimpan alamat dan melihat riwayat pesanan. Anda tetap bisa memesan tanpa akun.</p>
+      <div class="grid" style="grid-template-columns:1fr">
+        <form id="buyer-login" class="card" novalidate><h2 style="margin-top:0">Masuk</h2>
+          <div class="notice bad" data-form-error hidden role="alert"></div>
+          <div class="field"><label for="bl-email">Email</label><input id="bl-email" name="email" type="email" required autocomplete="email"></div>
+          <div class="field"><label for="bl-pw">Kata sandi</label><input id="bl-pw" name="password" type="password" required autocomplete="current-password"></div>
+          <div class="btn-row"><button class="btn" type="submit" data-save>Masuk</button></div></form>
+        <form id="buyer-signup" class="card" novalidate><h2 style="margin-top:0">Daftar</h2>
+          <div class="notice bad" data-form-error hidden role="alert"></div>
+          <div class="form-grid">
+            <div class="field"><label for="bs-name">Nama kontak</label><input id="bs-name" name="name" required minlength="2" maxlength="80" autocomplete="name"></div>
+            <div class="field"><label for="bs-phone">Telepon</label><input id="bs-phone" name="phone" type="tel" required autocomplete="tel"></div>
+            <div class="field"><label for="bs-email">Email</label><input id="bs-email" name="email" type="email" required autocomplete="email"></div>
+            <div class="field"><label for="bs-company">Nama kafe atau perusahaan</label><input id="bs-company" name="company" maxlength="120" autocomplete="organization"></div>
+            <div class="field"><label for="bs-type">Jenis pembeli</label><select id="bs-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
+            <div class="field"><label for="bs-pw">Kata sandi (minimal 8 karakter)</label><input id="bs-pw" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
+          </div>
+          <div class="field"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/tentang">kebijakan privasi</a> dan syarat penggunaan AnugerahLink.</label></div>
+          <div class="btn-row"><button class="btn" type="submit" data-save>Buat akun</button></div></form>
+      </div>`);
+    const login = document.getElementById('buyer-login');
+    login.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      login.querySelector('[data-form-error]').hidden = true;
+      const btn = login.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
+      try { const r = await api('/api/buyer/login', { method: 'POST', body: formData(login) }); setBuyerToken(r.token); goAccount(); }
+      catch (err) { showFormError(login, err); busy(btn, false); }
+    });
+    const signup = document.getElementById('buyer-signup');
+    signup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      signup.querySelector('[data-form-error]').hidden = true;
+      const f = formData(signup);
+      f.consent = signup.elements.consent.checked;
+      const btn = signup.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
+      try { const r = await api('/api/buyer/signup', { method: 'POST', body: f }); setBuyerToken(r.token); toast('Akun dibuat. Selamat datang!'); goAccount(); }
+      catch (err) { showFormError(signup, err); busy(btn, false); }
+    });
+  }
+
+  // Checkout untuk pembeli yang sudah masuk: isi data dari profil dan alamat utama, dan pilih alamat lain bila perlu.
+  async function prefillCheckout() {
+    let me;
+    try { me = (await api('/api/buyer/me')).buyer; } catch { setBuyerToken(''); return; }
+    const form = document.getElementById('checkout');
+    if (!form) return;
+    const set = (name, v) => { if (form.elements[name] && v) form.elements[name].value = v; };
+    set('name', me.name); set('company', me.company); set('phone', me.phone); set('buyerType', me.buyerType);
+    form.elements.email.value = me.email; form.elements.email.readOnly = true;
+    if (me.addresses.length) {
+      const sel = document.createElement('select');
+      sel.id = 'c-addr';
+      sel.innerHTML = me.addresses.map((a) => `<option value="${esc(a.id)}" ${a.isDefault ? 'selected' : ''}>${esc(a.label)} · ${esc(a.city)}</option>`).join('');
+      const wrap = document.createElement('div');
+      wrap.className = 'field wide';
+      wrap.innerHTML = '<label for="c-addr">Alamat pengiriman</label>';
+      wrap.appendChild(sel);
+      form.querySelector('.form-grid').prepend(wrap);
+      const apply = () => {
+        const a = me.addresses.find((x) => x.id === sel.value);
+        if (!a) return;
+        set('city', a.city); set('street', a.street); set('phone', a.phone);
+      };
+      sel.addEventListener('change', apply);
+      apply();
+    }
+  }
+
   // ---------- router ----------
   function parse() {
     const raw = location.hash.replace(/^#/, '') || '/';
@@ -1609,6 +1806,7 @@ const ICONS = {
       if (head === 'track' && a) return await viewTrackDetail(a, query);
       if (head === 'feedback' && a) return viewFeedback(a);
       if (head === 'about') return viewAbout();
+      if (head === 'akun' || head === 'masuk') return await viewAccount();
       if (head === 'admin') {
         if (!adminToken()) return viewAdminLogin();
         const cu = currentUser();
