@@ -366,25 +366,25 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .subnav a:hover { background: var(--green-soft); color: var(--green-2); }
 .subnav a[aria-current="page"] { background: var(--brand); color: var(--on-primary); }
 
-/* ---------- footer gaya marketplace ---------- */
-.backtotop { display: block; width: 100%; border: 0; background: color-mix(in srgb, var(--footer-bg) 70%, #FFFFFF); color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; min-height: 48px; cursor: pointer; }
-.backtotop:hover { background: color-mix(in srgb, var(--footer-bg) 55%, #FFFFFF); }
-.site-footer { background: color-mix(in srgb, var(--footer-bg) 88%, #000000); color: var(--footer-ink); padding: 40px 0 0; }
+/* ---------- footer gaya marketplace (warna abu-biru gelap seperti referensi) ---------- */
+.backtotop { display: block; width: 100%; border: 0; background: #37475A; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 500; min-height: 48px; cursor: pointer; }
+.backtotop:hover { background: #46566B; }
+.site-footer { background: #232F3E; color: #DDDDDD; padding: 40px 0 0; }
 .footer-grid { display: grid; grid-template-columns: 1fr; gap: 28px; padding-bottom: 36px; }
 @media (min-width: 640px) { .footer-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 960px) { .footer-grid { grid-template-columns: repeat(4, 1fr); gap: 32px; } }
 .footer-col { display: flex; flex-direction: column; gap: 10px; }
 .site-footer .footer-title { color: #FFFFFF; font-size: 17px; font-weight: 700; text-transform: none; letter-spacing: 0; margin: 0 0 6px; }
-.site-footer .footer-col a { color: var(--footer-ink); font-size: 15px; text-decoration: none; width: fit-content; }
+.site-footer .footer-col a { color: #DDDDDD; font-size: 15px; text-decoration: none; width: fit-content; }
 .site-footer .footer-col a:hover { text-decoration: underline; color: #FFFFFF; }
-.footer-plain { margin: 0; font-size: 15px; line-height: 1.5; opacity: .9; }
-.footer-bottom { border-top: 1px solid color-mix(in srgb, var(--footer-ink) 20%, transparent); padding-top: 22px; }
+.footer-plain { margin: 0; font-size: 15px; line-height: 1.5; color: #DDDDDD; }
+.footer-bottom { border-top: 1px solid #3A4553; padding-top: 22px; }
 .footer-bottom-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding-bottom: 22px; }
 .footer-wordmark { color: #FFFFFF; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; }
-.footer-wordmark span { color: var(--gold-hi); }
+.footer-wordmark span { color: #E0AE3A; }
 .footer-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.footer-chip { border: 1px solid color-mix(in srgb, var(--footer-ink) 40%, transparent); border-radius: 6px; padding: 8px 12px; font-size: 14px; color: #FFFFFF; }
-.site-footer .footer-legal { border-top: 0; padding: 0 16px 24px; font-size: 13px; opacity: .85; }
+.footer-chip { border: 1px solid #5A6878; border-radius: 4px; padding: 8px 12px; font-size: 14px; color: #FFFFFF; background: #232F3E; }
+.site-footer .footer-legal { border-top: 0; padding: 0 16px 24px; font-size: 13px; color: #BBBBBB; }
 .site-footer .footer-legal .footer-tag { margin: 0 0 6px; max-width: none; }
 .site-footer .footer-legal p { margin: 0 0 6px; }
-.site-footer .footer-legal a { color: var(--gold-hi); }
+.site-footer .footer-legal a { color: #E0AE3A; }
