@@ -817,13 +817,13 @@ const ICONS = {
             <strong>${u ? esc(u.name) : ''}</strong>
             <span class="muted">${u ? esc(u.roleLabel || u.role) : ''}</span>
           </div>
-          <nav class="admin-nav" aria-label="Kantor belakang">
+          <nav class="admin-nav" aria-label="Menu panel tim">
             ${links.map(([k, l]) => `<a href="#/admin/${k}" ${active === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
           </nav>
           <button class="btn secondary small admin-out" id="admin-out" type="button">Keluar</button>
         </aside>
         <div class="admin-body">
-          <h1 style="margin:0 0 16px">Kantor belakang</h1>
+          <h1 class="admin-title">Panel tim</h1>
           ${body}
         </div>
       </div>`;
@@ -1071,10 +1071,26 @@ const ICONS = {
     const o = s.ordersByStatus;
     setMain(adminShell('dashboard', `
       <div class="stats">
-        <div class="card stat"><div class="label">Kg tersedia (tayang)</div><div class="value">${kg(s.totalStockKg)}</div></div>
-        <div class="card stat"><div class="label">Pesanan terbuka</div><div class="value">${o.requested + o.confirmed + o.paid}</div><div class="label">${o.requested} diminta · ${o.confirmed} dikonfirmasi · ${o.paid} dibayar</div></div>
-        <div class="card stat"><div class="label">Nilai pesanan terbuka</div><div class="value">${rp(s.openRevenue)}</div></div>
-        <div class="card stat"><div class="label">Umpan balik untuk ditandai</div><div class="value">${s.feedbackToReview}</div></div>
+        <div class="card stat">
+          <p class="stat-label">Stok tayang</p>
+          <p class="stat-value">${kg(s.totalStockKg)}</p>
+          <p class="stat-note">Kopi yang bisa dibeli sekarang</p>
+        </div>
+        <div class="card stat">
+          <p class="stat-label">Pesanan terbuka</p>
+          <p class="stat-value">${o.requested + o.confirmed + o.paid}</p>
+          <p class="stat-note">${o.requested} diminta · ${o.confirmed} dikonfirmasi · ${o.paid} dibayar</p>
+        </div>
+        <div class="card stat">
+          <p class="stat-label">Nilai pesanan terbuka</p>
+          <p class="stat-value">${rp(s.openRevenue)}</p>
+          <p class="stat-note">Belum dikirim</p>
+        </div>
+        <div class="card stat">
+          <p class="stat-label">Umpan balik perlu ditandai</p>
+          <p class="stat-value">${s.feedbackToReview}</p>
+          <p class="stat-note">Belum diperiksa tim</p>
+        </div>
       </div>
       <h2>Stok per kategori</h2>
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Kg tersedia</th></tr></thead>

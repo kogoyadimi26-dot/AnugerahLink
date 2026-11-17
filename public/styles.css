@@ -190,8 +190,11 @@ tbody tr { transition: background-color var(--ease); }
 tbody tr:hover { background: color-mix(in srgb, var(--green-soft) 60%, transparent); }
 .stats { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); }
 @media (min-width: 1024px) { .stats { grid-template-columns: repeat(4, 1fr); } }
-.stat .label { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 600; }
-.stat .value { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--heading); font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; gap: 6px; padding: 20px; }
+.stat-label { margin: 0; min-height: 2.8em; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink-muted); }
+.stat-value { margin: 0; font-size: clamp(22px, 2vw, 30px); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--heading); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat-note { margin: auto 0 0; padding-top: 8px; font-size: 13px; line-height: 1.45; color: var(--ink-muted); }
+.admin-title { margin: 0 0 20px; font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
 .timeline { list-style: none; padding: 0; margin: 0; }
 .timeline li { position: relative; padding: 8px 0 8px 22px; margin-left: 6px; border-left: 2px solid var(--line); }
 .timeline li::before { content: ""; position: absolute; left: -7px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
