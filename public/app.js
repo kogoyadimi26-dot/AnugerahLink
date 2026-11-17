@@ -156,19 +156,23 @@
     return `
       <article class="card lot-card" aria-labelledby="lot-${esc(l.code)}">
         ${l.coverPhotoId ? `<img class="lot-cover" src="/api/lots/${encodeURIComponent(l.code)}/photos/${encodeURIComponent(l.coverPhotoId)}" alt="Foto ${esc(l.title)}" loading="lazy">` : ''}
-        <div class="btn-row" style="justify-content:space-between">
+        <div class="lot-top">
           <span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span>
           <span class="code">${esc(l.code)}</span>
         </div>
-        <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}" style="color:inherit;text-decoration:none">${esc(l.title)}</a></h3>
-        <p class="muted">${esc(l.groupName)} · ${esc(l.process)} · ${esc(l.grade)}</p>
-        <p class="price num">${rp(l.pricePerKg)} <span class="muted" style="font-size:14px;font-weight:400">per kg</span></p>
-        <div class="btn-row">
+        <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}">${esc(l.title)}</a></h3>
+        <ul class="lot-meta" aria-label="Detail lot">
+          <li>${esc(l.groupName)}</li>
+          <li>${esc(l.process)}</li>
+          <li>${esc(l.grade)}</li>
+        </ul>
+        <div class="lot-price"><span class="price num">${rp(l.pricePerKg)}</span><span class="lot-unit">per kg</span></div>
+        <div class="lot-stock">
           ${soldOut ? '<span class="pill bad">Habis terjual</span>' : `<span class="pill">${kg(l.availableKg)} tersedia</span>`}
           ${l.lowStock ? '<span class="pill warn">Stok menipis</span>' : ''}
         </div>
-        <div class="btn-row" style="margin-top:auto">
-          <a class="btn secondary small" href="${lotHref(l.code)}">Lihat lot</a>
+        <div class="lot-actions">
+          <a class="btn small" href="${lotHref(l.code)}">Lihat lot</a>
           <a class="btn secondary small" href="${passportHref(l.code)}">Paspor</a>
         </div>
       </article>`;
