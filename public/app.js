@@ -103,7 +103,7 @@
   // Halaman dalam bagian Katalog (Produk, Kategori, Tentang) diberi menu tab yang sama.
   function katalogSubnav() {
     const h = location.hash || '';
-    const tabs = [['#/catalogue', 'Produk'], ['#/kategori', 'Kategori'], ['#/about', 'Tentang']];
+    const tabs = [['#/catalogue', 'Produk'], ['#/about', 'Tentang']];
     const active = tabs.find(([href]) => h.startsWith(href)) || tabs[0];
     return `<nav class="subnav" aria-label="Menu katalog">${tabs.map(([href, label]) => `<a href="${href}"${href === active[0] ? ' aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
   }
