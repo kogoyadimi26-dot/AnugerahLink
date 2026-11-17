@@ -65,7 +65,7 @@
 
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
   function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
-  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'feedback', 'users', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
+  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'feedback', 'users', 'pembeli', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
   function canDo(action) {
     const r = (currentUser() || {}).role;
     if (action === 'verify') return r === 'admin' || r === 'grader';
@@ -811,7 +811,7 @@ const ICONS = {
 
   // ---------- tim (admin) ----------
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -888,6 +888,52 @@ const ICONS = {
         showFormError(form, err);
       }
     });
+  }
+
+  // Akun pembeli: lihat status email, tandai terverifikasi, dan kirim tautan atur ulang. Semua tercatat di riwayat.
+  async function viewAdminBuyers(q) {
+    const query = String(q || '');
+    const { buyers } = await api(`/api/admin/buyers?q=${encodeURIComponent(query)}`, { admin: true });
+    const when = (iso) => (iso ? tanggal(iso) : '—');
+    setMain(adminShell('pembeli', `
+      <h2 style="margin-top:0">Akun pembeli</h2>
+      <form id="buyer-search" class="btn-row" style="margin-bottom:16px">
+        <input type="search" name="q" value="${esc(query)}" placeholder="Cari nama, email, atau perusahaan" aria-label="Cari pembeli" style="max-width:360px">
+        <button class="btn secondary small" type="submit">Cari</button>
+      </form>
+      <p class="muted">${buyers.length} akun${buyers.length >= 200 ? ' (200 terbaru)' : ''}. Kata sandi tidak pernah ditampilkan.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Pembeli</th><th>Kontak</th><th>Status email</th><th class="num">Pesanan</th><th>Aktivitas</th><th></th></tr></thead>
+        <tbody>
+          ${buyers.map((b) => `<tr>
+            <td><strong>${esc(b.name)}</strong>${b.company ? `<br><span class="muted" style="font-size:13px">${esc(b.company)}</span>` : ''}</td>
+            <td>${esc(b.email)}${b.phone ? `<br><span class="muted" style="font-size:13px">${esc(b.phone)}</span>` : ''}</td>
+            <td>${b.emailVerified ? '<span class="pill ok">Terverifikasi</span>' : '<span class="pill warn">Belum</span>'}${b.resetPending ? '<br><span class="muted" style="font-size:13px">Atur ulang menunggu</span>' : ''}</td>
+            <td class="num">${b.orderCount}</td>
+            <td><span class="muted" style="font-size:13px">Daftar ${when(b.createdAt)}<br>Masuk ${when(b.lastSignInAt)}</span></td>
+            <td><div class="btn-row">
+              ${b.emailVerified ? '' : `<button class="btn secondary small" type="button" data-bverify="${esc(b.id)}">Tandai terverifikasi</button>`}
+              <button class="btn secondary small" type="button" data-breset="${esc(b.id)}">Kirim tautan atur ulang</button>
+            </div></td>
+          </tr>`).join('') || '<tr><td colspan="6">Belum ada akun pembeli yang cocok.</td></tr>'}
+        </tbody></table></div>`));
+    wireSignOut();
+    document.getElementById('buyer-search').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = new FormData(e.target).get('q') || '';
+      location.hash = '#/admin/pembeli' + (v ? '?q=' + encodeURIComponent(v) : '');
+    });
+    main.querySelectorAll('[data-bverify]').forEach((btn) => btn.addEventListener('click', async () => {
+      if (!window.confirm('Tandai email akun ini sebagai terverifikasi? Lakukan hanya bila pemiliknya sudah Anda pastikan.')) return;
+      try { await api(`/api/admin/buyers/${encodeURIComponent(btn.dataset.bverify)}/verify`, { method: 'POST', admin: true }); toast('Email ditandai terverifikasi'); viewAdminBuyers(query); }
+      catch (err) { toast(err.message); }
+    }));
+    main.querySelectorAll('[data-breset]').forEach((btn) => btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try { await api(`/api/admin/buyers/${encodeURIComponent(btn.dataset.breset)}/reset`, { method: 'POST', admin: true }); toast('Tautan atur ulang masuk antrean email'); }
+      catch (err) { toast(err.message); }
+      btn.disabled = false;
+    }));
   }
 
   // Pengguna: daftar, tambah, dan pengelolaan per orang (ubah data, reset kata sandi, aktif/nonaktif, riwayat).
@@ -2052,6 +2098,7 @@ const ICONS = {
         const sec = a || landingPage();
         if (!pages.includes(sec)) { location.hash = '#/admin/' + landingPage(); return; }
         if (sec === 'users') return await viewAdminUsers(b);
+        if (sec === 'pembeli') return await viewAdminBuyers(query.q || '');
         if (sec === 'alur') return await viewWorkflow();
         if (sec === 'audit') return await viewAdminAudit();
         if (sec === 'dashboard') return await viewAdminDashboard();
