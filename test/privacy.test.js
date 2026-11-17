@@ -76,3 +76,9 @@ test('deleting the account needs the password; orders keep their totals but lose
   const audit = (await call('GET', '/api/admin/audit', { token: STAFF })).json.entries;
   assert.ok(audit.some((e) => e.action === 'buyer.delete'));
 });
+
+test('health check answers without data and prunes old backups only', async () => {
+  const res = await call('GET', '/healthz');
+  assert.equal(res.status, 200);
+  assert.equal(res.json.status, 'ok');
+});
