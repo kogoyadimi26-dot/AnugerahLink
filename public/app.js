@@ -239,10 +239,11 @@
     if (query.region) params.set('region', query.region);
     if (query.sort) params.set('sort', query.sort);
     if (query.inStock === '0') params.set('inStock', '0');
+    if (query.q) params.set('q', query.q);
     const regions = state.regions || [];
     const { lots } = await api('/api/lots?' + params.toString());
     setMain(`
-      <h1>Katalog</h1>
+      <h1>${query.q ? 'Hasil untuk &ldquo;' + esc(query.q) + '&rdquo;' : 'Produk'}</h1>
       <form class="filters card" id="filters" role="search" aria-label="Saring lot">
         <div class="field"><label for="f-tier">Kategori</label>
           <select id="f-tier" name="tier"><option value="">Semua kategori</option>
@@ -1874,6 +1875,19 @@ const ICONS = {
     }
   }
 
+  // Kotak cari di header: kopi mencari di katalog; kategori lain membuka halamannya.
+  function wireSearch() {
+    const form = document.getElementById('search-form');
+    if (!form) return;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const cat = document.getElementById('search-cat').value;
+      const q = document.getElementById('search-q').value.trim();
+      if (cat !== 'kopi') { location.hash = '#/kategori/' + encodeURIComponent(cat); return; }
+      location.hash = '#/catalogue' + (q ? '?q=' + encodeURIComponent(q) : '');
+    });
+  }
+
   // ---------- router ----------
   function parse() {
     const raw = location.hash.replace(/^#/, '') || '/';
@@ -1987,6 +2001,7 @@ const ICONS = {
 
   async function boot() {
     wireThemeToggle();
+    wireSearch();
     try {
       state.config = await api('/api/config');
       applyTheme(state.config.theme);
