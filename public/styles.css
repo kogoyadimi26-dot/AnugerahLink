@@ -381,3 +381,25 @@ tbody tr:nth-child(even) { background: transparent; }
 .explain summary::-webkit-details-marker { display: none; }
 .explain summary::before { content: "ⓘ "; }
 .explain p { margin: 6px 0 0; font-size: 14px; color: var(--ink-muted); max-width: 56ch; }
+
+/* Navigasi kantor belakang: sidebar di kiri (di HP menjadi baris yang bisa digeser) */
+.admin-layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 28px; align-items: start; }
+.admin-side { position: sticky; top: 92px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow); }
+.admin-who { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px 14px; border-bottom: 1px solid var(--line); margin-bottom: 10px; font-size: 14px; }
+.admin-nav { display: flex; flex-direction: column; gap: 2px; }
+.admin-nav a { display: block; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; transition: background-color .15s ease, color .15s ease; }
+.admin-nav a:hover { background: var(--green-soft); color: var(--green); }
+.admin-nav a[aria-current="page"] { background: var(--green); color: #FFFFFF; }
+:root[data-theme="dark"] .admin-nav a[aria-current="page"] { background: var(--gold-hi); color: var(--brand-ink); }
+.admin-out { margin-top: 12px; width: 100%; }
+.admin-body { min-width: 0; }
+.admin-side { min-width: 0; }
+@media (max-width: 800px) {
+  .admin-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .admin-side { min-width: 0; }
+  .admin-side { position: static; padding: 12px; }
+  .admin-who { border-bottom: 0; margin-bottom: 8px; padding-bottom: 0; flex-direction: row; gap: 8px; align-items: baseline; }
+  .admin-nav { flex-direction: row; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+  .admin-nav a { white-space: nowrap; }
+  .admin-out { width: auto; margin-top: 8px; }
+}

@@ -738,14 +738,22 @@ const ICONS = {
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
     return `
-      <div class="btn-row" style="justify-content:space-between;margin-bottom:12px">
-        <div><h1 style="margin:0">Kantor belakang</h1>${u ? `<p class="muted" style="margin:0;font-size:14px">${esc(u.name)} · ${esc(u.roleLabel || u.role)}</p>` : ''}</div>
-        <button class="btn secondary small" id="admin-out">Keluar</button>
-      </div>
-      <nav class="btn-row" aria-label="Kantor belakang" style="margin-bottom:16px">
-        ${links.map(([k, l]) => `<a class="btn ${active === k ? '' : 'secondary'} small" href="#/admin/${k}" ${active === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
-      </nav>
-      ${body}`;
+      <div class="admin-layout">
+        <aside class="admin-side">
+          <div class="admin-who">
+            <strong>${u ? esc(u.name) : ''}</strong>
+            <span class="muted">${u ? esc(u.roleLabel || u.role) : ''}</span>
+          </div>
+          <nav class="admin-nav" aria-label="Kantor belakang">
+            ${links.map(([k, l]) => `<a href="#/admin/${k}" ${active === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
+          </nav>
+          <button class="btn secondary small admin-out" id="admin-out" type="button">Keluar</button>
+        </aside>
+        <div class="admin-body">
+          <h1 style="margin:0 0 16px">Kantor belakang</h1>
+          ${body}
+        </div>
+      </div>`;
   }
   function wireSignOut() {
     const b = document.getElementById('admin-out');
