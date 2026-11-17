@@ -7,17 +7,20 @@ const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
 
-const TOKEN = 'test-admin-token-123';
+let TOKEN;
+const OWNER = { email: 'owner@test.local', password: 'owner-test-123' };
 let server;
 let base;
 let tmpDir;
 
 test.before(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-test-'));
-  const app = createApp({ dataFile: path.join(tmpDir, 'db.json'), adminToken: TOKEN });
+  const app = createApp({ dataFile: path.join(tmpDir, 'app.db'), owner: { name: 'Pemilik Uji', ...OWNER } });
   server = app.server;
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
+  const login = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(OWNER) });
+  TOKEN = (await login.json()).token;
 });
 
 test.after(async () => {
@@ -154,4 +157,39 @@ test('staff can upload a sample photo and view it; visitors cannot', async () =>
   assert.equal(view.headers.get('content-type'), 'image/png');
   const anon = await fetch(`${base}/api/admin/photos/${photoId}`);
   assert.equal(anon.status, 401);
+});
+
+// ---------- akun dan peran ----------
+test('login gives a session; a wrong password is refused; logout ends the session', async () => {
+  const bad = await call('POST', '/api/auth/login', { body: { email: OWNER.email, password: 'salah-sekali' } });
+  assert.equal(bad.status, 401);
+  const me = await call('GET', '/api/auth/me', { token: TOKEN });
+  assert.equal(me.status, 200);
+  assert.equal(me.json.user.role, 'admin');
+  const out = await call('POST', '/api/auth/logout', { token: TOKEN });
+  assert.equal(out.status, 200);
+  assert.equal((await call('GET', '/api/auth/me', { token: TOKEN })).status, 401);
+  const again = await call('POST', '/api/auth/login', { body: OWNER });
+  TOKEN = again.json.token;
+});
+
+test('a field agent can record purchases but cannot publish or see orders; changes are audited', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Petugas Uji', email: 'petugas@test.local', role: 'field_agent', password: 'petugas-uji-123' } });
+  assert.equal(made.status, 201);
+  const pw = await call('POST', '/api/auth/login', { body: { email: 'petugas@test.local', password: 'petugas-uji-123' } });
+  const agent = pw.json.token;
+  const intake = await call('POST', '/api/admin/lots', { token: agent, body: { groupId: 'g-1', harvestDate: '2026-11-12', kgIn: 50, sampleId: 'S-ROLE', moisturePct: 11, defectCount: 5 } });
+  assert.equal(intake.status, 201);
+  assert.equal((await call('GET', '/api/admin/orders', { token: agent })).status, 403);
+  assert.equal((await call('POST', `/api/admin/lots/${intake.json.lot.id}/publish`, { token: agent })).status, 403);
+  const audit = await call('GET', '/api/admin/audit', { token: TOKEN });
+  assert.equal(audit.status, 200);
+  assert.ok(audit.json.entries.some((e) => e.action.includes('/api/admin/lots') && e.userName === 'Petugas Uji'));
+  assert.equal((await call('GET', '/api/admin/audit', { token: agent })).status, 403);
+});
+
+test('the owner cannot deactivate their own account', async () => {
+  const me = await call('GET', '/api/auth/me', { token: TOKEN });
+  const r = await call('PATCH', `/api/admin/users/${me.json.user.id}`, { token: TOKEN, body: { active: false } });
+  assert.equal(r.status, 400);
 });

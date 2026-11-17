@@ -5,9 +5,9 @@
   "description": "AnugerahLink storefront and back office for verified Papuan coffee",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "DEV_RELOAD=1 node --watch server.js",
-    "test": "node --test test/domain.test.js test/server.test.js"
+    "start": "node --no-warnings server.js",
+    "dev": "DEV_RELOAD=1 node --no-warnings --watch server.js",
+    "test": "node --no-warnings --test test/domain.test.js test/server.test.js"
   },
   "engines": {
     "node": ">=20"
