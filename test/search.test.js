@@ -36,3 +36,13 @@ test('every typed word must match; accents and capitals do not matter; story tex
   db.lots.find((l) => l.code === lot.code).story = 'kata-khusus-cerita-saja';
   assert.equal(listPublicLots(db, { q: 'kata-khusus-cerita-saja' }).length, 0, 'story text is not part of the search');
 });
+
+test('everyday product keywords work: kopi, papua, indonesia, and class descriptions', () => {
+  const db = seed.seed();
+  const all = listPublicLots(db, {});
+  assert.equal(listPublicLots(db, { q: 'kopi' }).length, all.length, 'kopi finds every coffee lot');
+  assert.equal(listPublicLots(db, { q: 'Papua' }).length, all.length, 'papua finds every coffee lot');
+  assert.equal(listPublicLots(db, { q: 'kopi papua' }).length, all.length, 'two keywords together');
+  assert.equal(listPublicLots(db, { q: 'kopi tiom' }).length, all.filter((l) => l.regionName === 'Tiom').length, 'kopi plus a region narrows the results');
+  assert.equal(listPublicLots(db, { q: 'kakao' }).length, 0, 'kakao is not in stock');
+});
