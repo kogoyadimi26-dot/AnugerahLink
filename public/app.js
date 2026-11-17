@@ -460,6 +460,8 @@
             <select id="c-type" name="buyerType" required>${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
           <div class="field"><label for="c-company">Nama kafe atau perusahaan</label>
             <input id="c-company" name="company" autocomplete="organization"></div>
+          <div class="field"><label for="c-npwp">NPWP <span class="muted">(opsional, untuk faktur)</span></label>
+            <input id="c-npwp" name="npwp" maxlength="25" placeholder="00.000.000.0-000.000"></div>
           <div class="field"><label for="c-name">Nama kontak <span class="muted">(wajib)</span></label>
             <input id="c-name" name="name" required autocomplete="name"></div>
           <div class="field"><label for="c-phone">Telepon <span class="muted">(wajib)</span></label>
@@ -494,7 +496,7 @@
           method: 'POST',
           body: {
             lines: state.cart,
-            customer: { name: f.name, company: f.company, buyerType: f.buyerType, phone: f.phone, email: f.email, city: f.city, street: f.street, notes: f.notes },
+            customer: { name: f.name, company: f.company, buyerType: f.buyerType, phone: f.phone, email: f.email, city: f.city, street: f.street, npwp: f.npwp, notes: f.notes },
           },
         });
         setSession('al-last-order', { number: order.number, email: f.email });
@@ -589,6 +591,7 @@
             }).join('')}
             ${cancelled ? `<li class="cancelled current">Dibatalkan ${tanggal(o.updatedAt)}</li>` : ''}
           </ol>
+          <p style="margin-top:12px"><a href="/api/orders/${encodeURIComponent(o.number)}/invoice?email=${encodeURIComponent(query.email || '')}">Unduh faktur (PDF)</a></p>
           ${o.shipment && (o.shipment.courier || o.shipment.waybill) ? `<p style="margin-top:12px"><strong>Pengiriman:</strong> ${esc(o.shipment.courier || 'Kurir')}${o.shipment.waybill ? ' · No. resi <span class="num">' + esc(o.shipment.waybill) + '</span>' : ''}</p>` : ''}
           ${o.payment.reference ? `<p class="muted" style="margin-top:12px">Referensi pembayaran: ${esc(o.payment.reference)}</p>` : '<p class="muted" style="margin-top:12px">Pembayaran belum diterima.</p>'}
         </section>
@@ -1629,7 +1632,7 @@ const ICONS = {
       </div>
       <h2>Pesanan saya</h2>
       ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
-        ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/track/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a></td></tr>`).join('')}
+        ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/track/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a> · <button type="button" class="btn secondary small" data-invoice="${esc(o.number)}">Faktur PDF</button></td></tr>`).join('')}
         </tbody></table></div>` : `<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat saat masuk akan muncul di sini.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>`}
       <h2>Alamat tersimpan</h2>
       <div class="grid">${me.addresses.map((a) => `
@@ -1651,6 +1654,7 @@ const ICONS = {
           <div class="field"><label for="pf-phone">Telepon</label><input id="pf-phone" name="phone" type="tel" required value="${esc(me.phone || '')}"></div>
           <div class="field"><label for="pf-company">Nama kafe atau perusahaan</label><input id="pf-company" name="company" maxlength="120" value="${esc(me.company || '')}"></div>
           <div class="field"><label for="pf-type">Jenis pembeli</label><select id="pf-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}" ${me.buyerType === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+          <div class="field"><label for="pf-npwp">NPWP (opsional, untuk faktur)</label><input id="pf-npwp" name="npwp" maxlength="25" value="${esc(me.npwp || '')}" placeholder="00.000.000.0-000.000"></div>
         </div>
         <div class="btn-row"><button class="btn" type="submit" data-save>Simpan profil</button></div></form>
       <h2>Ganti kata sandi</h2>
@@ -1682,6 +1686,7 @@ const ICONS = {
       try { await api('/api/buyer/addresses/' + encodeURIComponent(b.dataset.default), { method: 'PATCH', body: { ...addrBody(me, b.dataset.default), isDefault: true } }); viewAccount(); }
       catch (err) { toast(err.message || 'Belum bisa diubah.'); }
     }));
+    main.querySelectorAll('[data-invoice]').forEach((b) => b.addEventListener('click', () => downloadInvoice(b.dataset.invoice, '/api/buyer/orders/' + encodeURIComponent(b.dataset.invoice) + '/invoice', true)));
     main.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', async () => {
       if (!confirm('Hapus alamat ini?')) return;
       try { await api('/api/buyer/addresses/' + encodeURIComponent(b.dataset.remove), { method: 'DELETE' }); viewAccount(); }
@@ -1703,6 +1708,19 @@ const ICONS = {
       try { await api('/api/buyer/password', { method: 'POST', body: formData(pwd) }); pwd.reset(); toast('Kata sandi diganti.'); busy(btn, false); }
       catch (err) { showFormError(pwd, err); busy(btn, false); }
     });
+  }
+
+  // Unduh faktur. Pembeli memakai token akun; tamu memakai email di tautan.
+  async function downloadInvoice(number, path, withToken) {
+    try {
+      const res = await fetch(path, { headers: withToken ? { Authorization: 'Bearer ' + buyerToken() } : {} });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error((j.error && j.error.message) || 'Faktur belum bisa diunduh.'); }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = url; a.download = 'faktur-' + number + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) { toast(err.message || 'Faktur belum bisa diunduh.'); }
   }
 
   // Data alamat yang sudah ada, untuk tombol "Jadikan utama". Server mengganti semua kolom yang dikirim.
@@ -1767,7 +1785,7 @@ const ICONS = {
     const form = document.getElementById('checkout');
     if (!form) return;
     const set = (name, v) => { if (form.elements[name] && v) form.elements[name].value = v; };
-    set('name', me.name); set('company', me.company); set('phone', me.phone); set('buyerType', me.buyerType);
+    set('name', me.name); set('company', me.company); set('phone', me.phone); set('buyerType', me.buyerType); set('npwp', me.npwp);
     form.elements.email.value = me.email; form.elements.email.readOnly = true;
     if (me.addresses.length) {
       const sel = document.createElement('select');
