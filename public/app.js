@@ -63,8 +63,11 @@
   }
 
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
+  function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
+  const ROLE_PAGES = { admin: ['dashboard', 'intake', 'lots', 'orders', 'feedback', 'users', 'audit', 'settings'], grader: ['lots'], field_agent: ['intake', 'lots'] };
+  function allowedPages() { const u = currentUser(); return (u && ROLE_PAGES[u.role]) || []; }
   function setAdminToken(t) { try { sessionStorage.setItem('al-admin', t); } catch { /* abaikan */ } }
-  function clearAdminToken() { try { sessionStorage.removeItem('al-admin'); } catch { /* abaikan */ } }
+  function clearAdminToken() { try { sessionStorage.removeItem('al-admin'); sessionStorage.removeItem('al-user'); } catch { /* abaikan */ } }
 
   function session(key) { try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { return null; } }
   function setSession(key, v) { try { sessionStorage.setItem(key, JSON.stringify(v)); } catch { /* abaikan */ } }
@@ -724,10 +727,13 @@ const ICONS = {
 
   // ---------- tim (admin) ----------
   function adminShell(active, body) {
-    const links = [['dashboard', 'Dasbor'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const pages = allowedPages();
+    const links = all.filter(([k]) => pages.includes(k));
+    const u = currentUser();
     return `
       <div class="btn-row" style="justify-content:space-between;margin-bottom:12px">
-        <h1 style="margin:0">Kantor belakang</h1>
+        <div><h1 style="margin:0">Kantor belakang</h1>${u ? `<p class="muted" style="margin:0;font-size:14px">${esc(u.name)} · ${esc(u.roleLabel || u.role)}</p>` : ''}</div>
         <button class="btn secondary small" id="admin-out">Keluar</button>
       </div>
       <nav class="btn-row" aria-label="Kantor belakang" style="margin-bottom:16px">
@@ -737,7 +743,7 @@ const ICONS = {
   }
   function wireSignOut() {
     const b = document.getElementById('admin-out');
-    if (b) b.addEventListener('click', () => { clearAdminToken(); location.hash = '#/admin'; });
+    if (b) b.addEventListener('click', async () => { try { await api('/api/auth/logout', { method: 'POST', admin: true }); } catch { /* sesi sudah habis */ } clearAdminToken(); location.hash = '#/admin'; });
   }
   function adminFail(err) {
     if (err.status === 401) {
@@ -748,27 +754,105 @@ const ICONS = {
     setMain(`<p class="notice bad">${esc(err.message)}</p>`);
   }
 
+  function landingPage() {
+    const pages = allowedPages();
+    return pages[0] || 'lots';
+  }
+
   function viewAdminLogin() {
     setMain(`
       <h1>Masuk tim</h1>
       <form id="login" class="card" style="max-width:420px" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
-        <div class="field"><label for="tok">Kode akses admin</label><input id="tok" name="token" type="password" required autocomplete="current-password"></div>
-        <button class="btn" type="submit">Masuk</button>
+        <div class="field"><label for="login-email">Email</label><input id="login-email" name="email" type="email" required autocomplete="username"></div>
+        <div class="field"><label for="login-pass">Kata sandi</label><input id="login-pass" name="password" type="password" required autocomplete="current-password"></div>
+        <button class="btn" type="submit" id="login-btn">Masuk</button>
       </form>`);
     document.getElementById('login').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
       const f = formData(form);
-      setAdminToken(f.token);
+      const btn = document.getElementById('login-btn');
+      busy(btn, true, 'Memeriksa…');
       try {
-        await api('/api/admin/summary', { admin: true });
-        location.hash = '#/admin/dashboard';
+        const out = await api('/api/auth/login', { method: 'POST', body: { email: f.email, password: f.password } });
+        setAdminToken(out.token);
+        try { sessionStorage.setItem('al-user', JSON.stringify(out.user)); } catch { /* abaikan */ }
+        location.hash = '#/admin/' + landingPage();
       } catch (err) {
+        busy(btn, false);
         clearAdminToken();
-        showFormError(form, { message: err.status === 401 ? 'Kode akses tidak benar.' : err.message });
+        showFormError(form, err);
       }
     });
+  }
+
+  // Pengguna: daftar, tambah, ubah peran, aktif/nonaktif, dan kata sandi baru (admin).
+  async function viewAdminUsers() {
+    const { users } = await api('/api/admin/users', { admin: true });
+    const me = currentUser();
+    const roles = [['admin', 'Admin'], ['grader', 'Penilai'], ['field_agent', 'Petugas lapangan']];
+    setMain(adminShell('users', `
+      <h2 style="margin-top:0">Pengguna</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Nama</th><th>Email</th><th>Peran</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${users.map((u) => `
+            <tr>
+              <td>${esc(u.name)}${me && me.id === u.id ? ' <span class="muted">(Anda)</span>' : ''}</td>
+              <td>${esc(u.email)}</td>
+              <td><select data-role="${esc(u.id)}" aria-label="Peran ${esc(u.name)}">${roles.map(([k, l]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+              <td><span class="pill ${u.active ? 'ok' : ''}">${u.active ? 'Aktif' : 'Nonaktif'}</span></td>
+              <td><button class="btn secondary small" data-toggle="${esc(u.id)}" data-active="${u.active ? '1' : '0'}">${u.active ? 'Nonaktifkan' : 'Aktifkan'}</button></td>
+            </tr>`).join('')}
+        </tbody></table></div>
+      <h2>Tambah pengguna</h2>
+      <form id="new-user" class="card" novalidate>
+        <div class="notice" data-form-error hidden role="alert"></div>
+        <div class="form-grid">
+          <div class="field"><label for="u-name">Nama</label><input id="u-name" name="name" required minlength="2"></div>
+          <div class="field"><label for="u-email">Email</label><input id="u-email" name="email" type="email" required></div>
+          <div class="field"><label for="u-role">Peran</label><select id="u-role" name="role">${roles.map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+          <div class="field"><label for="u-pass">Kata sandi awal</label><input id="u-pass" name="password" type="password" required minlength="10"><p class="help">Minimal 10 karakter. Berikan kepada pengguna secara langsung.</p></div>
+        </div>
+        <button class="btn" type="submit" id="u-save">Tambah pengguna</button>
+      </form>`));
+    wireSignOut();
+    main.querySelectorAll('select[data-role]').forEach((sel) => sel.addEventListener('change', async () => {
+      try { await api(`/api/admin/users/${encodeURIComponent(sel.dataset.role)}`, { method: 'PATCH', admin: true, body: { role: sel.value } }); toast('Peran diperbarui'); }
+      catch (err) { toast(err.message); viewAdminUsers(); }
+    }));
+    main.querySelectorAll('button[data-toggle]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/users/${encodeURIComponent(b.dataset.toggle)}`, { method: 'PATCH', admin: true, body: { active: b.dataset.active !== '1' } }); toast('Status diperbarui'); viewAdminUsers(); }
+      catch (err) { toast(err.message); }
+    }));
+    document.getElementById('new-user').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      form.querySelector('[data-form-error]').hidden = true;
+      const btn = document.getElementById('u-save');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        await api('/api/admin/users', { method: 'POST', admin: true, body: formData(form) });
+        toast('Pengguna ditambahkan');
+        viewAdminUsers();
+      } catch (err) { busy(btn, false); showFormError(form, err); }
+    });
+  }
+
+  // Riwayat: siapa mengubah apa dan kapan (tanpa isi data).
+  async function viewAdminAudit() {
+    const { entries } = await api('/api/admin/audit', { admin: true });
+    setMain(adminShell('audit', `
+      <h2 style="margin-top:0">Riwayat perubahan</h2>
+      <p class="muted" style="font-size:14px">200 entri terakhir. Mencatat siapa dan kapan, bukan isi data.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Waktu</th><th>Pengguna</th><th>Peran</th><th>Tindakan</th><th>Hasil</th></tr></thead>
+        <tbody>
+          ${entries.map((x) => `<tr><td>${tanggal(x.at)}</td><td>${esc(x.userName || '—')}</td><td>${esc((ROLE_PAGES[x.role] && x.role) || x.role || '—')}</td><td>${esc(x.action)}</td><td>${esc(x.status)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada riwayat.</td></tr>'}
+        </tbody></table></div>`));
+    wireSignOut();
   }
 
   async function viewAdminDashboard() {
@@ -1106,7 +1190,11 @@ const ICONS = {
       if (head === 'about') return viewAbout();
       if (head === 'admin') {
         if (!adminToken()) return viewAdminLogin();
-        const sec = a || 'dashboard';
+        const pages = allowedPages();
+        const sec = a || landingPage();
+        if (!pages.includes(sec)) { location.hash = '#/admin/' + landingPage(); return; }
+        if (sec === 'users') return await viewAdminUsers();
+        if (sec === 'audit') return await viewAdminAudit();
         if (sec === 'dashboard') return await viewAdminDashboard();
         if (sec === 'intake') return await viewAdminIntake();
         if (sec === 'lots' && b) return await viewAdminGrade(b);

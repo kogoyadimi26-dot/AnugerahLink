@@ -7,14 +7,16 @@ Read first: `PLAN.md` (what it does and why), `DESIGN.md` (look and layout), `BE
 ## Run it
 
 ```bash
-ADMIN_TOKEN='choose-a-long-secret' npm start
+OWNER_EMAIL='pemilik@contoh.com' OWNER_PASSWORD='kata-sandi-yang-panjang' npm start
 ```
 
-Open http://localhost:3000. The first run creates `data/db.json` with sample regions, groups and three sample lots (marked "sample" everywhere).
+Open http://localhost:3000 and sign in with the owner account. The first run creates `data/app.db` (SQLite) with sample regions, groups and lots (marked "sample" everywhere). An existing `data/db.json` is imported once and renamed to `db.json.migrated`.
 
-Without `ADMIN_TOKEN` the app uses a development token and prints a warning. Do not run it that way where other people can reach it.
+Without `OWNER_PASSWORD` the app uses a development password and prints a warning. Do not run it that way where other people can reach it.
 
-Options: `PORT` (default 3000), `DATA_FILE` (default `data/db.json`).
+**Roles.** The owner adds team members under Pengguna. Admin: everything. Penilai (grader): view lots, grade, publish, withdraw. Petugas lapangan (field agent): record purchases and photos, view lots. Every change is recorded under Riwayat (who, when, what, not the data itself).
+
+Options: `PORT` (default 3000), `DATA_FILE` (default `data/app.db`), `OWNER_NAME`, `OWNER_EMAIL`, `OWNER_PASSWORD`.
 
 ## Test
 

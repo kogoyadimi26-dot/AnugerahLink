@@ -5,11 +5,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { Store } = require('./lib/store');
+const { SqlStore } = require('./lib/sqlstore');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
+const auth = require('./lib/auth');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_BODY = 3 * 1024 * 1024; // cukup untuk foto sampel yang sudah dikompres
@@ -93,16 +94,17 @@ function readBody(req) {
   });
 }
 
-function tokenOk(given, expected) {
-  const a = crypto.createHash('sha256').update(String(given || '')).digest();
-  const b = crypto.createHash('sha256').update(String(expected)).digest();
-  return crypto.timingSafeEqual(a, b) && typeof given === 'string' && given.length > 0;
+function bearer(req) {
+  const h = req.headers.authorization || '';
+  return h.startsWith('Bearer ') ? h.slice(7) : '';
 }
 
-function requireAdmin(req, adminToken) {
-  const header = req.headers.authorization || '';
-  const given = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!tokenOk(given, adminToken)) throw new ApiError(401, 'unauthorised', 'Silakan masuk sebagai tim terlebih dahulu.');
+// Pengguna yang sudah masuk dan punya izin "perm". perm null: cukup sudah masuk.
+function requirePerm(req, store, perm) {
+  const user = auth.userFromToken(store.read(), bearer(req), new Date().toISOString());
+  if (!user) throw new ApiError(401, 'unauthorised', 'Silakan masuk terlebih dahulu.');
+  if (perm && !auth.can(user.role, perm)) throw new ApiError(403, 'forbidden', 'Peran Anda tidak punya akses ke halaman ini.');
+  return user;
 }
 
 function publicConfig() {
@@ -129,10 +131,10 @@ const PHOTO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png' };
 const PHOTO_TYPE = { jpg: 'image/jpeg', png: 'image/png' };
 
 function buildRoutes(ctx) {
-  const { store, adminToken, photoDir } = ctx;
+  const { store, photoDir } = ctx;
   const now = () => new Date().toISOString();
   const r = [];
-  const route = (method, pattern, handler, { admin = false } = {}) => r.push({ method, pattern, handler, admin });
+  const route = (method, pattern, handler, { perm = null } = {}) => r.push({ method, pattern, handler, perm });
 
   // ---- Public ----
   route('GET', /^\/api\/health$/, () => ({ status: 200, body: { ok: true } }));
@@ -186,27 +188,43 @@ function buildRoutes(ctx) {
     return { status: 201, body: { order: domain.publicOrder(updated) } };
   });
 
+  route('POST', /^\/api\/auth\/login$/, (_p, body) => {
+    const result = store.update((db) => {
+      const r = auth.login(db, body.email, body.password, now());
+      const u = db.users.find((x) => x.id === r.user.id);
+      auth.logAudit(db, { user: u, action: 'login', status: 200, now: now() });
+      return r;
+    });
+    return { status: 200, body: result, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/auth\/logout$/, (_p, _b, _q, req) => {
+    const token = bearer(req);
+    if (token) store.update((db) => auth.logout(db, token));
+    return { status: 200, body: { ok: true } };
+  });
+  route('GET', /^\/api\/auth\/me$/, (_p, _b, _q, req) => ({ status: 200, body: { user: auth.publicUser(requirePerm(req, store, null)) }, headers: { 'Cache-Control': 'no-store' } }));
+
   // ---- Admin ----
-  route('GET', /^\/api\/admin\/summary$/, () => ({ status: 200, body: domain.summary(store.read()), headers: { 'Cache-Control': 'no-store' } }), { admin: true });
+  route('GET', /^\/api\/admin\/summary$/, () => ({ status: 200, body: domain.summary(store.read()), headers: { 'Cache-Control': 'no-store' } }), { perm: 'reports' });
   route('GET', /^\/api\/admin\/config$/, () => ({
     status: 200,
     body: { ...publicConfig(), buyPricePerKg: config.buyPricePerKg, sortingLossPct: config.sortingLossPct, feesPerKg: config.feesPerKg, shippingPerKg: config.shippingPerKg, fixedCostsPerYear: config.fixedCostsPerYear, defaultMix: config.defaultMix, source: 'docs/business/source (v2 plan)' },
-  }), { admin: true });
-  route('GET', /^\/api\/admin\/groups$/, () => ({ status: 200, body: { groups: store.read().groups } }), { admin: true });
-  route('POST', /^\/api\/admin\/groups$/, (_p, body) => ({ status: 201, body: { group: store.update((db) => domain.createGroup(db, body)) } }), { admin: true });
+  }), { perm: 'reports' });
+  route('GET', /^\/api\/admin\/groups$/, () => ({ status: 200, body: { groups: store.read().groups } }), { perm: 'intake' });
+  route('POST', /^\/api\/admin\/groups$/, (_p, body) => ({ status: 201, body: { group: store.update((db) => domain.createGroup(db, body)) } }), { perm: 'groups' });
   route('GET', /^\/api\/admin\/lots$/, () => {
     const db = store.read();
     const lots = db.lots.map((l) => ({ ...l, groupName: (domain.byId(db.groups, l.groupId) || {}).name, regionName: (domain.byId(db.regions, l.regionId) || {}).name, availableKg: domain.availableKg(l) }));
     return { status: 200, body: { lots } };
-  }, { admin: true });
-  route('POST', /^\/api\/admin\/lots$/, (_p, body) => ({ status: 201, body: { lot: store.update((db) => domain.createIntake(db, body, now())) } }), { admin: true });
-  route('PATCH', /^\/api\/admin\/lots\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { lot: store.update((db) => domain.gradeLot(db, id, body)) } }), { admin: true });
-  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/publish$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.publishLot(db, id, now())) } }), { admin: true });
-  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/withdraw$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.withdrawLot(db, id)) } }), { admin: true });
-  route('GET', /^\/api\/admin\/orders$/, () => ({ status: 200, body: { orders: store.read().orders }, headers: { 'Cache-Control': 'no-store' } }), { admin: true });
-  route('PATCH', /^\/api\/admin\/orders\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { order: store.update((db) => domain.updateOrderStatus(db, id, body, now())) }, headers: { 'Cache-Control': 'no-store' } }), { admin: true });
-  route('GET', /^\/api\/admin\/feedback$/, () => ({ status: 200, body: { feedback: store.read().feedback } }), { admin: true });
-  route('PATCH', /^\/api\/admin\/feedback\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { feedback: store.update((db) => domain.tagFeedback(db, id, body)) } }), { admin: true });
+  }, { perm: 'lots.read' });
+  route('POST', /^\/api\/admin\/lots$/, (_p, body) => ({ status: 201, body: { lot: store.update((db) => domain.createIntake(db, body, now())) } }), { perm: 'intake' });
+  route('PATCH', /^\/api\/admin\/lots\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { lot: store.update((db) => domain.gradeLot(db, id, body)) } }), { perm: 'grade' });
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/publish$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.publishLot(db, id, now())) } }), { perm: 'grade' });
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/withdraw$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.withdrawLot(db, id)) } }), { perm: 'grade' });
+  route('GET', /^\/api\/admin\/orders$/, () => ({ status: 200, body: { orders: store.read().orders }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
+  route('PATCH', /^\/api\/admin\/orders\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { order: store.update((db) => domain.updateOrderStatus(db, id, body, now())) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
+  route('GET', /^\/api\/admin\/feedback$/, () => ({ status: 200, body: { feedback: store.read().feedback } }), { perm: 'feedback' });
+  route('PATCH', /^\/api\/admin\/feedback\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { feedback: store.update((db) => domain.tagFeedback(db, id, body)) } }), { perm: 'feedback' });
   route('POST', /^\/api\/admin\/lots\/([\w-]+)\/photos$/, ([id], body) => {
     const m = typeof body.dataUrl === 'string' ? /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(body.dataUrl) : null;
     if (!m) throw new ApiError(400, 'invalid_input', 'Foto harus berformat JPG atau PNG.', { dataUrl: 'Foto harus berformat JPG atau PNG.' });
@@ -221,8 +239,12 @@ function buildRoutes(ctx) {
     fs.writeFileSync(path.join(photoDir, file), bytes);
     const photo = store.update((db) => domain.addPhoto(db, id, body.kind, file, now()));
     return { status: 201, body: { photo: { id: photo.id, kind: photo.kind, createdAt: photo.createdAt } } };
-  }, { admin: true });
-  route('GET', /^\/api\/admin\/farmer-report\/([\w-]+)$/, ([groupId]) => ({ status: 200, body: domain.farmerReport(store.read(), groupId) }), { admin: true });
+  }, { perm: 'intake' });
+  route('GET', /^\/api\/admin\/users$/, () => ({ status: 200, body: { users: store.read().users.map(auth.publicUser) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'users' });
+  route('POST', /^\/api\/admin\/users$/, (_p, body) => ({ status: 201, body: { user: auth.publicUser(store.update((db) => auth.createUser(db, body, now()))) } }), { perm: 'users' });
+  route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, ([id], body, _q, req) => ({ status: 200, body: { user: auth.publicUser(store.update((db) => auth.updateUser(db, id, body, requirePerm(req, store, 'users').id, now()))) } }), { perm: 'users' });
+  route('GET', /^\/api\/admin\/audit$/, () => ({ status: 200, body: { entries: store.read().audit.slice(-200).reverse() }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'audit' });
+  route('GET', /^\/api\/admin\/farmer-report\/([\w-]+)$/, ([groupId]) => ({ status: 200, body: domain.farmerReport(store.read(), groupId) }), { perm: 'feedback' });
 
   return r;
 }
@@ -281,15 +303,16 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-function createApp({ dataFile, adminToken }) {
-  const store = new Store(dataFile, seed);
+function createApp({ dataFile, owner }) {
+  const store = new SqlStore(dataFile, seed, path.join(path.dirname(dataFile), 'db.json'));
   store.load();
+  if (auth.ensureOwner(store.db, owner, new Date().toISOString())) store.save(store.db);
   if (domain.ensureRegions(store.db, regionDefaults()) > 0) store.save(store.db);
   const migrated = domain.ensurePassportHashes(store.db);
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
   const photoDir = path.join(path.dirname(dataFile), 'photos');
-  const routes = buildRoutes({ store, adminToken, photoDir });
+  const routes = buildRoutes({ store, photoDir });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -298,7 +321,7 @@ function createApp({ dataFile, adminToken }) {
     const photoMatch = pathname.match(/^\/api\/admin\/photos\/([\w-]+)$/);
     if (photoMatch && req.method === 'GET') {
       try {
-        requireAdmin(req, adminToken);
+        requirePerm(req, store, 'lots.read');
         const found = domain.findPhoto(store.read(), photoMatch[1]);
         if (!found) throw new ApiError(404, 'not_found', 'Foto tidak ditemukan.');
         const ext = path.extname(found.photo.file).slice(1);
@@ -323,10 +346,13 @@ function createApp({ dataFile, adminToken }) {
         const pathExists = routes.some((rt) => rt.pattern.test(pathname));
         throw new ApiError(pathExists ? 405 : 404, pathExists ? 'method_not_allowed' : 'not_found', 'Tidak ditemukan.');
       }
-      if (match.admin) requireAdmin(req, adminToken);
+      const actor = match.perm ? requirePerm(req, store, match.perm) : null;
       const params = pathname.match(match.pattern).slice(1);
       const body = ['POST', 'PATCH'].includes(req.method) ? await readBody(req) : {};
       const result = match.handler(params, body, query, req);
+      if (actor && req.method !== 'GET') {
+        store.update((db) => auth.logAudit(db, { user: actor, action: `${req.method} ${pathname}`, status: result.status, now: new Date().toISOString() }));
+      }
       const headers = { 'Cache-Control': 'no-store', ...(result.headers || {}) };
       send(res, result.status, result.body, headers);
     } catch (err) {
@@ -338,13 +364,17 @@ function createApp({ dataFile, adminToken }) {
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
-  const dataFile = process.env.DATA_FILE || path.join(__dirname, 'data', 'db.json');
-  let adminToken = process.env.ADMIN_TOKEN;
-  if (!adminToken) {
-    adminToken = 'dev-only-admin-token';
-    console.warn('[warn] ADMIN_TOKEN is not set. Using a development token. Set ADMIN_TOKEN before going live.');
+  const dataFile = process.env.DATA_FILE || path.join(__dirname, 'data', 'app.db');
+  const owner = {
+    name: process.env.OWNER_NAME || 'Pemilik',
+    email: process.env.OWNER_EMAIL || 'owner@anugerahlink.local',
+    password: process.env.OWNER_PASSWORD || '',
+  };
+  if (!owner.password) {
+    owner.password = 'ganti-saya-sekarang-123';
+    console.warn('[warn] OWNER_PASSWORD is not set. Using a development password. Set OWNER_EMAIL and OWNER_PASSWORD before going live.');
   }
-  const { server } = createApp({ dataFile, adminToken });
+  const { server } = createApp({ dataFile, owner });
   if (DEV) { startDevWatch(); console.log('[dev] live reload is on: the browser refreshes when public/ changes'); }
   server.listen(port, () => console.log(`AnugerahLink running at http://localhost:${port}`));
 }
