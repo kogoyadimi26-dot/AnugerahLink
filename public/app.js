@@ -100,8 +100,16 @@
     return data;
   }
 
+  // Halaman dalam bagian Katalog (Produk, Kategori, Tentang) diberi menu tab yang sama.
+  function katalogSubnav() {
+    const h = location.hash || '';
+    const tabs = [['#/catalogue', 'Produk'], ['#/kategori', 'Kategori'], ['#/about', 'Tentang']];
+    const active = tabs.find(([href]) => h.startsWith(href)) || tabs[0];
+    return `<nav class="subnav" aria-label="Menu katalog">${tabs.map(([href, label]) => `<a href="${href}"${href === active[0] ? ' aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
+  }
+
   function setMain(html) {
-    main.innerHTML = html;
+    main.innerHTML = (state.section === 'katalog' ? katalogSubnav() : '') + html;
     main.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }
@@ -1622,6 +1630,41 @@ const ICONS = {
     });
   }
 
+  // ---------- kategori ----------
+  // Kopi aktif sekarang. Kakao dan kepiting direncanakan dalam dua tahun ke depan dan belum bisa dipesan.
+  const KATEGORI = [
+    { key: 'kopi', nama: 'Kopi', status: 'aktif', ringkas: 'Kopi Papua dari kelompok tani di Wamena dan sekitarnya.', detail: 'Setiap lot dinilai dengan skor cupping dan grade SNI, lalu diberi paspor dengan kode verifikasi.' },
+    { key: 'kakao', nama: 'Kakao', status: 'segera', ringkas: 'Direncanakan dalam dua tahun ke depan.', detail: 'Kakao belum tersedia untuk dipesan. Kami fokus menyelesaikan kopi terlebih dahulu.' },
+    { key: 'kepiting', nama: 'Kepiting', status: 'segera', ringkas: 'Direncanakan dalam dua tahun ke depan.', detail: 'Kepiting belum tersedia untuk dipesan. Kami fokus menyelesaikan kopi terlebih dahulu.' },
+  ];
+
+  function viewKategoriList() {
+    setMain(`
+      <h1>Kategori</h1>
+      <p class="lead">Saat ini kami fokus pada kopi. Kategori lain menyusul.</p>
+      <div class="grid" style="margin-top:16px">
+        ${KATEGORI.map((k) => `
+          <article class="card">
+            <div class="btn-row" style="justify-content:space-between"><h2 style="margin:0;font-size:20px">${esc(k.nama)}</h2>${k.status === 'aktif' ? '<span class="pill ok">Tersedia</span>' : '<span class="pill">Segera hadir</span>'}</div>
+            <p class="muted" style="margin:10px 0">${esc(k.ringkas)}</p>
+            <p>${esc(k.detail)}</p>
+            <div style="margin-top:auto">${k.status === 'aktif' ? '<a class="btn small" href="#/kategori/kopi">Lihat kopi</a>' : `<a class="btn secondary small" href="#/kategori/${esc(k.key)}">Selengkapnya</a>`}</div>
+          </article>`).join('')}
+      </div>`);
+  }
+
+  function viewSegeraHadir(key) {
+    const k = KATEGORI.find((x) => x.key === key);
+    if (!k || k.status === 'aktif') { location.hash = '#/kategori'; return; }
+    setMain(`
+      <h1>${esc(k.nama)}</h1>
+      <p class="lead">Segera hadir.</p>
+      <div class="card" style="max-width:720px">
+        <p>${esc(k.detail)}</p>
+        <p class="muted">Rencana dua tahun ke depan. Untuk saat ini, silakan lihat <a href="#/kategori/kopi">kopi yang tersedia</a>.</p>
+      </div>`);
+  }
+
   // ---------- kebijakan ----------
   function viewLegal(key) {
     const legal = state.config.legal;
@@ -1899,11 +1942,13 @@ const ICONS = {
 
   async function route() {
     const { parts, query } = parse();
+    state.section = null;
     updateCartCount();
     markNav();
     try {
       if (parts.length === 0) return await viewHome();
       const [head, a, b] = parts;
+      state.section = ['catalogue', 'kategori', 'about'].includes(head) ? 'katalog' : null;
       if (head === 'catalogue') return await viewCatalogue(query);
       if (head === 'lot' && a) return await viewLot(a);
       if (head === 'passport' && a) return await viewPassport(a);
@@ -1914,6 +1959,9 @@ const ICONS = {
       if (head === 'track' && a) return await viewTrackDetail(a, query);
       if (head === 'feedback' && a) return viewFeedback(a);
       if (head === 'about') return viewAbout();
+      if (head === 'kategori' && !a) return viewKategoriList();
+      if (head === 'kategori' && a === 'kopi') return await viewCatalogue(query);
+      if (head === 'kategori' && a) return viewSegeraHadir(a);
       if (head === 'akun' || head === 'masuk') return await viewAccount();
       if (head === 'kebijakan-privasi' || head === 'syarat' || head === 'pengembalian') return viewLegal(head);
       if (head === 'admin') {
@@ -1991,7 +2039,9 @@ const ICONS = {
 
   // Tandai halaman aktif di navigasi.
   function markNav() {
-    const h = location.hash || '#/';
+    const raw = location.hash || '#/';
+    // Kategori dan Tentang termasuk dalam Katalog, jadi tautan Katalog tetap aktif.
+    const h = /^#\/(kategori|about)/.test(raw) ? '#/catalogue' : raw;
     document.querySelectorAll('.nav a').forEach((a) => {
       const href = a.getAttribute('href') || '';
       if (href && h.startsWith(href)) a.setAttribute('aria-current', 'page');
