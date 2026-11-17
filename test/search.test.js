@@ -15,3 +15,11 @@ test('keyword search matches code, region, group and process, and ignores empty 
   assert.equal(listPublicLots(db, { q: 'tidak-ada-sama-sekali-xyz' }).length, 0);
   assert.equal(listPublicLots(db, { q: all[0].code }).length >= 1, true);
 });
+
+test('products can be listed alphabetically by name', () => {
+  const db = seed.seed();
+  const names = listPublicLots(db, { sort: 'alphabetical' }).map((l) => l.title);
+  assert.ok(names.length >= 2);
+  const sorted = [...names].sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+  assert.deepEqual(names, sorted);
+});
