@@ -180,12 +180,14 @@ function buildRoutes(ctx) {
     if (body.consent !== true) {
       throw new ApiError(400, 'invalid_input', 'Setujui kebijakan privasi sebelum membuat pesanan.', { consent: 'Setujui kebijakan privasi untuk memesan.' });
     }
+    // Pesanan hanya dari akun pembeli. Memilih lot dan mengisi keranjang tetap tanpa akun.
     const buyer = buyerFrom(req);
-    if (buyer && String((body.customer || {}).email || '').trim().toLowerCase() !== buyer.email) {
+    if (!buyer) throw new ApiError(401, 'auth_required', 'Buat akun atau masuk untuk memesan.');
+    if (String((body.customer || {}).email || '').trim().toLowerCase() !== buyer.email) {
       throw new ApiError(400, 'invalid_input', 'Pakai email akun Anda untuk pesanan ini.', { email: 'Pakai email akun Anda.' });
     }
     const order = store.update((db) => {
-      const created = domain.createOrder(db, body, now(), buyer ? buyer.id : null);
+      const created = domain.createOrder(db, body, now(), buyer.id);
       created.consent = { version: legal.version, givenAt: now() };
       return created;
     });

@@ -76,12 +76,21 @@ test('admin routes refuse missing or wrong tokens', async () => {
   assert.equal((await call('GET', '/api/admin/summary', { token: TOKEN })).status, 200);
 });
 
+// Pesanan butuh akun pembeli. Daftar bila belum ada, lalu masuk, dan kembalikan token.
+async function buyerSession(email, name = 'Uji Pembeli') {
+  const password = 'kata-sandi-uji-1';
+  const signup = await call('POST', '/api/buyer/signup', { body: { name, email, password, phone: '081234567890', company: '', buyerType: 'specialty_cafe', consent: true } });
+  if (signup.status === 201) return signup.json.token;
+  return (await call('POST', '/api/buyer/login', { body: { email, password } })).json.token;
+}
+
 test('full buyer flow: quote, order, track, reject wrong email', async () => {
   const quote = await call('POST', '/api/cart/quote', { body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }] } });
   assert.equal(quote.status, 200);
   assert.equal(quote.json.totals.subtotal, 30 * 250000);
 
   const order = await call('POST', '/api/orders', {
+    token: await buyerSession('ayu@example.com', 'Ayu Test'),
     body: {
       lines: [{ lotCode: 'AL-2611-001', kg: 30 }],
       consent: true, customer: { name: 'Ayu Test', company: '', buyerType: 'premium_roaster', phone: '081234567890', email: 'Ayu@Example.com', city: 'Surabaya', notes: '' },
@@ -100,7 +109,7 @@ test('full buyer flow: quote, order, track, reject wrong email', async () => {
 });
 
 test('orders with bad input return 400 and field messages', async () => {
-  const r = await call('POST', '/api/orders', { body: { lines: [{ lotCode: 'AL-2611-001', kg: 10 }], consent: true, customer: { name: 'A', email: 'x' } } });
+  const r = await call('POST', '/api/orders', { token: await buyerSession('bad-input@test.local', 'Uji Input'), body: { lines: [{ lotCode: 'AL-2611-001', kg: 10 }], consent: true, customer: { name: 'A', email: 'x' } } });
   assert.equal(r.status, 400);
   assert.ok(r.json.error.fields.email || r.json.error.fields.name);
 });
@@ -261,6 +270,7 @@ test('online payment: start with VA or QRIS, a signed webhook marks the order pa
   const secret = 'webhook-uji-rahasia';
   process.env.PAYMENT_WEBHOOK_SECRET = secret;
   const order = await call('POST', '/api/orders', {
+    token: await buyerSession('bayar@test.local', 'Bayar Uji'),
     body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], consent: true, customer: { name: 'Bayar Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'bayar@test.local', city: 'Bandung', notes: '' } },
   });
   const number = order.json.order.number;
@@ -295,6 +305,7 @@ test('Midtrans notifications: signature checked, settlement marks paid, other st
   const pw = require('../lib/payments');
   const serverKey = 'SB-Mid-server-uji';
   const order = await call('POST', '/api/orders', {
+    token: await buyerSession('mid@test.local', 'Midtrans Uji'),
     body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], consent: true, customer: { name: 'Midtrans Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'mid@test.local', city: 'Bandung', notes: '' } },
   });
   const number = order.json.order.number;
@@ -354,4 +365,16 @@ test('theme settings are admin-only', async () => {
   const login = await call('POST', '/api/auth/login', { body: { email: 'penilai-tema@test.local', password: pw } });
   const res = await call('PUT', '/api/admin/theme', { token: login.json.token, body: { reset: true } });
   assert.equal(res.status, 403);
+});
+
+test('an order without a buyer account is refused and nothing is saved', async () => {
+  const lot = (await call('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
+  const before = (await call('GET', '/api/admin/orders', { token: TOKEN })).json.orders.length;
+  const guest = await call('POST', '/api/orders', {
+    body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Tamu', buyerType: 'other', phone: '081200000000', email: 'tamu@test.local', city: 'Jayapura' } },
+  });
+  assert.equal(guest.status, 401);
+  assert.equal(guest.json.error.code, 'auth_required');
+  const after = (await call('GET', '/api/admin/orders', { token: TOKEN })).json.orders.length;
+  assert.equal(after, before);
 });

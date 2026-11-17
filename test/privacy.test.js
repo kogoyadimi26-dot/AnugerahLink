@@ -41,10 +41,10 @@ test('legal pages are published with a draft flag until a lawyer reviews them', 
 test('an order needs consent; the consent version is kept on the order', async () => {
   const lot = (await call('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
   const customer = { name: 'Sari', buyerType: 'specialty_cafe', phone: BUYER.phone, email: BUYER.email, city: 'Jayapura' };
-  const refused = await call('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], customer } });
+  const refused = await call('POST', '/api/orders', { token: TOKEN, body: { lines: [{ lotCode: lot.code, kg: 30 }], customer } });
   assert.equal(refused.status, 400);
   assert.ok(refused.json.error.fields.consent);
-  const placed = await call('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer } });
+  const placed = await call('POST', '/api/orders', { token: TOKEN, body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer } });
   assert.equal(placed.status, 201);
   const admin = (await call('GET', '/api/admin/orders', { token: STAFF })).json.orders.find((o) => o.number === placed.json.order.number);
   assert.equal(admin.consent.version, 'v1-draft');

@@ -76,7 +76,7 @@ test('a buyer downloads only their own invoices', async () => {
 
 test('NPWP is optional but must look like a tax number; it appears on the buyer profile', async () => {
   const lot = (await json('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
-  const bad = await json('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Uji', buyerType: 'roaster', phone: '081211112222', email: 'npwp@x.id', city: 'Jayapura', npwp: 'salah' } } });
+  const bad = await json('POST', '/api/orders', { token: BUYER_TOKEN, body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Uji', buyerType: 'roaster', phone: '081211112222', email: BUYER.email, city: 'Jayapura', npwp: 'salah' } } });
   assert.equal(bad.status, 400);
   assert.ok(bad.json.error.fields.npwp);
   const me = await json('PATCH', '/api/buyer/me', { token: BUYER_TOKEN, body: { name: 'Dewi Kopi', phone: BUYER.phone, company: 'Kafe Dewi', buyerType: 'roaster', npwp: '01.234.567.8-901.000' } });
