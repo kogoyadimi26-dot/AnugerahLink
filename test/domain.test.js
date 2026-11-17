@@ -23,12 +23,22 @@ function freshDb() {
 
 // ---------- pricing and economics ----------
 
-test('economics with the v2 grade mix matches the v2 spreadsheet', () => {
+// Angka ini sengaja berbeda dari spreadsheet v2 (margin Rp33.900/kg, impas 11.800 ton) karena Lokal dinaikkan ke Rp130.000.
+// Dengan Lokal Rp100.000, hasilnya tetap sama dengan spreadsheet v2 (lihat test berikut).
+test('economics with the default mix uses the repriced Local tier', () => {
   const e = pricing.economics({ mix: config.defaultMix });
-  assert.equal(e.salesPerKgBought, 161500);
+  assert.equal(e.salesPerKgBought, 170050);   // 95% x blended Rp179.000
   assert.equal(e.buyPerKgBought, 120000);
   assert.equal(e.shippingPerKgBought, 5700);
   assert.equal(e.feesPerKgBought, 1900);
+  assert.equal(e.grossMarginPerKgBought, 42450);
+  assert.equal(e.breakEvenKgPerYear, 9423);  // 400M / 42,450 = 9,422.9, rounded up
+});
+
+test('economics with the v2 Local price still matches the v2 spreadsheet', () => {
+  const tiers = { ...config.tiers, local: { ...config.tiers.local, pricePerKg: 100000 } };
+  const e = pricing.economics({ mix: config.defaultMix, tiers });
+  assert.equal(e.salesPerKgBought, 161500);
   assert.equal(e.grossMarginPerKgBought, 33900);
   // 400M / 33,900 = 11,799.4, rounded up to 11,800 (plan shows 11,799)
   assert.equal(e.breakEvenKgPerYear, 11800);
@@ -47,7 +57,12 @@ test('a line for Verified standard adds buyer-paid shipping, Premium does not', 
 test('local lots carry no shipping charge', () => {
   const l = pricing.priceLine({ code: 'Z', tier: 'local' }, 40);
   assert.equal(l.shippingTotal, 0);
-  assert.equal(l.pricePerKg, 100000);
+  assert.equal(l.pricePerKg, config.tiers.local.pricePerKg);
+});
+
+test('local tier stays above break-even at the planning buy price', () => {
+  const e = pricing.economics({ mix: { local: 1 }, buyPricePerKg: config.buyPricePerKg });
+  assert.ok(e.grossMarginPerKgBought >= 0, `Lokal rugi Rp${-e.grossMarginPerKgBought}/kg`);
 });
 
 test('kg rules: minimum, whole numbers and step', () => {
