@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { SqlStore } = require('./lib/sqlstore');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
+const payments = require('./lib/payments');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
 const auth = require('./lib/auth');
@@ -176,6 +177,18 @@ function buildRoutes(ctx) {
     return { status: 201, body: { received: created.length } };
   });
 
+  route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/payment$/, ([number], body) => {
+    const created = store.update((db) => domain.createPayment(db, number, body.email, body.method, now()));
+    const order = store.read().orders.find((o) => o.number === number);
+    return { status: 201, body: { payment: { id: created.id, method: created.method, instructions: created.instructions }, order: domain.publicOrder(order) } };
+  });
+  if (ctx.demo) {
+    // Hanya mode demo: anggap pembayaran sudah masuk, untuk uji coba alur.
+    route('POST', /^\/api\/admin\/payments\/([\w-]+)\/simulate$/, ([providerRef]) => {
+      const result = store.update((db) => domain.markPaymentPaid(db, providerRef, store.read().orders.find((o) => (o.payments || []).some((p) => p.providerRef === providerRef)).total, now()));
+      return { status: 200, body: { order: domain.publicOrder(result.order), duplicate: result.duplicate } };
+    }, { perm: 'orders' });
+  }
   route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/confirm-receipt$/, ([number], body) => {
     const order = domain.findOrderForBuyer(store.read(), number, body.email);
     if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
@@ -282,6 +295,32 @@ function serveDevReload(req, res) {
   req.on('close', () => devClients.delete(res));
 }
 
+// Pesan dari penyedia pembayaran. Wajib tanda tangan HMAC yang benar; rahasia dari PAYMENT_WEBHOOK_SECRET.
+function handlePaymentWebhook(req, res, store) {
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
+  if (!secret) return sendError(res, new ApiError(503, 'not_configured', 'Pembayaran online belum dikonfigurasi.'));
+  const chunks = [];
+  let size = 0;
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > 64 * 1024) { req.destroy(); return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    try {
+      const raw = Buffer.concat(chunks);
+      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret)) {
+        throw new ApiError(401, 'bad_signature', 'Tanda tangan tidak valid.');
+      }
+      const body = JSON.parse(raw.toString('utf8'));
+      const result = store.update((db) => domain.markPaymentPaid(db, String(body.providerRef || ''), body.amount, new Date().toISOString()));
+      send(res, 200, { ok: true, duplicate: result.duplicate });
+    } catch (err) {
+      sendError(res, err instanceof ApiError ? err : new ApiError(400, 'invalid_json', 'Pesan tidak valid.'));
+    }
+  });
+}
+
 function serveStatic(req, res, pathname) {
   const rel = pathname === '/' ? '/index.html' : pathname;
   let decoded;
@@ -343,6 +382,9 @@ function createApp({ dataFile, owner, demo = false }) {
     const url = new URL(req.url, 'http://localhost');
     const pathname = url.pathname;
     if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
+    if (pathname === '/api/payments/webhook' && req.method === 'POST') {
+      return handlePaymentWebhook(req, res, store);
+    }
     const photoMatch = pathname.match(/^\/api\/admin\/photos\/([\w-]+)$/);
     if (photoMatch && req.method === 'GET') {
       try {

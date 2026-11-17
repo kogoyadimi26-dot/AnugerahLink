@@ -255,3 +255,37 @@ test('demo accounts exist and sign in only when demo mode is on', async () => {
   const cfgOff = await call('GET', '/api/config');
   assert.deepEqual(cfgOff.json.demoAccounts, []);
 });
+
+// ---------- pembayaran online ----------
+test('online payment: start with VA or QRIS, a signed webhook marks the order paid once', async () => {
+  const secret = 'webhook-uji-rahasia';
+  process.env.PAYMENT_WEBHOOK_SECRET = secret;
+  const order = await call('POST', '/api/orders', {
+    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], customer: { name: 'Bayar Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'bayar@test.local', city: 'Bandung', notes: '' } },
+  });
+  const number = order.json.order.number;
+  const total = order.json.order.total;
+  const pay = await call('POST', `/api/orders/${number}/payment`, { body: { email: 'bayar@test.local', method: 'va_bca' } });
+  assert.equal(pay.status, 201);
+  assert.equal(pay.json.payment.instructions.kind, 'va');
+  assert.match(pay.json.payment.instructions.vaNumber, /^014\d{13}$/);
+  const qris = await call('POST', `/api/orders/${number}/payment`, { body: { email: 'bayar@test.local', method: 'qris' } });
+  assert.equal(qris.json.payment.instructions.kind, 'qris');
+  const providerRef = `sbx-${pay.json.payment.id}`;
+
+  const body = JSON.stringify({ providerRef, amount: total });
+  const sig = require('../lib/payments').signWebhook(Buffer.from(body), secret);
+  const hook = (b, s) => fetch(base + '/api/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature': s }, body: b });
+  assert.equal((await hook(body, 'deadbeef')).status, 401, 'wrong signature refused');
+  const first = await hook(body, sig);
+  assert.equal(first.status, 200);
+  assert.equal((await first.json()).duplicate, false);
+  const again = await hook(body, sig);
+  assert.equal((await again.json()).duplicate, true, 'repeat message changes nothing');
+  const track = await call('GET', `/api/orders/${number}`, { email: 'bayar@test.local' });
+  assert.equal(track.json.order.status, 'paid');
+  const badBody = JSON.stringify({ providerRef: `sbx-${qris.json.payment.id}`, amount: total - 1 });
+  const badSig = require('../lib/payments').signWebhook(Buffer.from(badBody), secret);
+  assert.equal((await hook(badBody, badSig)).status, 400, 'amount mismatch refused');
+  delete process.env.PAYMENT_WEBHOOK_SECRET;
+});
