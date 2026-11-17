@@ -36,7 +36,7 @@ module.exports = {
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
   defaultMix: { reserve: 0.05, premium: 0.25, verified: 0.40, local: 0.30 },
 
-  // Pemeriksaan saat pembelian (intake). Semua angka perlu dikonfirmasi pemilik.
+  // Pemeriksaan saat pembelian (intake). Angka ini sudah dikonfirmasi pemilik.
   // Sampel: jumlah biji yang diperiksa per sampel (gram).
   intake: {
     sampleGrams: 300,
