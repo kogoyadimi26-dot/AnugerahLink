@@ -265,6 +265,32 @@ These values are set in `config/business.js` under `intake` and were confirmed b
 
 **What it does not yet do:** per-grade price lists, sample photos, scale calibration log, and farmer signature on the weight slip.
 
+## 14. Core values (Nilai inti)
+
+**Our quality principle.** AnugerahLink delivers top-quality Papuan coffee. We do not accept or sell low-quality coffee. Every lot is checked before we pay for it and graded before we sell it.
+
+| Value | English | Bahasa Indonesia |
+|---|---|---|
+| **Integrity** | We sell only the coffee we have checked, graded, and can prove. | **Integritas**: Kami hanya menjual kopi yang sudah kami periksa, nilai, dan dapat kami buktikan. |
+| **Trust** | Every lot matches its grade, cup score and passport, every time. | **Kepercayaan**: Setiap lot sesuai dengan grade, skor cupping, dan paspornya, selalu. |
+| **Empowerment** | We train farmers and price transparently, so they can grow better coffee and earn more. | **Pemberdayaan**: Kami melatih petani dan menetapkan harga secara transparan, agar mereka bisa menghasilkan kopi yang lebih baik dan memperoleh penghasilan lebih besar. |
+| **Help** | We bring Papua’s hidden coffee to market, so buyers taste what Papua produces, and farmers get credit for it. | **Membantu**: Kami menghadirkan kopi Papua yang tersembunyi ke pasar, agar pembeli dapat merasakan kopinya dan petani mendapat pengakuan atasnya. |
+
+**How the values show up in practice**
+
+- **Integrity:** lots that fail intake are rejected and not paid for (see section 13). Lower-grade lots are labelled as such and never sold as Reserve or Premium.
+- **Trust:** every passport shows the recorded grade, cup score and price paid, with a hash check. Claims and returns follow the published policy.
+- **Empowerment:** training for farmer groups, grade-based pricing (planned), and a result shown to the farmer before payment.
+- **Help:** Papuan coffee is presented by region and group, with the same standard as any other origin.
+
+The same four values are shown on the home page of the web app, from `config/business.js` (`values`).
+
+**Review notes for the owner**
+
+1. The Local tier and "dipotong" lots are below target grade. The values above are kept consistent by labelling them clearly and never selling them as higher tiers. Confirm this is the intended rule.
+2. Avoid claims such as "the best coffee in the world" or "absolute trust". Use what we can show: graded, traced, checked.
+3. Grade-based pricing (section 13) is what turns Empowerment into a real reward. It is not built yet.
+
 ## 11. Glossary
 
 - **Farm-gate price:** what the farmer is paid at the farm, per kg.

@@ -75,6 +75,15 @@ module.exports = {
     },
   },
 
+  // Nilai inti perusahaan, ditampilkan di beranda. Ubah teks di sini.
+  // icon: shield | sprout | hand | check
+  values: [
+    { icon: 'shield', title: 'Integritas', text: 'Kami hanya menjual kopi yang sudah kami periksa, nilai, dan dapat kami buktikan.' },
+    { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot sesuai dengan grade, skor cupping, dan paspornya, selalu.' },
+    { icon: 'sprout', title: 'Pemberdayaan', text: 'Kami melatih petani dan menetapkan harga secara transparan, agar mereka bisa menghasilkan kopi yang lebih baik dan memperoleh penghasilan lebih besar.' },
+    { icon: 'hand', title: 'Membantu', text: 'Kami menghadirkan kopi Papua yang tersembunyi ke pasar, agar pembeli dapat merasakan kopinya dan petani mendapat pengakuan atasnya.' },
+  ],
+
   // About page content. Edit the text here; the page updates from this file.
   // icon: coin | passport | check
   about: {
