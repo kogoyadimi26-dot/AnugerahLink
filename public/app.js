@@ -1031,6 +1031,11 @@
     try {
       state.regions = await api('/api/regions');
     } catch { state.regions = []; }
+    // Buka aplikasi selalu di beranda. Tautan langsung (paspor, lot, pesanan) tetap dibuka apa adanya.
+    const entry = location.hash.replace(/^#/, '');
+    if (entry === '' || entry === '/' || entry === '/catalogue' || entry.startsWith('/catalogue?')) {
+      location.hash = '#/';
+    }
     window.addEventListener('hashchange', route);
     route();
   }
