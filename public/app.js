@@ -100,16 +100,8 @@
     return data;
   }
 
-  // Halaman dalam bagian Katalog (Produk, Kategori, Tentang) diberi menu tab yang sama.
-  function katalogSubnav() {
-    const h = location.hash || '';
-    const tabs = [['#/catalogue', 'Produk'], ['#/about', 'Tentang']];
-    const active = tabs.find(([href]) => h.startsWith(href)) || tabs[0];
-    return `<nav class="subnav" aria-label="Menu katalog">${tabs.map(([href, label]) => `<a href="${href}"${href === active[0] ? ' aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
-  }
-
   function setMain(html) {
-    main.innerHTML = (state.section === 'katalog' ? katalogSubnav() : '') + html;
+    main.innerHTML = html;
     main.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }
@@ -1942,13 +1934,11 @@ const ICONS = {
 
   async function route() {
     const { parts, query } = parse();
-    state.section = null;
     updateCartCount();
     markNav();
     try {
       if (parts.length === 0) return await viewHome();
       const [head, a, b] = parts;
-      state.section = ['catalogue', 'kategori', 'about'].includes(head) ? 'katalog' : null;
       if (head === 'catalogue') return await viewCatalogue(query);
       if (head === 'lot' && a) return await viewLot(a);
       if (head === 'passport' && a) return await viewPassport(a);
