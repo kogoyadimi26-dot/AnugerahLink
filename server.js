@@ -204,6 +204,27 @@ function buildRoutes(ctx) {
   return r;
 }
 
+// Development only (npm run dev): the browser reloads when files in public/ change.
+const DEV = Boolean(process.env.DEV_RELOAD);
+const devClients = new Set();
+function startDevWatch() {
+  let timer = null;
+  try {
+    fs.watch(PUBLIC_DIR, { recursive: true }, () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { for (const c of devClients) c.write('data: reload\n\n'); }, 120);
+    });
+  } catch (err) {
+    console.warn('[dev] file watching is not available here; refresh the browser manually.', err.message);
+  }
+}
+function serveDevReload(req, res) {
+  res.writeHead(200, baseHeaders({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' }));
+  res.write('retry: 1000\n\n');
+  devClients.add(res);
+  req.on('close', () => devClients.delete(res));
+}
+
 function serveStatic(req, res, pathname) {
   const rel = pathname === '/' ? '/index.html' : pathname;
   let decoded;
@@ -222,10 +243,17 @@ function serveStatic(req, res, pathname) {
       res.writeHead(404, baseHeaders({ 'Content-Type': 'text/plain; charset=utf-8' }));
       return res.end('Not found');
     }
-    res.writeHead(200, baseHeaders({
-      'Content-Type': TYPES[path.extname(target)] || 'application/octet-stream',
-      'Cache-Control': 'no-cache',
-    }));
+    const type = TYPES[path.extname(target)] || 'application/octet-stream';
+    if (DEV && path.basename(target) === 'index.html') {
+      fs.readFile(target, 'utf8', (readErr, html) => {
+        if (readErr) { res.writeHead(500, baseHeaders()); return res.end(); }
+        const page = html.replace('</body>', '<script src="/dev-reload.js"></script>\n</body>');
+        res.writeHead(200, baseHeaders({ 'Content-Type': type, 'Cache-Control': 'no-cache' }));
+        res.end(page);
+      });
+      return;
+    }
+    res.writeHead(200, baseHeaders({ 'Content-Type': type, 'Cache-Control': 'no-cache' }));
     fs.createReadStream(target).pipe(res);
   });
 }
@@ -241,6 +269,7 @@ function createApp({ dataFile, adminToken }) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const pathname = url.pathname;
+    if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
     if (!pathname.startsWith('/api/')) {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(405, baseHeaders({ Allow: 'GET' }));
@@ -277,6 +306,7 @@ if (require.main === module) {
     console.warn('[warn] ADMIN_TOKEN is not set. Using a development token. Set ADMIN_TOKEN before going live.');
   }
   const { server } = createApp({ dataFile, adminToken });
+  if (DEV) { startDevWatch(); console.log('[dev] live reload is on: the browser refreshes when public/ changes'); }
   server.listen(port, () => console.log(`AnugerahLink running at http://localhost:${port}`));
 }
 
