@@ -180,6 +180,17 @@
               </div>`).join('')}
         </div>
       </section>
+      <section aria-labelledby="values">
+        <h2 id="values">Nilai kami</h2>
+        <div class="pillars">
+          ${(state.config.values || []).map((x) => `
+            <article class="pillar">
+              <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
+              <h3>${esc(x.title)}</h3>
+              <p>${esc(x.text)}</p>
+            </article>`).join('')}
+        </div>
+      </section>
       <section aria-labelledby="featured">
         <h2 id="featured">Lot tersedia sekarang</h2>
         ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<p class="muted">Belum ada lot tersedia. Silakan cek kembali nanti.</p>'}
@@ -638,6 +649,9 @@ const ICONS = {
     coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.2c0-1 1-1.7 2.5-1.7s2.5.7 2.5 1.7-1 1.5-2.5 1.8-2.5.8-2.5 1.8 1 1.7 2.5 1.7 2.5-.7 2.5-1.7"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
     passport: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M8.5 16.5h7"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l7 2.8v5.2c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6.3z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>',
+    sprout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20v-9"/><path d="M12 11c0-3.5-2.5-6-6.5-6 0 3.8 2.5 6 6.5 6z"/><path d="M12 13.5c0-2.8 2-4.8 5.5-4.8 0 3-2 4.8-5.5 4.8z"/></svg>',
+    hand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 13.5l3.5-3.5h3.2c1 0 1.8.5 2.3 1.2l1.3 1.6"/><path d="M13.5 13.8l2.2-2.2h1.2a2 2 0 0 1 0 4h-3.4"/><path d="M7 10.5l4 3.8 2.8-2.8 4.2 4.2"/></svg>',
   };
 
   function viewAbout() {
