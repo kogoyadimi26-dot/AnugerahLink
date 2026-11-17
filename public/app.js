@@ -1686,6 +1686,73 @@ const ICONS = {
   const BUYER_PATHS = ['/api/buyer', '/api/orders'];
   function isBuyerPath(path) { return BUYER_PATHS.some((b) => path === b || path.startsWith(b + '/') || path.startsWith(b + '?')); }
   function buyerToken() { try { return localStorage.getItem('al-buyer') || ''; } catch { return ''; } }
+  function authPage(title, inner) {
+    setMain(`<section class="card" style="max-width:520px;margin:24px auto 0"><h1 style="margin-top:0">${esc(title)}</h1>${inner}</section>`);
+  }
+
+  async function viewVerifyEmail(token) {
+    if (!token) {
+      authPage('Konfirmasi email', '<p class="muted">Tautan ini tidak lengkap. Buka tautan langsung dari email konfirmasi.</p><p><a class="btn" href="#/akun">Ke akun saya</a></p>');
+      return;
+    }
+    authPage('Konfirmasi email', '<p class="muted">Memeriksa tautan…</p>');
+    try {
+      await api('/api/buyer/verify/confirm', { method: 'POST', body: { token } });
+      authPage('Konfirmasi email', '<div class="notice ok">Email Anda sudah dikonfirmasi. Terima kasih.</div><p><a class="btn" href="#/akun">Ke akun saya</a></p>');
+    } catch (err) {
+      authPage('Konfirmasi email', `<div class="notice bad" role="alert">${esc(err.message)}</div><p><a class="btn secondary" href="#/akun">Ke akun saya</a></p>`);
+    }
+  }
+
+  function viewForgotPassword() {
+    authPage('Lupa kata sandi', `
+      <p class="muted">Masukkan email akun Anda. Kami kirim tautan untuk membuat kata sandi baru.</p>
+      <form id="forgot-form" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="field"><label for="fg-email">Email</label><input id="fg-email" name="email" type="email" required autocomplete="email"></div>
+        <div class="btn-row"><button class="btn" type="submit" data-save>Kirim tautan</button></div>
+      </form>
+      <p class="muted" style="margin-top:12px"><a href="#/akun">Kembali ke masuk</a></p>`);
+    const form = document.getElementById('forgot-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelector('[data-form-error]').hidden = true;
+      const btn = form.querySelector('[data-save]'); busy(btn, true, 'Mengirim…');
+      try {
+        const r = await api('/api/buyer/password/forgot', { method: 'POST', body: formData(form) });
+        authPage('Lupa kata sandi', `<div class="notice ok">${esc(r.message)} Cek juga folder spam.</div><p><a href="#/akun">Kembali ke masuk</a></p>`);
+      } catch (err) { showFormError(form, err); busy(btn, false); }
+    });
+  }
+
+  function viewResetPassword(token) {
+    if (!token) {
+      authPage('Atur ulang kata sandi', '<p class="muted">Tautan ini tidak lengkap. Minta tautan baru.</p><p><a class="btn" href="#/akun/lupa">Minta tautan baru</a></p>');
+      return;
+    }
+    authPage('Atur ulang kata sandi', `
+      <form id="reset-form" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="field"><label for="rp-pw">Kata sandi baru (minimal 8 karakter)</label><input id="rp-pw" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
+        <div class="field"><label for="rp-pw2">Ulangi kata sandi baru</label><input id="rp-pw2" name="confirm" type="password" required minlength="8" autocomplete="new-password"></div>
+        <div class="btn-row"><button class="btn" type="submit" data-save>Simpan kata sandi baru</button></div>
+      </form>`);
+    const form = document.getElementById('reset-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelector('[data-form-error]').hidden = true;
+      const f = formData(form);
+      if (f.password !== f.confirm) { showFormError(form, { message: 'Kedua kata sandi harus sama.' }); return; }
+      const btn = form.querySelector('[data-save]'); busy(btn, true, 'Menyimpan…');
+      try {
+        await api('/api/buyer/password/reset', { method: 'POST', body: { token, password: f.password } });
+        setBuyerToken('');
+        toast('Kata sandi sudah diganti. Silakan masuk.');
+        location.hash = '#/akun';
+      } catch (err) { showFormError(form, err); busy(btn, false); }
+    });
+  }
+
   function setBuyerToken(t) { try { if (t) localStorage.setItem('al-buyer', t); else localStorage.removeItem('al-buyer'); } catch { /* abaikan */ } }
 
   function addressFieldsHtml(a) {
@@ -1712,6 +1779,7 @@ const ICONS = {
         <div><h1 style="margin-bottom:4px">Akun saya</h1><p class="muted" style="margin:0">Halo, ${esc(me.name)}. ${esc(me.email)}</p></div>
         <button class="btn secondary small" type="button" id="buyer-out">Keluar</button>
       </div>
+      ${me.emailVerified ? '' : `<div class="notice" role="status" style="margin:16px 0"><div class="btn-row" style="justify-content:space-between;align-items:center"><span>Email Anda belum dikonfirmasi. Cek kotak masuk, atau kirim ulang tautannya.</span><button class="btn secondary small" type="button" id="resend-verify">Kirim ulang</button></div></div>`}
       <h2>Pesanan saya</h2>
       ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
         ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/track/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a> · <button type="button" class="btn secondary small" data-invoice="${esc(o.number)}">Faktur PDF</button></td></tr>`).join('')}
@@ -1760,6 +1828,13 @@ const ICONS = {
   }
 
   function wireAccount(me) {
+    const resend = document.getElementById('resend-verify');
+    if (resend) resend.addEventListener('click', async () => {
+      resend.disabled = true;
+      try { await api('/api/buyer/verify/send', { method: 'POST', body: {} }); toast('Tautan konfirmasi dikirim ulang. Cek email Anda.'); }
+      catch (err) { toast(err.message); }
+      resend.disabled = false;
+    });
     document.getElementById('buyer-out').addEventListener('click', async () => {
       try { await api('/api/buyer/logout', { method: 'POST' }); } catch { /* sesi sudah habis */ }
       setBuyerToken('');
@@ -1859,7 +1934,8 @@ const ICONS = {
           <div class="notice bad" data-form-error hidden role="alert"></div>
           <div class="field"><label for="bl-email">Email</label><input id="bl-email" name="email" type="email" required autocomplete="email"></div>
           <div class="field"><label for="bl-pw">Kata sandi</label><input id="bl-pw" name="password" type="password" required autocomplete="current-password"></div>
-          <div class="btn-row"><button class="btn" type="submit" data-save>Masuk</button></div></form>
+          <div class="btn-row"><button class="btn" type="submit" data-save>Masuk</button></div>
+          <p class="muted" style="margin:12px 0 0"><a href="#/akun/lupa">Lupa kata sandi?</a></p></form>
         <form id="buyer-signup" class="card" novalidate><h2 style="margin-top:0">Daftar</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
           <div class="form-grid">
@@ -1962,6 +2038,9 @@ const ICONS = {
       if (head === 'feedback' && a) return viewFeedback(a);
       if (head === 'about') return viewAbout();
       if (head === 'kategori') { location.hash = '#/catalogue' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
+      if (head === 'akun' && a === 'verifikasi') return await viewVerifyEmail(query.token);
+      if (head === 'akun' && a === 'lupa') return viewForgotPassword();
+      if (head === 'akun' && a === 'reset') return viewResetPassword(query.token);
       if (head === 'akun' || head === 'masuk') return await viewAccount();
       if (head === 'kebijakan-privasi' || head === 'syarat' || head === 'pengembalian') return viewLegal(head);
       if (head === 'admin') {

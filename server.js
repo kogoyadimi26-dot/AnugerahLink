@@ -193,8 +193,18 @@ function buildRoutes(ctx) {
   });
 
   // ---- Akun pembeli ----
+  const accountLink = (seg, token) => `${process.env.PUBLIC_URL || ''}/#/akun/${seg}?token=${encodeURIComponent(token)}`;
+  const sendVerificationEmail = (db, buyerId, at) => {
+    const v = buyers.requestVerification(db, buyerId, at);
+    if (!v.alreadyVerified) notify.enqueueAccountEmail(db, 'verify', v.email, accountLink('verifikasi', v.token), at);
+    return v;
+  };
   route('POST', /^\/api\/buyer\/signup$/, (_p, body) => {
-    const r = store.update((db) => buyers.signupBuyer(db, body, now()));
+    const r = store.update((db) => {
+      const out = buyers.signupBuyer(db, body, now());
+      sendVerificationEmail(db, out.buyer.id, now());
+      return out;
+    });
     return { status: 201, body: { token: r.token, buyer: buyers.publicBuyer(r.buyer) }, headers: { 'Cache-Control': 'no-store' } };
   });
   route('POST', /^\/api\/buyer\/login$/, (_p, body, _q, req) => {
@@ -228,6 +238,34 @@ function buildRoutes(ctx) {
     const b = needBuyer(req);
     store.update((db) => buyers.changePassword(db, b.id, body));
     return { status: 200, body: { ok: true } };
+  });
+  route('POST', /^\/api\/buyer\/verify\/send$/, (_p, _b, _q, req) => {
+    const b = needBuyer(req);
+    store.update((db) => sendVerificationEmail(db, b.id, now()));
+    return { status: 200, body: { ok: true }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/buyer\/verify\/confirm$/, (_p, body) => {
+    store.update((db) => buyers.confirmEmail(db, body.token, now()));
+    return { status: 200, body: { ok: true }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  // Permintaan atur ulang dibatasi terpisah dari percobaan masuk: 5 permintaan per IP per jam.
+  const resetLimiter = new LoginLimiter({ rules: { ip: { max: 5, windowMs: 60 * 60000, lockMs: 60 * 60000 } } });
+  route('POST', /^\/api\/buyer\/password\/forgot$/, (_p, body, _q, req) => {
+    const ip = (req && req.socket && req.socket.remoteAddress) || 'tidak-diketahui';
+    const wait = resetLimiter.retryAfter('ip', ip);
+    if (wait > 0) throw new ApiError(429, 'too_many_attempts', `Terlalu banyak permintaan. Coba lagi dalam ${Math.ceil(wait / 60)} menit.`);
+    resetLimiter.recordFailure('ip', ip);
+    store.update((db) => {
+      const r = buyers.requestPasswordReset(db, body.email, now());
+      if (r) notify.enqueueAccountEmail(db, 'reset', r.email, accountLink('reset', r.token), now());
+      return true;
+    });
+    // Jawaban sama untuk email yang terdaftar maupun tidak.
+    return { status: 200, body: { ok: true, message: 'Jika email terdaftar, tautan atur ulang sudah kami kirim.' }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/buyer\/password\/reset$/, (_p, body) => {
+    store.update((db) => buyers.resetPassword(db, body.token, body.password, now()));
+    return { status: 200, body: { ok: true }, headers: { 'Cache-Control': 'no-store' } };
   });
   route('POST', /^\/api\/buyer\/addresses$/, (_p, body, _q, req) => {
     const b = needBuyer(req);
