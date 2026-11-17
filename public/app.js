@@ -207,6 +207,11 @@
         <p class="lead">${esc(state.config.content.homeLead)}</p>
         <div class="btn-row"><a class="btn" href="#/catalogue">Lihat lot tersedia</a><a class="btn secondary" href="#/about">Cara kerja kami</a></div>
       </section>
+      <section aria-labelledby="featured">
+        <h2 id="featured">Lot tersedia sekarang</h2>
+        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi ya.</p></div>'}
+        <p style="margin-top:16px"><a href="#/catalogue">Lihat semua lot</a></p>
+      </section>
       <section aria-labelledby="how">
         <h2 id="how">Cara kami bekerja</h2>
         <div class="pillars">
@@ -228,11 +233,6 @@
               <p>${esc(x.text)}</p>
             </article>`).join('')}
         </div>
-      </section>
-      <section aria-labelledby="featured">
-        <h2 id="featured">Lot tersedia sekarang</h2>
-        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi ya.</p></div>'}
-        <p style="margin-top:16px"><a href="#/catalogue">Lihat semua lot</a></p>
       </section>
       ${policySection()}`);
   }
