@@ -1898,8 +1898,9 @@ const ICONS = {
       e.preventDefault();
       const cat = document.getElementById('search-cat').value;
       const q = document.getElementById('search-q').value.trim();
-      if (cat !== 'kopi') { toast(cat === 'kakao' ? 'Kakao segera hadir.' : 'Kepiting segera hadir.'); return; }
-      location.hash = '#/catalogue' + (q ? '?q=' + encodeURIComponent(q) : '?kategori=kopi');
+      // Pencarian selalu berjalan di lot kopi yang tersedia. Kakao dan kepiting belum bisa dipesan, jadi beri tahu saja.
+      if (cat !== 'kopi') toast((cat === 'kakao' ? 'Kakao' : 'Kepiting') + ' belum tersedia. Menampilkan lot kopi.');
+      location.hash = '#/catalogue?kategori=kopi' + (q ? '&q=' + encodeURIComponent(q) : '');
     });
   }
 
