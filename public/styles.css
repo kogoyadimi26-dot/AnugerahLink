@@ -297,8 +297,11 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .site-header { position: sticky; top: 0; z-index: 20; background: var(--footer-bg); border: 0; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .site-header .topbar { background: var(--footer-bg); color: var(--footer-ink); }
 .topbar-row { display: flex; align-items: center; gap: 14px; min-height: 68px; padding-top: 8px; padding-bottom: 8px; }
+.topbar-row.wrap { max-width: 1680px; padding-left: 20px; padding-right: 20px; }
 .topbar .wordmark { flex: none; }
-.topbar .wordmark img { height: 48px; width: auto; background: #FFFFFF; border-radius: 10px; padding: 3px 8px; }
+.wordmark-text { flex: none; color: #FFFFFF; text-decoration: none; font-size: 28px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; padding: 6px 4px; white-space: nowrap; }
+.wordmark-text span { color: var(--gold-hi); }
+.wordmark-text:hover { color: #FFFFFF; }
 .locate { display: flex; flex-direction: column; color: var(--footer-ink); text-decoration: none; padding: 6px 8px; border: 1px solid transparent; border-radius: 4px; flex: none; line-height: 1.15; }
 .locate:hover { border-color: rgba(255,255,255,.4); }
 .locate-k { font-size: 12px; opacity: .8; }
@@ -355,7 +358,7 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
   .topbar-right { margin-left: auto; }
 }
 @media (max-width: 480px) {
-  .topbar .wordmark img { height: 40px; }
+  .wordmark-text { font-size: 22px; }
   .cart-label { display: none; }
   .searchbox select { max-width: 110px; font-size: 13px; }
 }
@@ -388,3 +391,19 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .site-footer .footer-legal .footer-tag { margin: 0 0 6px; max-width: none; }
 .site-footer .footer-legal p { margin: 0 0 6px; }
 .site-footer .footer-legal a { color: #E0AE3A; }
+/* Kotak cari: mengambil sisa ruang bar atas; teks dan tombol selalu terlihat */
+.searchbox { flex: 1 1 0; min-width: 320px; max-width: 680px; }
+.searchbox select { width: auto; max-width: none; flex: none; padding: 0 30px 0 12px; background-color: color-mix(in srgb, var(--ink) 6%, var(--surface)); font-weight: 600; cursor: pointer; }
+.searchbox input { min-width: 0; }
+.searchbox input::placeholder { color: var(--ink-muted); opacity: 1; }
+.topbar-right { flex: none; }
+.topbar-right .acct-pesanan { display: flex; }
+/* Layar lebar sedang: teks lokasi dan tautan Pesanan disembunyikan agar kotak cari tetap lebar */
+@media (max-width: 1359px) { .locate { display: none; } }
+@media (max-width: 1279px) { .topbar-right .acct-pesanan { display: none; } }
+/* Layar sedang: kotak cari turun ke baris sendiri dengan lebar penuh */
+@media (max-width: 1100px) {
+  .topbar-row { flex-wrap: wrap; gap: 10px; }
+  .searchbox { order: 3; flex: 1 1 100%; max-width: none; min-width: 0; }
+  .topbar-right { margin-left: auto; }
+}
