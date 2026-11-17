@@ -1002,6 +1002,7 @@ const ICONS = {
   async function route() {
     const { parts, query } = parse();
     updateCartCount();
+    markNav();
     try {
       if (parts.length === 0) return await viewHome();
       const [head, a, b] = parts;
@@ -1034,9 +1035,35 @@ const ICONS = {
     }
   }
 
+  // Terapkan tema dari config/theme.js sebagai variabel CSS.
+  function applyTheme(t) {
+    const vars = (m) => `--green:${m.primary};--green-2:${m.primaryHover};--green-soft:${m.primarySoft};` +
+      `--gold:${m.accent};--gold-hi:${m.accentStrong};--gold-soft:${m.accentSoft};--gold-ink:${m.accentInk};` +
+      `--brown:${m.brown};--bg:${m.background};--surface:${m.surface};--ink:${m.text};--ink-muted:${m.textMuted};` +
+      `--line:${m.border};--brand:${m.primary};--accent:${m.success};`;
+    const radius = `--radius-sm:${t.radius.sm};--radius:${t.radius.md};--radius-lg:${t.radius.lg};--font:${t.font};`;
+    const css = `:root{${vars(t.light)}${radius}}` +
+      `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${vars(t.dark)}}}` +
+      `:root[data-theme="dark"]{${vars(t.dark)}}`;
+    let el = document.getElementById('theme-vars');
+    if (!el) { el = document.createElement('style'); el.id = 'theme-vars'; document.head.appendChild(el); }
+    el.textContent = css;
+  }
+
+  // Tandai halaman aktif di navigasi.
+  function markNav() {
+    const h = location.hash || '#/';
+    document.querySelectorAll('.nav a').forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      if (href && h.startsWith(href)) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  }
+
   async function boot() {
     try {
       state.config = await api('/api/config');
+      applyTheme(state.config.theme);
     } catch (err) {
       setMain(`<h1>AnugerahLink</h1><p class="notice bad">${esc(err.message)}</p>`);
       return;

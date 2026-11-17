@@ -118,6 +118,7 @@ function publicConfig() {
     payment: { method: config.payment.method, bank: config.payment },
     policy: config.policy,
     about: config.about,
+    theme: require('./config/theme'),
   };
 }
 
