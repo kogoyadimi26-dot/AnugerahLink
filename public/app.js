@@ -761,7 +761,7 @@ const ICONS = {
     passport: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M8.5 16.5h7"/></svg>',
     shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l7 2.8v5.2c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6.3z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>',
     sprout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20v-9"/><path d="M12 11c0-3.5-2.5-6-6.5-6 0 3.8 2.5 6 6.5 6z"/><path d="M12 13.5c0-2.8 2-4.8 5.5-4.8 0 3-2 4.8-5.5 4.8z"/></svg>',
-    hand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 13.5l3.5-3.5h3.2c1 0 1.8.5 2.3 1.2l1.3 1.6"/><path d="M13.5 13.8l2.2-2.2h1.2a2 2 0 0 1 0 4h-3.4"/><path d="M7 10.5l4 3.8 2.8-2.8 4.2 4.2"/></svg>',
+    hand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.3c0 4.9-7 9.2-7 9.2z"/></svg>',
   };
 
   function viewAbout() {
