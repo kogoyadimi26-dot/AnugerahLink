@@ -480,6 +480,7 @@
         </div>
         <h2>Pembayaran</h2>
         <p>Transfer bank berdasarkan faktur. Detail rekening ditampilkan di halaman berikutnya.</p>
+        <div class="field"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
         <div class="btn-row"><button class="btn" type="submit" id="place">Buat pesanan</button><a class="btn secondary" href="#/cart">Kembali ke keranjang</a></div>
       </form>`);
     const form = document.getElementById('checkout');
@@ -496,6 +497,7 @@
           method: 'POST',
           body: {
             lines: state.cart,
+            consent: f.consent === true,
             customer: { name: f.name, company: f.company, buyerType: f.buyerType, phone: f.phone, email: f.email, city: f.city, street: f.street, npwp: f.npwp, notes: f.notes },
           },
         });
@@ -1600,6 +1602,20 @@ const ICONS = {
     });
   }
 
+  // ---------- kebijakan ----------
+  function viewLegal(key) {
+    const legal = state.config.legal;
+    const page = legal && legal.pages[key];
+    if (!page) { setMain('<h1>Halaman tidak ditemukan</h1><p><a href="#/">Kembali ke beranda</a></p>'); return; }
+    setMain(`
+      <h1>${esc(page.title)}</h1>
+      ${legal.reviewed ? '' : '<p class="notice">Draf. Teks ini sedang ditinjau dan belum berlaku.</p>'}
+      <p class="muted">Berlaku sejak ${esc(legal.updatedAt)} · versi ${esc(legal.version)}</p>
+      <div class="card" style="max-width:820px">
+        ${page.sections.map((s) => `<h2 style="margin-top:20px;font-size:1.125rem">${esc(s.h)}</h2>${s.p.map((t) => `<p>${esc(t)}</p>`).join('')}`).join('')}
+      </div>`);
+  }
+
   // ---------- akun pembeli ----------
   const BUYER_PATHS = ['/api/buyer', '/api/orders'];
   function isBuyerPath(path) { return BUYER_PATHS.some((b) => path === b || path.startsWith(b + '/') || path.startsWith(b + '?')); }
@@ -1657,13 +1673,23 @@ const ICONS = {
           <div class="field"><label for="pf-npwp">NPWP (opsional, untuk faktur)</label><input id="pf-npwp" name="npwp" maxlength="25" value="${esc(me.npwp || '')}" placeholder="00.000.000.0-000.000"></div>
         </div>
         <div class="btn-row"><button class="btn" type="submit" data-save>Simpan profil</button></div></form>
+      <h2>Data saya</h2>
+      <div class="card">
+        <p>Anda berhak melihat dan mengunduh data Anda, dan menghapus akun. Riwayat transaksi tetap disimpan tanpa identitas untuk kewajiban pencatatan.</p>
+        <div class="btn-row"><button class="btn secondary" type="button" id="buyer-export">Unduh data saya</button></div>
+      </div>
       <h2>Ganti kata sandi</h2>
       <form id="pwd" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
         <div class="form-grid">
           <div class="field"><label for="pw-cur">Kata sandi lama</label><input id="pw-cur" name="current" type="password" required autocomplete="current-password"></div>
           <div class="field"><label for="pw-new">Kata sandi baru (minimal 8 karakter)</label><input id="pw-new" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
         </div>
-        <div class="btn-row"><button class="btn" type="submit" data-save>Ganti kata sandi</button></div></form>`);
+        <div class="btn-row"><button class="btn" type="submit" data-save>Ganti kata sandi</button></div></form>
+      <h2>Hapus akun</h2>
+      <form id="buyer-delete" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
+        <p>Akun dan data pribadi Anda dihapus. Pesanan tetap tercatat tanpa nama, email, dan telepon. Tindakan ini tidak bisa dibatalkan.</p>
+        <div class="field" style="max-width:320px"><label for="bd-pw">Kata sandi untuk konfirmasi</label><input id="bd-pw" name="password" type="password" required autocomplete="current-password"></div>
+        <div class="btn-row"><button class="btn danger" type="submit" data-save>Hapus akun saya</button></div></form>`);
     wireAccount(me);
   }
 
@@ -1692,6 +1718,29 @@ const ICONS = {
       try { await api('/api/buyer/addresses/' + encodeURIComponent(b.dataset.remove), { method: 'DELETE' }); viewAccount(); }
       catch (err) { toast(err.message || 'Belum bisa dihapus.'); }
     }));
+    document.getElementById('buyer-export').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/buyer/export', { headers: { Authorization: 'Bearer ' + buyerToken() } });
+        if (!res.ok) throw new Error('Data belum bisa diunduh.');
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a'); a.href = url; a.download = 'data-saya.json';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) { toast(err.message || 'Data belum bisa diunduh.'); }
+    });
+    const del = document.getElementById('buyer-delete');
+    del.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!confirm('Hapus akun ini secara permanen?')) return;
+      del.querySelector('[data-form-error]').hidden = true;
+      const btn = del.querySelector('[data-save]'); busy(btn, true, 'Menghapus…');
+      try {
+        await api('/api/buyer/delete', { method: 'POST', body: formData(del) });
+        setBuyerToken('');
+        toast('Akun Anda sudah dihapus.');
+        location.hash = '#/';
+      } catch (err) { showFormError(del, err); busy(btn, false); }
+    });
     const profile = document.getElementById('profile');
     profile.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1755,7 +1804,7 @@ const ICONS = {
             <div class="field"><label for="bs-type">Jenis pembeli</label><select id="bs-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
             <div class="field"><label for="bs-pw">Kata sandi (minimal 8 karakter)</label><input id="bs-pw" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
           </div>
-          <div class="field"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/tentang">kebijakan privasi</a> dan syarat penggunaan AnugerahLink.</label></div>
+          <div class="field"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
           <div class="btn-row"><button class="btn" type="submit" data-save>Buat akun</button></div></form>
       </div>`);
     const login = document.getElementById('buyer-login');
@@ -1833,6 +1882,7 @@ const ICONS = {
       if (head === 'feedback' && a) return viewFeedback(a);
       if (head === 'about') return viewAbout();
       if (head === 'akun' || head === 'masuk') return await viewAccount();
+      if (head === 'kebijakan-privasi' || head === 'syarat' || head === 'pengembalian') return viewLegal(head);
       if (head === 'admin') {
         if (!adminToken()) return viewAdminLogin();
         const cu = currentUser();

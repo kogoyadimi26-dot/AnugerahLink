@@ -70,9 +70,9 @@ test('orders placed while signed in are linked to the buyer and only the buyer s
   const token = (await call('POST', '/api/buyer/login', { body: { email: SIGNUP.email, password: SIGNUP.password } })).json.token;
   const cfgLots = (await call('GET', '/api/lots')).json.lots;
   const lot = cfgLots.find((l) => l.availableKg >= 30);
-  const body = { lines: [{ lotCode: lot.code, kg: 30 }], customer: { name: 'Rina', company: 'Kafe Rina', buyerType: 'specialty_cafe', phone: '081234567890', email: SIGNUP.email, city: 'Jayapura', street: 'Jl. Sentani 12' } };
+  const body = { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Rina', company: 'Kafe Rina', buyerType: 'specialty_cafe', phone: '081234567890', email: SIGNUP.email, city: 'Jayapura', street: 'Jl. Sentani 12' } };
 
-  const wrongEmail = await call('POST', '/api/orders', { token, body: { ...body, customer: { ...body.customer, email: 'orang-lain@test.local' } } });
+  const wrongEmail = await call('POST', '/api/orders', { token, body: { ...body, consent: true, customer: { ...body.customer, email: 'orang-lain@test.local' } } });
   assert.equal(wrongEmail.status, 400, 'a signed-in buyer must use the account email');
 
   const placed = await call('POST', '/api/orders', { token, body });
