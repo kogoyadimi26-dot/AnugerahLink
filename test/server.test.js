@@ -234,3 +234,24 @@ test('admin edits name and email and sees a user activity list', async () => {
   assert.equal(act.status, 200);
   assert.ok(act.json.entries.some((e) => e.action === 'login'));
 });
+
+// ---------- akun demo ----------
+test('demo accounts exist and sign in only when demo mode is on', async () => {
+  const demoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-demo-'));
+  const demo = createApp({ dataFile: path.join(demoDir, 'app.db'), owner: { name: 'Pemilik', email: 'o@test.local', password: 'owner-demo-123' }, demo: true });
+  await new Promise((r) => demo.server.listen(0, '127.0.0.1', r));
+  const dbase = `http://127.0.0.1:${demo.server.address().port}`;
+  try {
+    const cfg = await (await fetch(dbase + '/api/config')).json();
+    assert.equal(cfg.demoAccounts.length, 3);
+    const admin = cfg.demoAccounts.find((d) => d.role === 'admin');
+    const res = await fetch(dbase + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: admin.email, password: admin.password }) });
+    assert.equal(res.status, 200);
+    assert.equal((await fetch(dbase + '/api/admin/summary', { headers: { Authorization: 'Bearer ' + (await res.json()).token } })).status, 200);
+  } finally {
+    await new Promise((r) => demo.server.close(r));
+    fs.rmSync(demoDir, { recursive: true, force: true });
+  }
+  const cfgOff = await call('GET', '/api/config');
+  assert.deepEqual(cfgOff.json.demoAccounts, []);
+});

@@ -773,7 +773,18 @@ const ICONS = {
         <div class="field"><label for="login-email">Email</label><input id="login-email" name="email" type="email" required autocomplete="username"></div>
         <div class="field"><label for="login-pass">Kata sandi</label><input id="login-pass" name="password" type="password" required autocomplete="current-password"></div>
         <button class="btn" type="submit" id="login-btn">Masuk</button>
-      </form>`);
+      </form>
+      ${(state.config.demoAccounts || []).length ? `
+      <section class="card" style="max-width:420px;margin-top:16px" aria-label="Akun demo">
+        <p class="notice">Akun demo untuk uji coba. Jangan dipakai untuk data sungguhan.</p>
+        <div class="btn-row">${state.config.demoAccounts.map((d, i) => `<button class="btn secondary small" type="button" data-demo="${i}">Masuk sebagai ${esc(d.roleLabel)} (demo)</button>`).join('')}</div>
+      </section>` : ''}`);
+    main.querySelectorAll('button[data-demo]').forEach((b) => b.addEventListener('click', () => {
+      const d = state.config.demoAccounts[Number(b.dataset.demo)];
+      document.getElementById('login-email').value = d.email;
+      document.getElementById('login-pass').value = d.password;
+      document.getElementById('login').requestSubmit();
+    }));
     document.getElementById('login').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;

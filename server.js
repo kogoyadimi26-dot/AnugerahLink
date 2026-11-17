@@ -11,6 +11,7 @@ const domain = require('./lib/domain');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
 const auth = require('./lib/auth');
+const { DEMO_USERS } = require('./lib/demo');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_BODY = 3 * 1024 * 1024; // cukup untuk foto sampel yang sudah dikompres
@@ -107,7 +108,7 @@ function requirePerm(req, store, perm) {
   return user;
 }
 
-function publicConfig() {
+function publicConfig(demoOn) {
   return {
     currency: config.currency,
     minOrderKg: config.minOrderKg,
@@ -122,6 +123,7 @@ function publicConfig() {
     about: config.about,
     values: config.values,
     gradeBands: config.gradeBands,
+    demoAccounts: demoOn ? DEMO_USERS.map((u) => ({ name: u.name, email: u.email, role: u.role, roleLabel: auth.ROLES[u.role].label, password: u.password })) : [],
     theme: require('./config/theme'),
   };
 }
@@ -138,7 +140,7 @@ function buildRoutes(ctx) {
 
   // ---- Public ----
   route('GET', /^\/api\/health$/, () => ({ status: 200, body: { ok: true } }));
-  route('GET', /^\/api\/config$/, () => ({ status: 200, body: publicConfig() }));
+  route('GET', /^\/api\/config$/, () => ({ status: 200, body: publicConfig(ctx.demo) }));
   route('GET', /^\/api\/regions$/, () => ({ status: 200, body: store.read().regions }));
   route('GET', /^\/api\/lots$/, (_p, _b, q) => ({ status: 200, body: { lots: domain.listPublicLots(store.read(), q) } }));
   route('GET', /^\/api\/lots\/([A-Za-z0-9-]+)$/, ([code]) => {
@@ -313,16 +315,29 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-function createApp({ dataFile, owner }) {
+function createApp({ dataFile, owner, demo = false }) {
   const store = new SqlStore(dataFile, seed, path.join(path.dirname(dataFile), 'db.json'));
   store.load();
   if (auth.ensureOwner(store.db, owner, new Date().toISOString())) store.save(store.db);
+  if (demo) {
+    store.update((db) => {
+      db.users = db.users || [];
+      for (const d of DEMO_USERS) {
+        const existing = db.users.find((u) => u.email === d.email);
+        if (existing) {
+          Object.assign(existing, { name: d.name, role: d.role, active: true, passwordHash: auth.hashPassword(d.password), mustChangePassword: false });
+        } else {
+          db.users.push({ id: require('crypto').randomUUID(), name: d.name, email: d.email, role: d.role, passwordHash: auth.hashPassword(d.password), active: true, createdAt: new Date().toISOString() });
+        }
+      }
+    });
+  }
   if (domain.ensureRegions(store.db, regionDefaults()) > 0) store.save(store.db);
   const migrated = domain.ensurePassportHashes(store.db);
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
   const photoDir = path.join(path.dirname(dataFile), 'photos');
-  const routes = buildRoutes({ store, photoDir });
+  const routes = buildRoutes({ store, photoDir, demo });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -387,7 +402,9 @@ if (require.main === module) {
     owner.password = 'ganti-saya-sekarang-123';
     console.warn('[warn] OWNER_PASSWORD is not set. Using a development password. Set OWNER_EMAIL and OWNER_PASSWORD before going live.');
   }
-  const { server } = createApp({ dataFile, owner });
+  const demo = process.env.DEMO_ACCOUNTS === '1';
+  if (demo) console.warn('[demo] Akun demo aktif. Jangan gunakan mode ini untuk data sungguhan.');
+  const { server } = createApp({ dataFile, owner, demo });
   if (DEV) { startDevWatch(); console.log('[dev] live reload is on: the browser refreshes when public/ changes'); }
   server.listen(port, () => console.log(`AnugerahLink running at http://localhost:${port}`));
 }
