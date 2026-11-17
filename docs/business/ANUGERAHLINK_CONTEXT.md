@@ -230,6 +230,41 @@ Points to resolve with the owner before building:
 4. Confirm the Local tier. It loses money by design. Decide whether to keep it, reprice it, or drop it.
 5. Confirm the Premium price basis. The Rp250,000/kg Premium price is the top of the listed range for Wamena green beans, and those listings are mostly 1 kg retail packs. v2 itself notes that bulk buyers may pay less. Roasted retail prices (for example Rp150,000 per 250 g from a Papuan processor) are not a green-bean per-kg price and should not be used to justify Premium. Test with five to ten buyers.
 
+## 13. Sourcing and quality strategy (buying from farmer groups)
+
+Purpose: make sure each lot is good quality before we pay cash, and that farmers know in advance how they will be paid for quality. Applies to green coffee: gabah (dried cherry in parchment) and green beans after hulling.
+
+**1. Start with a trial lot.** Buy a small amount (200 to 500 kg) from each new group. Grade it. Only after the result, agree on regular prices with that group.
+
+**2. Pay by grade, not one flat price.** Publish a price for each grade:
+- full price for the target grade (today's app: Rp 120,000/kg for the target lot)
+- a stated deduction for lower grades (today's app: 10% for lots that are "dipotong")
+- rejection for lots that fail the minimum (no payment)
+
+The current app pays one flat buying price for every lot that passes, plus the 10% reduction for "dipotong" lots. Per-grade pricing is not built yet and is the next step if the owner agrees.
+
+**3. Check in front of the farmer.** Weigh, sample and check moisture together with the farmer present. Show the result, then pay. Cash is paid only for a lot that passes or is reduced as agreed.
+
+**4. Keep a retained sample.** Store a labelled sample (for example 300 g, with the sample number) from each paid lot, until the lot is sold and any dispute is closed.
+
+**5. Record everything.** For each purchase: date, group, weight before and after, moisture, defect count, gabah and green weights (hulling yield), the sample number and a photo of the sample. The app records the first three to five items now; photo upload is not built yet.
+
+**6. Reject rules in writing.** Agree with each group, before the first purchase, on what is rejected and what is reduced. Current rules (to be shown to every group):
+
+| Result | Condition | Payment |
+|---|---|---|
+| Lolos (passed) | Moisture 10 to 12%, defects up to 25 per 300 g | Full price |
+| Dipotong (adjusted) | Moisture 8 to 10% or 12 to 14%, or defects 26 to 60 | Price less 10% |
+| Ditolak (rejected) | Moisture below 8% or above 14%, or defects over 60 | No payment; lot is not graded or sold |
+
+These values are set in `config/business.js` under `intake` and were confirmed by the owner.
+
+**7. Check the scale.** Use a calibrated scale, check it before each purchase day, and weigh with the farmer present.
+
+**What the app already does:** records the sample number, moisture, defect count, hulling yield, and the result; calculates the amount due; blocks grading and sale of rejected lots.
+
+**What it does not yet do:** per-grade price lists, sample photos, scale calibration log, and farmer signature on the weight slip.
+
 ## 11. Glossary
 
 - **Farm-gate price:** what the farmer is paid at the farm, per kg.
