@@ -322,3 +322,36 @@ test('Midtrans notifications: signature checked, settlement marks paid, other st
     delete process.env.MIDTRANS_SERVER_KEY;
   }
 });
+
+test('admin sets theme colours and radius; public config reflects it; bad colours refused', async () => {
+  const base0 = await call('GET', '/api/config');
+  const baseRadius = base0.json.theme.radius.md;
+
+  const bad = await call('PUT', '/api/admin/theme', { token: TOKEN, body: { light: { primary: 'red; background:url(x)' } } });
+  assert.equal(bad.status, 400);
+  assert.equal(bad.json.error.fields.primary !== undefined, true);
+
+  const ok = await call('PUT', '/api/admin/theme', { token: TOKEN, body: { light: { primary: '#0a4d2e', accent: '#d4a017' }, radius: 'bulat' } });
+  assert.equal(ok.status, 200);
+  const cfg = await call('GET', '/api/config');
+  assert.equal(cfg.json.theme.light.primary, '#0a4d2e');
+  assert.equal(cfg.json.theme.light.primaryHover, '#0a4d2e');
+  assert.equal(cfg.json.theme.light.accent, '#d4a017');
+  assert.equal(cfg.json.theme.radius.md, '18px');
+  assert.notEqual(cfg.json.theme.radius.md, baseRadius);
+
+  const reset = await call('PUT', '/api/admin/theme', { token: TOKEN, body: { reset: true } });
+  assert.equal(reset.status, 200);
+  const after = await call('GET', '/api/config');
+  assert.equal(after.json.theme.light.primary, '#003C18');
+  assert.equal(after.json.theme.radius.md, baseRadius);
+});
+
+test('theme settings are admin-only', async () => {
+  const pw = 'staff-theme-123';
+  const admin = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Penilai Tema', email: 'penilai-tema@test.local', password: pw, role: 'grader' } });
+  assert.equal(admin.status, 201);
+  const login = await call('POST', '/api/auth/login', { body: { email: 'penilai-tema@test.local', password: pw } });
+  const res = await call('PUT', '/api/admin/theme', { token: login.json.token, body: { reset: true } });
+  assert.equal(res.status, 403);
+});

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { SqlStore } = require('./lib/sqlstore');
+const { mergeTheme, validateOverrides } = require('./lib/theme');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -109,7 +110,7 @@ function requirePerm(req, store, perm) {
   return user;
 }
 
-function publicConfig(demoOn) {
+function publicConfig(demoOn, settings) {
   return {
     currency: config.currency,
     minOrderKg: config.minOrderKg,
@@ -125,7 +126,7 @@ function publicConfig(demoOn) {
     values: config.values,
     gradeBands: config.gradeBands,
     demoAccounts: demoOn ? DEMO_USERS.map((u) => ({ name: u.name, email: u.email, role: u.role, roleLabel: auth.ROLES[u.role].label, password: u.password })) : [],
-    theme: require('./config/theme'),
+    theme: mergeTheme(require('./config/theme'), settings && settings.theme),
   };
 }
 
@@ -141,7 +142,7 @@ function buildRoutes(ctx) {
 
   // ---- Public ----
   route('GET', /^\/api\/health$/, () => ({ status: 200, body: { ok: true } }));
-  route('GET', /^\/api\/config$/, () => ({ status: 200, body: publicConfig(ctx.demo) }));
+  route('GET', /^\/api\/config$/, () => ({ status: 200, body: publicConfig(ctx.demo, store.read().settings) }));
   route('GET', /^\/api\/regions$/, () => ({ status: 200, body: store.read().regions }));
   route('GET', /^\/api\/lots$/, (_p, _b, q) => ({ status: 200, body: { lots: domain.listPublicLots(store.read(), q) } }));
   route('GET', /^\/api\/lots\/([A-Za-z0-9-]+)$/, ([code]) => {
@@ -232,8 +233,19 @@ function buildRoutes(ctx) {
   route('GET', /^\/api\/admin\/summary$/, () => ({ status: 200, body: domain.summary(store.read()), headers: { 'Cache-Control': 'no-store' } }), { perm: 'reports' });
   route('GET', /^\/api\/admin\/config$/, () => ({
     status: 200,
-    body: { ...publicConfig(), buyPricePerKg: config.buyPricePerKg, sortingLossPct: config.sortingLossPct, feesPerKg: config.feesPerKg, shippingPerKg: config.shippingPerKg, fixedCostsPerYear: config.fixedCostsPerYear, defaultMix: config.defaultMix, source: 'docs/business/source (v2 plan)' },
+    body: { ...publicConfig(false, store.read().settings), buyPricePerKg: config.buyPricePerKg, sortingLossPct: config.sortingLossPct, feesPerKg: config.feesPerKg, shippingPerKg: config.shippingPerKg, fixedCostsPerYear: config.fixedCostsPerYear, defaultMix: config.defaultMix, source: 'docs/business/source (v2 plan)' },
   }), { perm: 'reports' });
+  // Tampilan: admin bisa mengubah warna dan sudut. Nilai dasar tetap di config/theme.js.
+  route('GET', /^\/api\/admin\/theme$/, () => ({ status: 200, body: { overrides: store.read().settings?.theme || null, base: require('./config/theme') }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'settings' });
+  route('PUT', /^\/api\/admin\/theme$/, (_p, body) => {
+    const overrides = validateOverrides(body);
+    store.update((db) => {
+      db.settings = { ...(db.settings || {}) };
+      if (overrides) db.settings.theme = overrides;
+      else delete db.settings.theme;
+    });
+    return { status: 200, body: { theme: mergeTheme(require('./config/theme'), overrides), overrides: overrides || null } };
+  }, { perm: 'settings' });
   route('GET', /^\/api\/admin\/groups$/, () => ({ status: 200, body: { groups: store.read().groups } }), { perm: 'intake' });
   route('POST', /^\/api\/admin\/groups$/, (_p, body) => ({ status: 201, body: { group: store.update((db) => domain.createGroup(db, body)) } }), { perm: 'groups' });
   route('GET', /^\/api\/admin\/lots$/, () => {
@@ -431,7 +443,7 @@ function createApp({ dataFile, owner, demo = false }) {
         throw new ApiError(403, 'password_change_required', 'Anda harus mengganti kata sandi terlebih dahulu.');
       }
       const params = pathname.match(match.pattern).slice(1);
-      const body = ['POST', 'PATCH'].includes(req.method) ? await readBody(req) : {};
+      const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : {};
       const result = await match.handler(params, body, query, req);
       if (actor && req.method !== 'GET') {
         store.update((db) => auth.logAudit(db, { user: actor, action: `${req.method} ${pathname}`, status: result.status, now: new Date().toISOString() }));

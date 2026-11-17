@@ -86,12 +86,12 @@
     try {
       res = await fetch(path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
     } catch {
-      throw { message: 'Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.', fields: {} };
+      throw { message: 'Koneksi ke server terputus. Periksa internet Anda, lalu coba lagi.', fields: {} };
     }
     let data = {};
     try { data = await res.json(); } catch { /* badan kosong */ }
     if (!res.ok) {
-      const err = (data && data.error) || { message: 'Terjadi kesalahan.' };
+      const err = (data && data.error) || { message: 'Ada kendala di sisi kami. Coba lagi sebentar lagi.' };
       if (res.status === 401 && admin) { clearAdminToken(); }
       throw { message: err.message, fields: err.fields || {}, status: res.status, code: err.code, extra: err };
     }
@@ -224,7 +224,7 @@
       </section>
       <section aria-labelledby="featured">
         <h2 id="featured">Lot tersedia sekarang</h2>
-        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<p class="muted">Belum ada lot tersedia. Silakan cek kembali nanti.</p>'}
+        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi ya.</p></div>'}
         <p style="margin-top:16px"><a href="#/catalogue">Lihat semua lot</a></p>
       </section>
       ${policySection()}`);
@@ -261,7 +261,7 @@
       <p class="muted" role="status">${lots.length} lot ${query.inStock !== '0' ? 'tersedia' : 'terdaftar'}</p>
       ${lots.length
         ? `<div class="grid lots">${lots.map(lotCard).join('')}</div>`
-        : `<div class="card"><p>Tidak ada lot yang sesuai dengan saringan ini.</p><p><a href="#/catalogue">Hapus saringan</a></p></div>`}`);
+        : `<div class="card"><p><strong>Belum ada lot yang cocok dengan pilihan Anda.</strong></p><p class="muted">Coba ubah saringan, atau <a href="#/catalogue">lihat semua lot</a>.</p></div>`}`);
     document.getElementById('filters').addEventListener('change', () => {
       const f = new FormData(document.getElementById('filters'));
       const q = {};
@@ -380,7 +380,7 @@
             ? '<p class="notice ok">Data sesuai dengan hash saat diterbitkan.</p>'
             : match === false
               ? '<p class="notice bad">Data tidak sesuai dengan hash saat diterbitkan. Tanyakan ke tim.</p>'
-              : '<p class="notice">Belum ada hash untuk lot ini.</p>'}
+              : '<p class="notice">Kode verifikasi untuk lot ini belum tersedia. Akan muncul setelah penilaian selesai.</p>'}
           <p class="muted" style="font-size:14px">Hash dihitung dari data di atas.</p>
           <p><span class="muted">Kode hash catatan (SHA-256)</span></p>
           <p class="hash">${esc(p.hash)}</p>
@@ -395,7 +395,7 @@
 
   async function viewCart() {
     if (state.cart.length === 0) {
-      setMain(`<h1>Keranjang Anda</h1><div class="card"><p>Keranjang Anda kosong.</p><p><a class="btn" href="#/catalogue">Lihat lot</a></p></div>`);
+      setMain(`<h1>Keranjang Anda</h1><div class="card"><p><strong>Keranjang Anda masih kosong.</strong></p><p class="muted">Pilih kopi dari katalog. Setiap lot sudah dinilai dan ada paspornya.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>`);
       return;
     }
     let quote;
@@ -791,7 +791,7 @@ const ICONS = {
   }
   function adminFail(err) {
     if (err.status === 401) {
-      setMain(`<h1>Masuk tim</h1><p class="notice bad">Sesi Anda sudah berakhir. Silakan masuk lagi.</p>`);
+      setMain(`<h1>Masuk tim</h1><p class="notice bad">Sesi Anda sudah habis. Silakan masuk lagi untuk melanjutkan.</p>`);
       location.hash = '#/admin';
       return;
     }
@@ -1335,8 +1335,95 @@ const ICONS = {
       <h2>Kategori</h2>
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Harga per kg</th><th>Ongkir</th></tr></thead><tbody>
         ${Object.entries(c.tiers).map(([k, t]) => `<tr><td><span class="${tierClass(k)}">${esc(t.label)}</span></td><td class="num">${rp(t.pricePerKg)}</td><td>${esc(t.shippingBy === 'anugerah' ? 'Termasuk (ditanggung AnugerahLink)' : t.shippingBy === 'buyer' ? 'Pembeli membayar ' + rp(t.shippingPerKgExtra) + '/kg' : 'Diambil di Papua')}</td></tr>`).join('')}
-      </tbody></table></div>`));
+      </tbody></table></div>
+      ${themeEditorHtml(c.theme || state.config.theme)}`));
     wireSignOut();
+    wireThemeEditor();
+  }
+
+  // ---------- tampilan: admin mengubah warna dan sudut ----------
+  const TEMA_KOLOM = [['primary', 'Warna utama (tombol, navigasi)'], ['accent', 'Warna aksen (emas, sorotan)'], ['background', 'Latar halaman'], ['text', 'Warna teks']];
+  const SUDUT = { tajam: { sm: '4px', md: '6px', lg: '8px' }, ramah: { sm: '8px', md: '12px', lg: '16px' }, bulat: { sm: '12px', md: '18px', lg: '24px' } };
+  const SUDUT_LABEL = { tajam: 'Tajam (sudut kecil)', ramah: 'Ramah (sedang)', bulat: 'Bulat (sudut besar)' };
+
+  function themeEditorHtml(t) {
+    const sudutNow = Object.keys(SUDUT).find((k) => SUDUT[k].md === t.radius.md) || 'ramah';
+    const block = (mode, label) => `
+      <fieldset class="theme-mode"><legend>${label}</legend>
+        <div class="form-grid">
+          ${TEMA_KOLOM.map(([k, lbl]) => `<div class="field"><label for="t-${mode}-${k}">${esc(lbl)}</label>
+            <input type="color" id="t-${mode}-${k}" name="${mode}.${k}" value="${esc(t[mode][k])}"></div>`).join('')}
+        </div>
+      </fieldset>`;
+    return `
+      <h2>Tampilan</h2>
+      <p class="muted">Warna dan sudut yang dilihat pengunjung. Perubahan langsung terlihat di halaman ini. Tekan “Simpan tampilan” agar berlaku untuk semua orang.</p>
+      <form class="card" id="theme-form" novalidate>
+        <div data-form-error class="notice bad" hidden></div>
+        ${block('light', 'Mode terang')}
+        ${block('dark', 'Mode gelap')}
+        <div class="field" style="max-width:320px"><label for="t-radius">Sudut kotak dan tombol</label>
+          <select id="t-radius" name="radius">${Object.keys(SUDUT).map((k) => `<option value="${k}"${k === sudutNow ? ' selected' : ''}>${esc(SUDUT_LABEL[k])}</option>`).join('')}</select>
+        </div>
+        <div class="btn-row">
+          <button class="btn" type="submit" data-save>Simpan tampilan</button>
+          <button class="btn secondary" type="button" data-reset>Kembalikan standar</button>
+        </div>
+      </form>`;
+  }
+
+  // Terapkan nilai dari formulir ke halaman sekarang, tanpa menyimpan.
+  function previewTheme(form) {
+    const t = JSON.parse(JSON.stringify(state.config.theme));
+    for (const mode of ['light', 'dark']) {
+      for (const [k] of TEMA_KOLOM) {
+        const v = form.elements[`${mode}.${k}`].value;
+        if (k === 'primary') { t[mode].primary = v; t[mode].primaryHover = v; }
+        else if (k === 'accent') { t[mode].accent = v; t[mode].accentStrong = v; }
+        else if (k === 'background') t[mode].background = v;
+        else t[mode].text = v;
+      }
+    }
+    t.radius = { ...SUDUT[form.elements.radius.value] };
+    applyTheme(t);
+  }
+
+  function wireThemeEditor() {
+    const form = document.getElementById('theme-form');
+    if (!form) return;
+    form.addEventListener('input', () => previewTheme(form));
+    form.addEventListener('change', () => previewTheme(form));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const box = form.querySelector('[data-form-error]');
+      box.hidden = true;
+      const body = { radius: form.elements.radius.value };
+      for (const mode of ['light', 'dark']) {
+        body[mode] = {};
+        for (const [k] of TEMA_KOLOM) body[mode][k] = form.elements[`${mode}.${k}`].value;
+      }
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        const r = await api('/api/admin/theme', { method: 'PUT', body, admin: true });
+        state.config.theme = r.theme;
+        applyTheme(r.theme);
+        toast('Tampilan disimpan. Pengunjung akan melihatnya saat membuka halaman.');
+      } catch (err) {
+        box.hidden = false;
+        box.textContent = err.message || 'Tampilan belum bisa disimpan.';
+      } finally { busy(btn, false); }
+    });
+    form.querySelector('[data-reset]').addEventListener('click', async () => {
+      if (!confirm('Kembalikan tampilan ke standar? Warna yang sudah diubah akan hilang.')) return;
+      try {
+        const r = await api('/api/admin/theme', { method: 'PUT', body: { reset: true }, admin: true });
+        state.config.theme = r.theme;
+        applyTheme(r.theme);
+        toast('Tampilan dikembalikan ke standar.');
+        viewAdminSettings();
+      } catch (err) { toast(err.message || 'Belum bisa dikembalikan.'); }
+    });
   }
 
   // ---------- router ----------
@@ -1387,7 +1474,7 @@ const ICONS = {
       setMain(`<h1>Halaman tidak ditemukan</h1><p><a href="#/">Kembali ke beranda</a></p>`);
     } catch (err) {
       if (err && err.status === 401) return adminFail(err);
-      setMain(`<h1>Terjadi kesalahan</h1><p class="notice bad">${esc(err && err.message ? err.message : 'Mohon coba lagi.')}</p><p><a href="#/">Beranda</a></p>`);
+      setMain(`<h1>Ada yang belum berjalan</h1><p class="notice bad">${esc(err && err.message ? err.message : 'Coba muat ulang halaman ini.')}</p><p><a href="#/">Kembali ke beranda</a></p>`);
     }
   }
 
@@ -1396,7 +1483,9 @@ const ICONS = {
     const vars = (m) => `--green:${m.primary};--green-2:${m.primaryHover};--green-soft:${m.primarySoft};` +
       `--gold:${m.accent};--gold-hi:${m.accentStrong};--gold-soft:${m.accentSoft};--gold-ink:${m.accentInk};` +
       `--brown:${m.brown};--bg:${m.background};--surface:${m.surface};--ink:${m.text};--ink-muted:${m.textMuted};` +
-      `--line:${m.border};--brand:${m.primary};--accent:${m.success};`;
+      `--line:${m.border};--brand:${m.primary};--on-primary:${m.onPrimary};--accent:${m.success};--danger:${m.danger};` +
+      `--heading:${m.heading};--hero-from:${m.heroFrom};--hero-to:${m.heroTo};--hero-ink:${m.heroInk};` +
+      `--footer-bg:${m.footerBg};--footer-ink:${m.footerInk};`;
     const radius = `--radius-sm:${t.radius.sm};--radius:${t.radius.md};--radius-lg:${t.radius.lg};--font:${t.font};`;
     const css = `:root{${vars(t.light)}${radius}}` +
       `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${vars(t.dark)}}}` +
@@ -1404,6 +1493,36 @@ const ICONS = {
     let el = document.getElementById('theme-vars');
     if (!el) { el = document.createElement('style'); el.id = 'theme-vars'; document.head.appendChild(el); }
     el.textContent = css;
+    try { localStorage.setItem('al-theme-css', css); } catch { /* abaikan */ }
+  }
+
+  // Pilihan tema per pengunjung: Sistem (ikut perangkat), Terang, atau Gelap. Disimpan di browser ini saja.
+  const THEME_MODES = { system: 'Sistem', light: 'Terang', dark: 'Gelap' };
+  function currentThemeMode() {
+    try { const m = localStorage.getItem('al-theme'); return THEME_MODES[m] ? m : 'system'; } catch { return 'system'; }
+  }
+  function setThemeMode(mode) {
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    try { localStorage.setItem('al-theme', mode); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
+    paintThemeToggle();
+  }
+  function paintThemeToggle() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const mode = currentThemeMode();
+    btn.textContent = 'Tema: ' + THEME_MODES[mode];
+    btn.setAttribute('aria-label', 'Ganti tema. Sekarang: ' + THEME_MODES[mode]);
+  }
+  function wireThemeToggle() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const order = ['system', 'light', 'dark'];
+    btn.addEventListener('click', () => {
+      const next = order[(order.indexOf(currentThemeMode()) + 1) % order.length];
+      setThemeMode(next);
+    });
+    paintThemeToggle();
   }
 
   // Tandai halaman aktif di navigasi.
@@ -1417,6 +1536,7 @@ const ICONS = {
   }
 
   async function boot() {
+    wireThemeToggle();
     try {
       state.config = await api('/api/config');
       applyTheme(state.config.theme);
@@ -1432,7 +1552,8 @@ const ICONS = {
     if (entry === '' || entry === '/' || entry === '/catalogue' || entry.startsWith('/catalogue?')) {
       location.hash = '#/';
     }
-    window.addEventListener('hashchange', route);
+    // Pratinjau tema admin hanya berlaku di halaman itu; pindah halaman mengembalikannya.
+    window.addEventListener('hashchange', () => { applyTheme(state.config.theme); route(); });
     route();
   }
 
