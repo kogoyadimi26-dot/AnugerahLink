@@ -388,3 +388,15 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .site-footer .footer-legal .footer-tag { margin: 0 0 6px; max-width: none; }
 .site-footer .footer-legal p { margin: 0 0 6px; }
 .site-footer .footer-legal a { color: #E0AE3A; }
+/* Kotak cari: mengambil sisa ruang bar atas; teks dan tombol selalu terlihat */
+.searchbox { flex: 1 1 0; min-width: 320px; max-width: 680px; }
+.searchbox select { width: auto; max-width: none; flex: none; padding: 0 30px 0 12px; background-color: color-mix(in srgb, var(--ink) 6%, var(--surface)); font-weight: 600; cursor: pointer; }
+.searchbox input { min-width: 0; }
+.searchbox input::placeholder { color: var(--ink-muted); opacity: 1; }
+.topbar-right { flex: none; }
+.topbar-right .acct-pesanan { display: flex; }
+.topbar .wrap { max-width: 1400px; }
+@media (max-width: 1279px) {
+  .locate { display: none; }
+  .topbar-right .acct-pesanan { display: none; }
+}
