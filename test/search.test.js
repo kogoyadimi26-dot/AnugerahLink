@@ -5,13 +5,34 @@ const assert = require('node:assert/strict');
 const { listPublicLots } = require('../lib/domain');
 const seed = require('../lib/seed');
 
-test('keyword search matches code, region, group and process, and ignores empty text', () => {
+test('search returns exactly the lots that match the words typed', () => {
   const db = seed.seed();
   const all = listPublicLots(db, {});
-  assert.ok(all.length > 0);
-  const byRegion = listPublicLots(db, { q: all[0].regionName.slice(0, 5) });
-  assert.ok(byRegion.length > 0 && byRegion.every((l) => [l.regionName, l.title, l.code, l.groupName, l.process, l.grade, l.tierLabel, l.story].join(' ').toLowerCase().includes(all[0].regionName.slice(0, 5).toLowerCase())));
-  assert.equal(listPublicLots(db, { q: '   ' }).length, all.length);
+  assert.ok(all.length >= 2);
+  const target = all.find((l) => l.regionName) ;
+  const regionWord = target.regionName.split(' ')[0];
+
+  const byRegion = listPublicLots(db, { q: regionWord });
+  assert.ok(byRegion.length >= 1);
+  assert.ok(byRegion.every((l) => [l.code, l.title, l.regionName, l.groupName, l.process, l.grade, l.tierLabel].join(' ').toLowerCase().includes(regionWord.toLowerCase())));
+
+  const byCode = listPublicLots(db, { q: target.code });
+  assert.equal(byCode.length, 1);
+  assert.equal(byCode[0].code, target.code);
+
+  assert.equal(listPublicLots(db, { q: '   ' }).length, all.length, 'blank search returns everything');
   assert.equal(listPublicLots(db, { q: 'tidak-ada-sama-sekali-xyz' }).length, 0);
-  assert.equal(listPublicLots(db, { q: all[0].code }).length >= 1, true);
+});
+
+test('every typed word must match; accents and capitals do not matter; story text is not searched', () => {
+  const db = seed.seed();
+  const lot = listPublicLots(db, {}).find((l) => l.regionName);
+  const word = lot.regionName.split(' ')[0];
+  const nameWord = (lot.groupName || '').split(' ')[0];
+  if (nameWord) {
+    assert.ok(listPublicLots(db, { q: `${word} ${nameWord}`.toUpperCase() }).some((l) => l.code === lot.code));
+  }
+  assert.equal(listPublicLots(db, { q: `${word} zzzz-tidak-ada` }).length, 0, 'an extra word that matches nothing gives no results');
+  db.lots.find((l) => l.code === lot.code).story = 'kata-khusus-cerita-saja';
+  assert.equal(listPublicLots(db, { q: 'kata-khusus-cerita-saja' }).length, 0, 'story text is not part of the search');
 });
