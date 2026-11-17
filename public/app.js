@@ -1396,7 +1396,9 @@ const ICONS = {
     const vars = (m) => `--green:${m.primary};--green-2:${m.primaryHover};--green-soft:${m.primarySoft};` +
       `--gold:${m.accent};--gold-hi:${m.accentStrong};--gold-soft:${m.accentSoft};--gold-ink:${m.accentInk};` +
       `--brown:${m.brown};--bg:${m.background};--surface:${m.surface};--ink:${m.text};--ink-muted:${m.textMuted};` +
-      `--line:${m.border};--brand:${m.primary};--accent:${m.success};`;
+      `--line:${m.border};--brand:${m.primary};--on-primary:${m.onPrimary};--accent:${m.success};--danger:${m.danger};` +
+      `--heading:${m.heading};--hero-from:${m.heroFrom};--hero-to:${m.heroTo};--hero-ink:${m.heroInk};` +
+      `--footer-bg:${m.footerBg};--footer-ink:${m.footerInk};`;
     const radius = `--radius-sm:${t.radius.sm};--radius:${t.radius.md};--radius-lg:${t.radius.lg};--font:${t.font};`;
     const css = `:root{${vars(t.light)}${radius}}` +
       `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${vars(t.dark)}}}` +
@@ -1404,6 +1406,35 @@ const ICONS = {
     let el = document.getElementById('theme-vars');
     if (!el) { el = document.createElement('style'); el.id = 'theme-vars'; document.head.appendChild(el); }
     el.textContent = css;
+  }
+
+  // Pilihan tema per pengunjung: Sistem (ikut perangkat), Terang, atau Gelap. Disimpan di browser ini saja.
+  const THEME_MODES = { system: 'Sistem', light: 'Terang', dark: 'Gelap' };
+  function currentThemeMode() {
+    try { const m = localStorage.getItem('al-theme'); return THEME_MODES[m] ? m : 'system'; } catch { return 'system'; }
+  }
+  function setThemeMode(mode) {
+    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    try { localStorage.setItem('al-theme', mode); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
+    paintThemeToggle();
+  }
+  function paintThemeToggle() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const mode = currentThemeMode();
+    btn.textContent = 'Tema: ' + THEME_MODES[mode];
+    btn.setAttribute('aria-label', 'Ganti tema. Sekarang: ' + THEME_MODES[mode]);
+  }
+  function wireThemeToggle() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const order = ['system', 'light', 'dark'];
+    btn.addEventListener('click', () => {
+      const next = order[(order.indexOf(currentThemeMode()) + 1) % order.length];
+      setThemeMode(next);
+    });
+    paintThemeToggle();
   }
 
   // Tandai halaman aktif di navigasi.
@@ -1417,6 +1448,7 @@ const ICONS = {
   }
 
   async function boot() {
+    wireThemeToggle();
     try {
       state.config = await api('/api/config');
       applyTheme(state.config.theme);
