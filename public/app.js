@@ -1203,7 +1203,7 @@ const ICONS = {
               <td class="num">${l.sellableKg ? kg(l.sellableKg) : '—'}</td>
               <td class="num">${kg(l.availableKg)}</td>
               <td><div class="btn-row">
-                ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>` : ''}
+                ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>` : `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Ubah katalog</a>`}
                 ${l.status === 'graded' && canDo('verify') ? `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>` : ''}
                 ${l.status === 'verified' && canDo('publish') ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>` : ''}
                 ${l.status === 'listed' && canDo('publish') ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
