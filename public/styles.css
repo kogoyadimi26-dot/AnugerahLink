@@ -193,6 +193,11 @@ tbody tr:hover { background: color-mix(in srgb, var(--green-soft) 60%, transpare
 .total-row td { font-weight: 800; font-size: 18px; border-bottom: none; padding-top: 12px; }
 .values-block { padding: 4px 0; }
 
+/* ---------- editor tampilan (admin) ---------- */
+fieldset.theme-mode { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px 4px; margin: 0 0 16px; min-width: 0; }
+fieldset.theme-mode legend { font-weight: 700; padding: 0 6px; color: var(--heading); }
+input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
+
 /* ---------- pemberitahuan, hash, notifikasi ---------- */
 .notice { border-left: 4px solid var(--gold); background: var(--gold-soft); color: var(--ink); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; font-size: 15px; }
 .notice.ok { border-left-color: var(--accent); background: var(--green-soft); }
