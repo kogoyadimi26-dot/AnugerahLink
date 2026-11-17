@@ -76,10 +76,20 @@ main:focus { outline: none; }
   display: inline-block; min-width: 22px; height: 22px; line-height: 22px; padding: 0 7px; margin-left: 4px;
   border-radius: 999px; background: var(--gold); color: var(--green); font-size: 12px; font-weight: 800; text-align: center;
 }
-.site-footer { background: var(--footer-bg); color: var(--footer-ink); padding: 40px 0; font-size: 14px; }
-.site-footer a { color: var(--gold-hi); }
-.site-footer p { margin-bottom: 10px; }
+.site-footer { background: var(--footer-bg); color: var(--footer-ink); padding: 40px 0 0; font-size: 15px; }
+.site-footer a { color: var(--gold-hi); text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+.site-footer p { margin: 0 0 8px; }
+.footer-grid { display: grid; gap: 28px; grid-template-columns: 1fr; padding-bottom: 32px; }
+@media (min-width: 720px) { .footer-grid { grid-template-columns: 2fr 1fr 1fr; gap: 40px; } }
 .footer-logo { height: 64px; width: auto; display: block; background: #FFFFFF; border-radius: var(--radius); padding: 10px 14px; }
+.footer-tag { margin-top: 14px; max-width: 42ch; line-height: 1.6; }
+.footer-title { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--footer-ink); margin: 0 0 10px; font-weight: 700; }
+.footer-links { display: flex; flex-direction: column; gap: 8px; }
+.footer-links a { width: fit-content; }
+.footer-note { font-size: 13px; opacity: .8; margin: 4px 0 0; }
+.footer-legal { border-top: 1px solid color-mix(in srgb, var(--footer-ink) 22%, transparent); padding-top: 18px; padding-bottom: 22px; font-size: 13px; opacity: .85; }
+.footer-legal p { margin: 0; }
 
 /* ---------- kartu, grid, beranda ---------- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow); }
