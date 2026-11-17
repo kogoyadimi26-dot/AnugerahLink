@@ -251,7 +251,7 @@
     setMain(`
       <h1>${query.q ? 'Hasil untuk &ldquo;' + esc(query.q) + '&rdquo;' : 'Produk'}</h1>
       <nav class="chips" aria-label="Jenis produk">
-        ${JENIS_PRODUK.map((j) => j.aktif
+        ${JENIS_PRODUK.filter((j) => j.aktif).map((j) => j.aktif
           ? `<a class="chip${aktifJenis === j.key ? ' is-active' : ''}" href="#/catalogue${j.key === 'semua' ? '' : '?kategori=' + j.key}"${aktifJenis === j.key ? ' aria-current="page"' : ''}>${esc(j.label)}</a>`
           : `<span class="chip is-soon" aria-disabled="true">${esc(j.label)} <small>segera</small></span>`).join('')}
       </nav>
