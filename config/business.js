@@ -21,6 +21,8 @@ module.exports = {
 
   // Ordering rules
   minOrderKg: 30,
+  // Maksimal kg per lot dalam satu pesanan (perlu dikonfirmasi pemilik).
+  maxOrderKg: 300,
   stepKg: 1,
   lowStockKg: 60,
 
