@@ -20,6 +20,13 @@ module.exports = {
   // Fixed costs (full team) used for break-even
   fixedCostsPerYear: 400000000,
 
+  // Estimasi tiba (asumsi perencanaan, perlu dikonfirmasi dengan kurir): dihitung dari tanggal dikirim.
+  // Batas akhir dipakai sebagai janji agar keterlambatan tidak dihitung terlalu cepat.
+  delivery: {
+    transitDaysMin: 2,
+    transitDaysMax: 4,
+  },
+
   // Ordering rules
   minOrderKg: 30,
   // Maksimal kg per lot dalam satu pesanan. 300 kg dipertahankan untuk pilot (bukan dari dokumen; keputusan perencanaan).
