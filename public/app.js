@@ -148,7 +148,7 @@
     });
   }
 
-  function passportHref(code) { return '#/passport/' + encodeURIComponent(code); }
+  function passportHref(code) { return '#/traceability/' + encodeURIComponent(code); }
   function lotHref(code) { return '#/lot/' + encodeURIComponent(code); }
 
   // ---------- toko (pembeli) ----------
@@ -174,7 +174,7 @@
         </div>
         <div class="lot-actions">
           <a class="btn small" href="${lotHref(l.code)}">Lihat lot</a>
-          <a class="btn secondary small" href="${passportHref(l.code)}">Paspor</a>
+          <a class="btn secondary small" href="${passportHref(l.code)}">Traceability</a>
         </div>
       </article>`;
   }
@@ -326,7 +326,7 @@
             </div>
             <div class="btn-row">
               <button class="btn" type="submit">${inCart ? 'Perbarui keranjang' : 'Tambah ke keranjang'}</button>
-              <a class="btn secondary" href="${passportHref(lot.code)}">Lihat paspor</a>
+              <a class="btn secondary" href="${passportHref(lot.code)}">Lihat traceability</a>
             </div>
           </form>`}
         </article>
@@ -361,15 +361,15 @@
     try {
       data = await api('/api/passport/' + encodeURIComponent(code));
     } catch (err) {
-      setMain(`<h1>Paspor tidak ditemukan</h1><p class="muted">${esc(err.message)}</p><p><a href="#/catalogue">Kembali ke katalog</a></p>`);
+      setMain(`<h1>Traceability tidak ditemukan</h1><p class="muted">${esc(err.message)}</p><p><a href="#/catalogue">Kembali ke katalog</a></p>`);
       return;
     }
     const p = data.passport;
     const r = p.record;
     const match = p.recordMatchesHash;
     setMain(`
-      <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/catalogue">Katalog</a> / Paspor</nav>
-      <h1 style="margin-top:12px">Paspor lot: ${esc(r.code)}</h1>
+      <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/catalogue">Katalog</a> / Traceability</nav>
+      <h1 style="margin-top:12px">Traceability lot: ${esc(r.code)}</h1>
       <div class="grid" style="grid-template-columns:1fr">
         <section class="card" aria-labelledby="origin">
           <h2 id="origin" style="margin-top:0">Asal</h2>
@@ -414,7 +414,7 @@
 
   async function viewCart() {
     if (state.cart.length === 0) {
-      setMain(`<h1>Keranjang Anda</h1><div class="card"><p><strong>Keranjang Anda masih kosong.</strong></p><p class="muted">Pilih kopi dari katalog. Setiap lot sudah dinilai dan ada paspornya.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>`);
+      setMain(`<h1>Keranjang Anda</h1><div class="card"><p><strong>Keranjang Anda masih kosong.</strong></p><p class="muted">Pilih kopi dari katalog. Setiap lot sudah dinilai dan ada traceability-nya.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>`);
       return;
     }
     let quote;
@@ -1239,7 +1239,7 @@ const ICONS = {
       catch (err) { toast(err.message); }
     }));
     main.querySelectorAll('[data-publish]').forEach((b) => b.addEventListener('click', async () => {
-      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan ke aplikasi. Paspor dibuat.'); viewAdminLots(); }
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan ke aplikasi. Traceability dibuat.'); viewAdminLots(); }
       catch (err) { toast(err.message); }
     }));
     main.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', async () => {
@@ -2030,7 +2030,8 @@ const ICONS = {
       const [head, a, b] = parts;
       if (head === 'catalogue') return await viewCatalogue(query);
       if (head === 'lot' && a) return await viewLot(a);
-      if (head === 'passport' && a) return await viewPassport(a);
+      if (head === 'passport' && a) { location.hash = '#/traceability/' + encodeURIComponent(a); return; }
+      if (head === 'traceability' && a) return await viewPassport(a);
       if (head === 'cart') return await viewCart();
       if (head === 'checkout') return viewCheckout();
       if (head === 'order' && a) return viewOrderCreated(a);
@@ -2151,7 +2152,7 @@ const ICONS = {
     try {
       state.regions = await api('/api/regions');
     } catch { state.regions = []; }
-    // Buka aplikasi selalu di beranda. Tautan langsung (paspor, lot, pesanan) tetap dibuka apa adanya.
+    // Buka aplikasi selalu di beranda. Tautan langsung (traceability, lot, pesanan) tetap dibuka apa adanya.
     const entry = location.hash.replace(/^#/, '');
     if (entry === '' || entry === '/' || entry === '/catalogue' || entry.startsWith('/catalogue?')) {
       location.hash = '#/';
