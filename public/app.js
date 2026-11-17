@@ -446,42 +446,53 @@
     }));
   }
 
+  // Pilihan cara bayar di halaman bayar. Pembayaran dibuat langsung setelah pesanan dibuat.
+  const CARA_BAYAR = [
+    ['va_bca', 'Transfer BCA (Virtual Account)', 'Nomor rekening virtual. Berlaku 24 jam.'],
+    ['va_bni', 'Transfer BNI (Virtual Account)', 'Nomor rekening virtual. Berlaku 24 jam.'],
+    ['qris', 'QRIS', 'Pindai dengan aplikasi bank atau dompet digital.'],
+  ];
+
   function viewCheckout() {
     if (state.cart.length === 0) { location.hash = '#/cart'; return; }
     setMain(`
-      <h1>Pembayaran</h1>
-      <p class="muted">Untuk pembeli usaha. Pembayaran dengan transfer bank.</p>
-      ${buyerToken() ? '' : '<p class="notice ok">Punya akun? <a href="#/masuk">Masuk</a> untuk memakai alamat tersimpan dan melihat riwayat pesanan.</p>'}
+      <h1>Bayar sekarang</h1>
+      <p class="muted">Pilih cara bayar dan isi data singkat. Data tambahan bisa diisi di bagian bawah bila perlu.</p>
+      ${buyerToken() ? '' : '<p class="notice ok">Punya akun? <a href="#/masuk">Masuk</a> untuk memakai data tersimpan dan melihat riwayat pesanan.</p>'}
       <form id="checkout" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
-        <h2 style="margin-top:0">Pembeli</h2>
+        <h2 style="margin-top:0">1. Cara bayar</h2>
+        <div class="pay-options" role="radiogroup" aria-label="Cara bayar">
+          ${CARA_BAYAR.map(([v, l, d], i) => `<label class="pay-option"><input type="radio" name="payMethod" value="${v}" ${i === 0 ? 'checked' : ''}><span><strong>${esc(l)}</strong><small class="muted">${esc(d)}</small></span></label>`).join('')}
+        </div>
+        <h2>2. Data pemesan</h2>
         <div class="form-grid">
-          <div class="field"><label for="c-type">Jenis pembeli</label>
-            <select id="c-type" name="buyerType" required>${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
-          <div class="field"><label for="c-company">Nama kafe atau perusahaan</label>
-            <input id="c-company" name="company" autocomplete="organization"></div>
-          <div class="field"><label for="c-npwp">NPWP <span class="muted">(opsional, untuk faktur)</span></label>
-            <input id="c-npwp" name="npwp" maxlength="25" placeholder="00.000.000.0-000.000"></div>
-          <div class="field"><label for="c-name">Nama kontak <span class="muted">(wajib)</span></label>
-            <input id="c-name" name="name" required autocomplete="name"></div>
+          <div class="field"><label for="c-name">Nama <span class="muted">(wajib)</span></label>
+            <input id="c-name" name="name" required minlength="2" autocomplete="name"></div>
           <div class="field"><label for="c-phone">Telepon <span class="muted">(wajib)</span></label>
             <input id="c-phone" name="phone" type="tel" required autocomplete="tel"></div>
-          <div class="field wide"><label for="c-email">Email <span class="muted">(wajib)</span></label>
+          <div class="field"><label for="c-email">Email <span class="muted">(wajib)</span></label>
             <input id="c-email" name="email" type="email" required autocomplete="email"></div>
-        </div>
-        <h2>Pengiriman</h2>
-        <div class="form-grid">
           <div class="field"><label for="c-city">Kota pengiriman <span class="muted">(wajib)</span></label>
             <input id="c-city" name="city" required autocomplete="address-level2"></div>
-          <div class="field wide"><label for="c-street">Alamat lengkap</label>
-            <textarea id="c-street" name="street" maxlength="200" autocomplete="street-address"></textarea></div>
-          <div class="field wide"><label for="c-notes">Catatan untuk tim</label>
-            <textarea id="c-notes" name="notes" maxlength="500"></textarea></div>
         </div>
-        <h2>Pembayaran</h2>
-        <p>Transfer bank berdasarkan faktur. Detail rekening ditampilkan di halaman berikutnya.</p>
-        <div class="field"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
-        <div class="btn-row"><button class="btn" type="submit" id="place">Buat pesanan</button><a class="btn secondary" href="#/cart">Kembali ke keranjang</a></div>
+        <details class="more" style="margin-top:8px">
+          <summary>Data tambahan (opsional)</summary>
+          <div class="form-grid" style="margin-top:12px">
+            <div class="field"><label for="c-type">Jenis pembeli</label>
+              <select id="c-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
+            <div class="field"><label for="c-company">Nama kafe atau perusahaan</label>
+              <input id="c-company" name="company" autocomplete="organization"></div>
+            <div class="field"><label for="c-npwp">NPWP (untuk faktur)</label>
+              <input id="c-npwp" name="npwp" maxlength="25" placeholder="00.000.000.0-000.000"></div>
+            <div class="field wide"><label for="c-street">Alamat lengkap</label>
+              <textarea id="c-street" name="street" maxlength="200" autocomplete="street-address"></textarea></div>
+            <div class="field wide"><label for="c-notes">Catatan untuk tim</label>
+              <textarea id="c-notes" name="notes" maxlength="500"></textarea></div>
+          </div>
+        </details>
+        <div class="field" style="margin-top:16px"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
+        <div class="btn-row"><button class="btn" type="submit" id="place">Bayar sekarang</button><a class="btn secondary" href="#/cart">Kembali ke keranjang</a></div>
       </form>`);
     const form = document.getElementById('checkout');
     if (buyerToken()) prefillCheckout();
@@ -491,7 +502,7 @@
       form.querySelector('[data-form-error]').hidden = true;
       const f = formData(form);
       const btn = document.getElementById('place');
-      busy(btn, true, 'Membuat pesanan…');
+      busy(btn, true, 'Memproses…');
       try {
         const { order } = await api('/api/orders', {
           method: 'POST',
@@ -505,7 +516,15 @@
         setSession('al-email', f.email);
         state.cart = [];
         saveCart();
-        location.hash = '#/order/' + encodeURIComponent(order.number);
+        // Langsung minta tagihan untuk cara bayar yang dipilih. Bila gagal, pembeli bisa mencoba lagi di halaman pesanan.
+        // Berhasil: buka halaman lacak yang menampilkan nomor VA atau QRIS. Gagal: halaman pesanan tetap bisa mencoba lagi.
+        try {
+          await api(`/api/orders/${encodeURIComponent(order.number)}/payment`, { method: 'POST', body: { email: f.email, method: f.payMethod } });
+          location.hash = '#/track/' + encodeURIComponent(order.number) + '?email=' + encodeURIComponent(f.email);
+        } catch {
+          toast('Pesanan dibuat. Silakan pilih cara bayar di halaman pesanan.');
+          location.hash = '#/order/' + encodeURIComponent(order.number);
+        }
       } catch (err) {
         busy(btn, false);
         if (err.code === 'stock_changed') {
