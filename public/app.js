@@ -242,11 +242,17 @@
     if (query.q) params.set('q', query.q);
     const regions = state.regions || [];
     const { lots } = await api('/api/lots?' + params.toString());
+    const aktifJenis = query.kategori === 'kopi' ? 'kopi' : 'semua';
     setMain(`
       <h1>${query.q ? 'Hasil untuk &ldquo;' + esc(query.q) + '&rdquo;' : 'Produk'}</h1>
+      <nav class="chips" aria-label="Jenis produk">
+        ${JENIS_PRODUK.map((j) => j.aktif
+          ? `<a class="chip${aktifJenis === j.key ? ' is-active' : ''}" href="#/catalogue${j.key === 'semua' ? '' : '?kategori=' + j.key}"${aktifJenis === j.key ? ' aria-current="page"' : ''}>${esc(j.label)}</a>`
+          : `<span class="chip is-soon" aria-disabled="true">${esc(j.label)} <small>segera</small></span>`).join('')}
+      </nav>
       <form class="filters card" id="filters" role="search" aria-label="Saring lot">
-        <div class="field"><label for="f-tier">Kategori</label>
-          <select id="f-tier" name="tier"><option value="">Semua kategori</option>
+        <div class="field"><label for="f-tier">Kelas mutu</label>
+          <select id="f-tier" name="tier"><option value="">Semua kelas</option>
             ${Object.entries(state.config.tiers).map(([c, t]) => `<option value="${esc(c)}" ${query.tier === c ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
           </select></div>
         <div class="field"><label for="f-region">Wilayah</label>
@@ -1622,40 +1628,13 @@ const ICONS = {
     });
   }
 
-  // ---------- kategori ----------
-  // Kopi aktif sekarang. Kakao dan kepiting direncanakan dalam dua tahun ke depan dan belum bisa dipesan.
-  const KATEGORI = [
-    { key: 'kopi', nama: 'Kopi', status: 'aktif', ringkas: 'Kopi Papua dari kelompok tani di Wamena dan sekitarnya.', detail: 'Setiap lot dinilai dengan skor cupping dan grade SNI, lalu diberi paspor dengan kode verifikasi.' },
-    { key: 'kakao', nama: 'Kakao', status: 'segera', ringkas: 'Direncanakan dalam dua tahun ke depan.', detail: 'Kakao belum tersedia untuk dipesan. Kami fokus menyelesaikan kopi terlebih dahulu.' },
-    { key: 'kepiting', nama: 'Kepiting', status: 'segera', ringkas: 'Direncanakan dalam dua tahun ke depan.', detail: 'Kepiting belum tersedia untuk dipesan. Kami fokus menyelesaikan kopi terlebih dahulu.' },
+  // Jenis produk ditampilkan sebagai chip di halaman Produk. Kakao dan kepiting belum bisa dipesan.
+  const JENIS_PRODUK = [
+    { key: 'semua', label: 'Semua', aktif: true },
+    { key: 'kopi', label: 'Kopi', aktif: true },
+    { key: 'kakao', label: 'Kakao', aktif: false },
+    { key: 'kepiting', label: 'Kepiting', aktif: false },
   ];
-
-  function viewKategoriList() {
-    setMain(`
-      <h1>Kategori</h1>
-      <p class="lead">Saat ini kami fokus pada kopi. Kategori lain menyusul.</p>
-      <div class="grid" style="margin-top:16px">
-        ${KATEGORI.map((k) => `
-          <article class="card">
-            <div class="btn-row" style="justify-content:space-between"><h2 style="margin:0;font-size:20px">${esc(k.nama)}</h2>${k.status === 'aktif' ? '<span class="pill ok">Tersedia</span>' : '<span class="pill">Segera hadir</span>'}</div>
-            <p class="muted" style="margin:10px 0">${esc(k.ringkas)}</p>
-            <p>${esc(k.detail)}</p>
-            <div style="margin-top:auto">${k.status === 'aktif' ? '<a class="btn small" href="#/kategori/kopi">Lihat kopi</a>' : `<a class="btn secondary small" href="#/kategori/${esc(k.key)}">Selengkapnya</a>`}</div>
-          </article>`).join('')}
-      </div>`);
-  }
-
-  function viewSegeraHadir(key) {
-    const k = KATEGORI.find((x) => x.key === key);
-    if (!k || k.status === 'aktif') { location.hash = '#/kategori'; return; }
-    setMain(`
-      <h1>${esc(k.nama)}</h1>
-      <p class="lead">Segera hadir.</p>
-      <div class="card" style="max-width:720px">
-        <p>${esc(k.detail)}</p>
-        <p class="muted">Rencana dua tahun ke depan. Untuk saat ini, silakan lihat <a href="#/kategori/kopi">kopi yang tersedia</a>.</p>
-      </div>`);
-  }
 
   // ---------- kebijakan ----------
   function viewLegal(key) {
@@ -1918,8 +1897,8 @@ const ICONS = {
       e.preventDefault();
       const cat = document.getElementById('search-cat').value;
       const q = document.getElementById('search-q').value.trim();
-      if (cat !== 'kopi') { location.hash = '#/kategori/' + encodeURIComponent(cat); return; }
-      location.hash = '#/catalogue' + (q ? '?q=' + encodeURIComponent(q) : '');
+      if (cat !== 'kopi') { toast(cat === 'kakao' ? 'Kakao segera hadir.' : 'Kepiting segera hadir.'); return; }
+      location.hash = '#/catalogue' + (q ? '?q=' + encodeURIComponent(q) : '?kategori=kopi');
     });
   }
 
@@ -1949,9 +1928,7 @@ const ICONS = {
       if (head === 'track' && a) return await viewTrackDetail(a, query);
       if (head === 'feedback' && a) return viewFeedback(a);
       if (head === 'about') return viewAbout();
-      if (head === 'kategori' && !a) return viewKategoriList();
-      if (head === 'kategori' && a === 'kopi') return await viewCatalogue(query);
-      if (head === 'kategori' && a) return viewSegeraHadir(a);
+      if (head === 'kategori') { location.hash = '#/catalogue' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
       if (head === 'akun' || head === 'masuk') return await viewAccount();
       if (head === 'kebijakan-privasi' || head === 'syarat' || head === 'pengembalian') return viewLegal(head);
       if (head === 'admin') {
@@ -2037,7 +2014,7 @@ const ICONS = {
   function markNav() {
     const raw = location.hash || '#/';
     // Kategori dan Tentang termasuk dalam Katalog, jadi tautan Katalog tetap aktif.
-    const h = /^#\/(kategori|about)/.test(raw) ? '#/catalogue' : raw;
+    const h = /^#\/about/.test(raw) ? '#/catalogue' : raw;
     document.querySelectorAll('.nav a').forEach((a) => {
       const href = a.getAttribute('href') || '';
       if (href && h.startsWith(href)) a.setAttribute('aria-current', 'page');
