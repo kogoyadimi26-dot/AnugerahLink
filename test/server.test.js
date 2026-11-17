@@ -289,3 +289,36 @@ test('online payment: start with VA or QRIS, a signed webhook marks the order pa
   assert.equal((await hook(badBody, badSig)).status, 400, 'amount mismatch refused');
   delete process.env.PAYMENT_WEBHOOK_SECRET;
 });
+
+// ---------- Midtrans ----------
+test('Midtrans notifications: signature checked, settlement marks paid, other statuses ignored', async () => {
+  const pw = require('../lib/payments');
+  const serverKey = 'SB-Mid-server-uji';
+  const order = await call('POST', '/api/orders', {
+    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], customer: { name: 'Midtrans Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'mid@test.local', city: 'Bandung', notes: '' } },
+  });
+  const number = order.json.order.number;
+  const total = order.json.order.total;
+  const pay = await call('POST', `/api/orders/${number}/payment`, { body: { email: 'mid@test.local', method: 'va_bni' } });
+  const orderId = pay.json.payment.instructions.vaNumber ? `sbx-${pay.json.payment.id}` : null;
+  assert.ok(orderId);
+  process.env.MIDTRANS_SERVER_KEY = serverKey;
+  const notif = (status, gross, key = serverKey) => {
+    const n = { order_id: orderId, status_code: '200', gross_amount: gross, transaction_status: status, fraud_status: 'accept' };
+    n.signature_key = pw.midtransSignature(n, key);
+    return n;
+  };
+  const send = (n) => fetch(base + '/api/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(n) });
+  try {
+    assert.equal((await send(notif('settlement', `${total}.00`, 'wrong-key'))).status, 401, 'wrong key refused');
+    const pending = await send(notif('pending', `${total}.00`));
+    assert.equal((await pending.json()).ignored, true);
+    const paid = await send(notif('settlement', `${total}.00`));
+    assert.equal(paid.status, 200);
+    const track = await call('GET', `/api/orders/${number}`, { email: 'mid@test.local' });
+    assert.equal(track.json.order.status, 'paid');
+    assert.equal((await (await send(notif('settlement', `${total}.00`))).json()).duplicate, true);
+  } finally {
+    delete process.env.MIDTRANS_SERVER_KEY;
+  }
+});

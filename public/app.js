@@ -605,7 +605,7 @@
           </div>` : `
           <div class="notice ok" style="margin-bottom:12px">
             <p style="margin:0 0 4px"><strong>QRIS</strong>. Pindai kode berikut dengan aplikasi bank atau dompet digital Anda:</p>
-            <p class="hash" style="margin:6px 0">${esc(p.instructions.payload)}</p>
+            ${p.instructions.qrUrl ? `<img src="${esc(p.instructions.qrUrl)}" alt="Kode QRIS untuk pembayaran" width="220" height="220" style="display:block;margin:8px 0;background:#fff;padding:8px;border-radius:12px">` : `<p class="hash" style="margin:6px 0">${esc(p.instructions.payload || '')}</p>`}
             <p class="help" style="margin:0">Jumlah ${rp(p.amount)}.</p>
           </div>`).join('')}
         <p class="muted" style="font-size:14px">Pilih cara bayar:</p>
