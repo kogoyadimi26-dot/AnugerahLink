@@ -625,19 +625,43 @@
     });
   }
 
+const ICONS = {
+    coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.2c0-1 1-1.7 2.5-1.7s2.5.7 2.5 1.7-1 1.5-2.5 1.8-2.5.8-2.5 1.8 1 1.7 2.5 1.7 2.5-.7 2.5-1.7"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+    passport: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M8.5 16.5h7"/></svg>',
+  };
+
   function viewAbout() {
+    const a = state.config.about;
     const pol = state.config.policy;
     setMain(`
-      <h1>Tentang AnugerahLink</h1>
-      <p class="lead">Kopi dari dataran tinggi Papua. Setiap lot dinilai dan ditelusuri sampai ke kelompok tani.</p>
-      <div class="grid" style="grid-template-columns:1fr;margin-top:16px">
-        <section class="card"><h3>Petani dibayar tunai</h3><p>Harga diumumkan di kebun, dibayar saat pengambilan.</p></section>
-        <section class="card"><h3>Paspor setiap lot</h3><p>Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.</p></section>
-        <section class="card" aria-labelledby="policy"><h3 id="policy">Klaim dan pengembalian</h3>
-          ${pol.status !== 'approved' ? '<p class="notice">Draf, menunggu persetujuan pemilik.</p>' : ''}
-          ${pol.sections.map((s) => `<p><strong>${esc(s.title)}.</strong> ${esc(s.text)}</p>`).join('')}
-        </section>
-      </div>`);
+      <section class="about-hero">
+        <p class="eyebrow">${esc(a.eyebrow)}</p>
+        <h1>${esc(a.title)}</h1>
+        <p class="lead">${esc(a.lead)}</p>
+        <div class="btn-row"><a class="btn" href="#/catalogue">Lihat lot tersedia</a></div>
+      </section>
+      <section class="pillars" aria-label="Keunggulan kami">
+        ${a.pillars.map((x) => `
+          <article class="pillar">
+            <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
+            <h3>${esc(x.title)}</h3>
+            <p>${esc(x.text)}</p>
+          </article>`).join('')}
+      </section>
+      <section class="policy" aria-labelledby="policy-title">
+        <div class="policy-head">
+          <h2 id="policy-title">Klaim dan pengembalian</h2>
+          ${pol.status !== 'approved' ? '<span class="pill warn">Draf</span>' : ''}
+        </div>
+        <ol class="policy-list">
+          ${pol.sections.map((x, i) => `
+            <li><details ${i === 0 ? 'open' : ''}>
+              <summary>${esc(x.title)}</summary>
+              <p>${esc(x.text)}</p>
+            </details></li>`).join('')}
+        </ol>
+      </section>`);
   }
 
   // ---------- tim (admin) ----------

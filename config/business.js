@@ -36,6 +36,19 @@ module.exports = {
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
   defaultMix: { reserve: 0.05, premium: 0.25, verified: 0.40, local: 0.30 },
 
+  // About page content. Edit the text here; the page updates from this file.
+  // icon: coin | passport | check
+  about: {
+    eyebrow: 'Tentang kami',
+    title: 'Kopi Papua yang bisa ditelusuri',
+    lead: 'AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan paspor yang menunjukkan asalnya.',
+    pillars: [
+      { icon: 'coin', title: 'Petani dibayar tunai', text: 'Harga diumumkan di kebun dan dibayar saat pengambilan. Petani tidak perlu menunggu.' },
+      { icon: 'check', title: 'Dinilai sebelum dijual', text: 'Setiap lot ditimbang, disortir dan dicupping sebelum masuk katalog.' },
+      { icon: 'passport', title: 'Paspor setiap lot', text: 'Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.' },
+    ],
+  },
+
   // Claims and returns. Status 'draft' means the owner has not approved these terms yet.
   // The About page shows the draft notice until status is changed to 'approved'.
   policy: {
