@@ -1191,7 +1191,7 @@ const ICONS = {
           : `<span class="chip is-soon" aria-disabled="true">${esc(j.label)} <small>segera</small></span>`).join('')}
       </nav>
       <div class="table-wrap"><table>
-        <thead><tr><th>Kode</th><th>Kelompok</th><th>Status</th><th>Kategori</th><th class="num">Cupping</th><th class="num">Siap jual</th><th class="num">Tersedia</th><th></th></tr></thead>
+        <thead><tr><th>Kode</th><th>Kelompok</th><th>Status</th><th>Kategori</th><th class="num">Harga per kg</th><th class="num">Cupping</th><th class="num">Siap jual</th><th class="num">Tersedia</th><th></th></tr></thead>
         <tbody>
           ${shown.map((l) => `
             <tr>
@@ -1199,6 +1199,7 @@ const ICONS = {
               <td>${esc(l.groupName)}</td>
               <td><span class="pill">${esc(LOT_STATUS[l.status] || l.status)}</span>${l.intakeCheck ? `<br><span class="muted" style="font-size:13px">${esc(CHECK_TEKS[l.intakeCheck.result])}${l.intakeCheck.gradeKey ? ' · Grade ' + esc(l.intakeCheck.gradeKey) : ''} · ${rp(l.intakeCheck.amountDue)}</span>` : ''}</td>
               <td>${l.tier ? `<span class="${tierClass(l.tier)}">${esc(tierLabel(l.tier))}</span>` : '—'}</td>
+              <td class="num">${l.tier && state.config.tiers[l.tier] ? rp(state.config.tiers[l.tier].pricePerKg) : '—'}</td>
               <td class="num">${l.cupScore || '—'}</td>
               <td class="num">${l.sellableKg ? kg(l.sellableKg) : '—'}</td>
               <td class="num">${kg(l.availableKg)}</td>
@@ -1208,7 +1209,7 @@ const ICONS = {
                 ${l.status === 'verified' && canDo('publish') ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>` : ''}
                 ${l.status === 'listed' && canDo('publish') ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
               </div></td>
-            </tr>`).join('') || '<tr><td colspan="8">Belum ada lot. Catat pembelian di menu Pembelian.</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan="9">Belum ada lot. Catat pembelian di menu Pembelian.</td></tr>'}
         </tbody></table></div>`));
     wireSignOut();
     main.querySelectorAll('[data-jenis]').forEach((b) => b.addEventListener('click', () => viewAdminLots(b.dataset.jenis)));
