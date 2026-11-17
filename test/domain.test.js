@@ -51,9 +51,9 @@ test('local lots carry no shipping charge', () => {
 });
 
 test('kg rules: minimum, whole numbers and step', () => {
-  assert.equal(pricing.kgProblem(29), 'Minimum order is 30 kg.');
+  assert.equal(pricing.kgProblem(29), 'Pesanan minimum 30 kg.');
   assert.equal(pricing.kgProblem(30), null);
-  assert.match(pricing.kgProblem(30.5), /whole number/);
+  assert.match(pricing.kgProblem(30.5), /bilangan bulat/);
 });
 
 // ---------- passport hash ----------

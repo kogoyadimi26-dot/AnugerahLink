@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "dev": "DEV_RELOAD=1 node --watch server.js",
     "test": "node --test test/domain.test.js test/server.test.js"
   },
   "engines": {
