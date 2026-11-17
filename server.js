@@ -224,8 +224,9 @@ function buildRoutes(ctx) {
   }, { perm: 'lots.read' });
   route('POST', /^\/api\/admin\/lots$/, (_p, body) => ({ status: 201, body: { lot: store.update((db) => domain.createIntake(db, body, now())) } }), { perm: 'intake' });
   route('PATCH', /^\/api\/admin\/lots\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { lot: store.update((db) => domain.gradeLot(db, id, body)) } }), { perm: 'grade' });
-  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/publish$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.publishLot(db, id, now())) } }), { perm: 'grade' });
-  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/withdraw$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.withdrawLot(db, id)) } }), { perm: 'grade' });
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/verify$/, ([id], _b, _q, req) => ({ status: 200, body: { lot: store.update((db) => domain.verifyLot(db, id, requirePerm(req, store, 'grade'), now())) } }), { perm: 'grade' });
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/publish$/, ([id], _b, _q, req) => ({ status: 200, body: { lot: store.update((db) => domain.publishLot(db, id, requirePerm(req, store, 'publish'), now())) } }), { perm: 'publish' });
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/withdraw$/, ([id]) => ({ status: 200, body: { lot: store.update((db) => domain.withdrawLot(db, id)) } }), { perm: 'publish' });
   route('GET', /^\/api\/admin\/orders$/, () => ({ status: 200, body: { orders: store.read().orders }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('PATCH', /^\/api\/admin\/orders\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { order: store.update((db) => domain.updateOrderStatus(db, id, body, now())) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('GET', /^\/api\/admin\/feedback$/, () => ({ status: 200, body: { feedback: store.read().feedback } }), { perm: 'feedback' });

@@ -34,7 +34,7 @@
     requested: 'Diminta', confirmed: 'Dikonfirmasi', paid: 'Sudah dibayar', shipped: 'Dikirim',
     delivered: 'Sudah diantar', completed: 'Selesai', cancelled: 'Dibatalkan',
   };
-  const LOT_STATUS = { received: 'Diterima', graded: 'Dinilai', listed: 'Tayang', withdrawn: 'Ditarik', rejected: 'Ditolak' };
+  const LOT_STATUS = { received: 'Diterima', graded: 'Menunggu verifikasi', verified: 'Siap diterbitkan', listed: 'Tayang', withdrawn: 'Ditarik', rejected: 'Ditolak' };
   const CHECK_TEKS = { passed: 'Lolos', adjusted: 'Dipotong', rejected: 'Ditolak' };
   const JENIS_PEMBELI = [
     ['specialty_cafe', 'Kafe spesialti'], ['premium_roaster', 'Roaster premium'], ['roaster', 'Roaster'],
@@ -64,7 +64,13 @@
 
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
   function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
-  const ROLE_PAGES = { admin: ['dashboard', 'intake', 'lots', 'orders', 'feedback', 'users', 'audit', 'settings'], grader: ['lots'], field_agent: ['intake', 'lots'] };
+  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'feedback', 'users', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
+  function canDo(action) {
+    const r = (currentUser() || {}).role;
+    if (action === 'verify') return r === 'admin' || r === 'grader';
+    if (action === 'publish') return r === 'admin';
+    return false;
+  }
   function allowedPages() { const u = currentUser(); return (u && ROLE_PAGES[u.role]) || []; }
   function setAdminToken(t) { try { sessionStorage.setItem('al-admin', t); } catch { /* abaikan */ } }
   function clearAdminToken() { try { sessionStorage.removeItem('al-admin'); sessionStorage.removeItem('al-user'); } catch { /* abaikan */ } }
@@ -727,7 +733,7 @@ const ICONS = {
 
   // ---------- tim (admin) ----------
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -909,6 +915,50 @@ const ICONS = {
     });
   }
 
+  // Alur kerja: setiap lot di tahap mana, dan langkah berikutnya untuk peran Anda.
+  async function viewWorkflow() {
+    const { lots } = await api('/api/admin/lots', { admin: true });
+    const stages = [
+      ['received', 'Perlu dinilai', 'Nilai lot di halaman Lot. Isi grade, skor cupping, dan kg siap jual.'],
+      ['graded', 'Menunggu verifikasi', 'Penilai memeriksa nilai, lalu menekan Verifikasi.'],
+      ['verified', 'Siap diterbitkan', 'Admin (orang yang berbeda dari penilai) menerbitkan ke aplikasi.'],
+      ['listed', 'Tayang di aplikasi', 'Lot dapat dilihat dan dipesan pembeli.'],
+    ];
+    const cols = stages.map(([key, title, hint]) => {
+      const items = lots.filter((l) => l.status === key);
+      const actions = (l) => {
+        if (key === 'received') return `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>`;
+        if (key === 'graded' && canDo('verify')) return `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>`;
+        if (key === 'verified' && canDo('publish')) return `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>`;
+        return '';
+      };
+      return `
+        <section class="card" aria-labelledby="st-${key}" style="min-width:0">
+          <h3 id="st-${key}">${esc(title)} <span class="pill">${items.length}</span></h3>
+          <p class="help" style="margin-bottom:12px">${esc(hint)}</p>
+          ${items.length ? items.map((l) => `
+            <div style="border-top:1px solid var(--line);padding:10px 0">
+              <div><strong>${esc(l.code)}</strong> <span class="muted" style="font-size:14px">${esc(l.groupName)}</span></div>
+              <div class="muted" style="font-size:13px;margin:2px 0 8px">${l.tier ? esc(tierLabel(l.tier)) + ' · Cupping ' + esc(l.cupScore || '—') : 'Belum dinilai'}${l.verifiedBy ? ' · Diverifikasi ' + esc(l.verifiedBy.name) : ''}</div>
+              <div class="btn-row">${actions(l)}</div>
+            </div>`).join('') : '<p class="muted" style="font-size:14px">Tidak ada lot.</p>'}
+        </section>`;
+    }).join('');
+    setMain(adminShell('alur', `
+      <h2 style="margin-top:0">Alur kerja lot</h2>
+      <p class="muted" style="font-size:14px">Setiap lot melewati empat tahap. Nilai, verifikasi, lalu terbitkan. Penerbitan dilakukan orang yang berbeda dari yang memverifikasi.</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">${cols}</div>`));
+    wireSignOut();
+    main.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.verify)}/verify`, { method: 'POST', admin: true }); toast('Lot diverifikasi'); viewWorkflow(); }
+      catch (err) { toast(err.message); }
+    }));
+    main.querySelectorAll('[data-publish]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan ke aplikasi'); viewWorkflow(); }
+      catch (err) { toast(err.message); }
+    }));
+  }
+
   // Riwayat: siapa mengubah apa dan kapan (tanpa isi data).
   async function viewAdminAudit() {
     const { entries } = await api('/api/admin/audit', { admin: true });
@@ -1053,14 +1103,19 @@ const ICONS = {
               <td class="num">${kg(l.availableKg)}</td>
               <td><div class="btn-row">
                 ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>` : ''}
-                ${l.status === 'graded' ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan</button>` : ''}
-                ${l.status === 'listed' ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
+                ${l.status === 'graded' && canDo('verify') ? `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>` : ''}
+                ${l.status === 'verified' && canDo('publish') ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>` : ''}
+                ${l.status === 'listed' && canDo('publish') ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
               </div></td>
             </tr>`).join('') || '<tr><td colspan="8">Belum ada lot. Catat pembelian di menu Pembelian.</td></tr>'}
         </tbody></table></div>`));
     wireSignOut();
+    main.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.verify)}/verify`, { method: 'POST', admin: true }); toast('Lot diverifikasi'); viewAdminLots(); }
+      catch (err) { toast(err.message); }
+    }));
     main.querySelectorAll('[data-publish]').forEach((b) => b.addEventListener('click', async () => {
-      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan. Paspor dibuat.'); viewAdminLots(); }
+      try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.publish)}/publish`, { method: 'POST', admin: true }); toast('Diterbitkan ke aplikasi. Paspor dibuat.'); viewAdminLots(); }
       catch (err) { toast(err.message); }
     }));
     main.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', async () => {
@@ -1264,6 +1319,7 @@ const ICONS = {
         const sec = a || landingPage();
         if (!pages.includes(sec)) { location.hash = '#/admin/' + landingPage(); return; }
         if (sec === 'users') return await viewAdminUsers(b);
+        if (sec === 'alur') return await viewWorkflow();
         if (sec === 'audit') return await viewAdminAudit();
         if (sec === 'dashboard') return await viewAdminDashboard();
         if (sec === 'intake') return await viewAdminIntake();

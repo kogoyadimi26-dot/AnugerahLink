@@ -117,7 +117,12 @@ test('admin can publish a new lot and see it on the storefront only after gradin
     token: TOKEN, body: { tier: 'reserve', grade: 'SNI Grade 1', cupScore: '87', sellableKg: '140', moisturePct: '11.5' },
   });
   assert.equal(grade.status, 200);
-  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: TOKEN })).status, 200);
+  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: TOKEN })).status, 409, 'not verified yet');
+  assert.equal((await call('POST', `/api/admin/lots/${id}/verify`, { token: TOKEN })).status, 200);
+  // Penerbitan dilakukan orang lain (admin kedua), sesuai aturan dua orang
+  await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Admin Kedua', email: 'admin2@test.local', role: 'admin', password: 'admin-kedua-123' } });
+  const second = (await call('POST', '/api/auth/login', { body: { email: 'admin2@test.local', password: 'admin-kedua-123' } })).json.token;
+  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: second })).status, 200);
   const visible = await call('GET', `/api/lots/${code}`);
   assert.equal(visible.status, 200);
   assert.equal(visible.json.lot.availableKg, 140);
