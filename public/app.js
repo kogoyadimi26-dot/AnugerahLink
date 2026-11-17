@@ -594,6 +594,28 @@
           </tbody></table>
         </section>
       </div>
+      ${o.status === 'requested' || o.status === 'confirmed' ? `
+      <section class="card" aria-labelledby="bayar" style="margin-top:16px">
+        <h2 id="bayar" style="margin-top:0">Bayar sekarang</h2>
+        ${(o.payments || []).filter((p) => p.status === 'pending').map((p) => p.instructions.kind === 'va' ? `
+          <div class="notice ok" style="margin-bottom:12px">
+            <p style="margin:0 0 4px"><strong>${esc(p.methodLabel)}</strong>. Transfer ke nomor berikut:</p>
+            <p class="hash" style="font-size:18px;margin:6px 0">${esc(p.instructions.vaNumber)}</p>
+            <p class="help" style="margin:0">Jumlah ${rp(p.amount)}. Berlaku sampai ${tanggal(p.instructions.expiresAt)}.</p>
+          </div>` : `
+          <div class="notice ok" style="margin-bottom:12px">
+            <p style="margin:0 0 4px"><strong>QRIS</strong>. Pindai kode berikut dengan aplikasi bank atau dompet digital Anda:</p>
+            ${p.instructions.qrUrl ? `<img src="${esc(p.instructions.qrUrl)}" alt="Kode QRIS untuk pembayaran" width="220" height="220" style="display:block;margin:8px 0;background:#fff;padding:8px;border-radius:12px">` : `<p class="hash" style="margin:6px 0">${esc(p.instructions.payload || '')}</p>`}
+            <p class="help" style="margin:0">Jumlah ${rp(p.amount)}.</p>
+          </div>`).join('')}
+        <p class="muted" style="font-size:14px">Pilih cara bayar:</p>
+        <div class="btn-row">
+          <button class="btn secondary small" type="button" data-pay="va_bca">Virtual Account BCA</button>
+          <button class="btn secondary small" type="button" data-pay="va_bni">Virtual Account BNI</button>
+          <button class="btn secondary small" type="button" data-pay="qris">QRIS</button>
+        </div>
+        <p class="help" style="margin-top:10px">Pembayaran dikonfirmasi otomatis begitu masuk. Transfer bank manual tetap bisa dilakukan dengan nomor referensi pesanan.</p>
+      </section>` : ''}
       ${o.canConfirmReceipt || o.canReportProblem || o.problems.length ? `
       <section class="card" aria-labelledby="receipt" style="margin-top:16px">
         <h2 id="receipt" style="margin-top:0">Pengiriman Anda</h2>
@@ -615,6 +637,14 @@
       </section>` : ''}
       ${o.feedbackOpen ? `<div class="btn-row" style="margin-top:16px"><a class="btn" href="#/feedback/${encodeURIComponent(o.number)}">Bagikan umpan balik tentang pesanan Anda</a></div>` : ''}`);
 
+    main.querySelectorAll('button[data-pay]').forEach((b) => b.addEventListener('click', async () => {
+      busy(b, true, 'Membuat tagihan…');
+      try {
+        await api(`/api/orders/${encodeURIComponent(o.number)}/payment`, { method: 'POST', body: { email, method: b.dataset.pay } });
+        toast('Tagihan dibuat');
+        viewTrackDetail(number, query);
+      } catch (err) { busy(b, false); toast(err.message); }
+    }));
     const confirmBtn = document.getElementById('confirm-receipt');
     if (confirmBtn) confirmBtn.addEventListener('click', async () => {
       busy(confirmBtn, true, 'Mengonfirmasi…');
@@ -1217,11 +1247,16 @@ const ICONS = {
                   <input name="paymentReference" aria-label="Nomor referensi bayar" placeholder="Ref transfer" value="${esc(o.payment.reference || '')}" style="min-width:120px">
                   <button class="btn small" type="submit">Simpan</button>
                 </form>
+                ${(state.config.demoAccounts || []).length ? (o.payments || []).filter((p) => p.status === 'pending').map((p) => `<button class="btn secondary small" type="button" data-sim="${esc(p.providerRef || '')}" style="margin-top:6px">Simulasi bayar (demo)</button>`).join('') : ''}
                 <p class="error" data-row-error hidden></p>
               </td>
             </tr>`).join('') || '<tr><td colspan="5">Belum ada pesanan.</td></tr>'}
         </tbody></table></div>`));
     wireSignOut();
+    main.querySelectorAll('button[data-sim]').forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/api/admin/payments/${encodeURIComponent(b.dataset.sim)}/simulate`, { method: 'POST', admin: true }); toast('Pembayaran simulasi diterima'); viewAdminOrders(); }
+      catch (err) { toast(err.message); }
+    }));
     main.querySelectorAll('form[data-order]').forEach((form) => form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = formData(form);

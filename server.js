@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { SqlStore } = require('./lib/sqlstore');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
+const payments = require('./lib/payments');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
 const auth = require('./lib/auth');
@@ -28,7 +29,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
+  "img-src 'self' data: https://api.sandbox.midtrans.com https://api.midtrans.com",
   "connect-src 'self'",
   "font-src 'self'",
   "object-src 'none'",
@@ -176,6 +177,22 @@ function buildRoutes(ctx) {
     return { status: 201, body: { received: created.length } };
   });
 
+  route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/payment$/, async ([number], body) => {
+    domain.assertPayable(store.read(), number, body.email, body.method);
+    const order = store.read().orders.find((o) => o.number === number);
+    const paymentId = require('crypto').randomUUID();
+    const charge = await payments.createCharge({ paymentId, method: body.method, amount: order.total, orderNumber: number, now: now() });
+    const created = store.update((db) => domain.createPayment(db, number, body.method, paymentId, charge, now()));
+    const updated = store.read().orders.find((o) => o.number === number);
+    return { status: 201, body: { payment: { id: created.id, method: created.method, instructions: created.instructions }, order: domain.publicOrder(updated) } };
+  });
+  if (ctx.demo) {
+    // Hanya mode demo: anggap pembayaran sudah masuk, untuk uji coba alur.
+    route('POST', /^\/api\/admin\/payments\/([\w-]+)\/simulate$/, ([providerRef]) => {
+      const result = store.update((db) => domain.markPaymentPaid(db, providerRef, store.read().orders.find((o) => (o.payments || []).some((p) => p.providerRef === providerRef)).total, now()));
+      return { status: 200, body: { order: domain.publicOrder(result.order), duplicate: result.duplicate } };
+    }, { perm: 'orders' });
+  }
   route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/confirm-receipt$/, ([number], body) => {
     const order = domain.findOrderForBuyer(store.read(), number, body.email);
     if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
@@ -282,6 +299,41 @@ function serveDevReload(req, res) {
   req.on('close', () => devClients.delete(res));
 }
 
+// Pesan dari penyedia pembayaran. Wajib tanda tangan HMAC yang benar; rahasia dari PAYMENT_WEBHOOK_SECRET.
+function handlePaymentWebhook(req, res, store) {
+  const mt = payments.midtransConfig();
+  const secret = process.env.PAYMENT_WEBHOOK_SECRET;
+  if (!mt && !secret) return sendError(res, new ApiError(503, 'not_configured', 'Pembayaran online belum dikonfigurasi.'));
+  const chunks = [];
+  let size = 0;
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > 64 * 1024) { req.destroy(); return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    try {
+      const raw = Buffer.concat(chunks);
+      if (mt) {
+        // Midtrans: notifikasi dengan signature_key SHA-512. Status lain selain lunas diabaikan (200).
+        const n = JSON.parse(raw.toString('utf8'));
+        if (!payments.verifyMidtransNotification(n, mt.key)) throw new ApiError(401, 'bad_signature', 'Tanda tangan tidak valid.');
+        if (!payments.isMidtransPaid(n)) return send(res, 200, { ok: true, ignored: true });
+        const result = store.update((db) => domain.markPaymentPaid(db, String(n.order_id || ''), n.gross_amount, new Date().toISOString()));
+        return send(res, 200, { ok: true, duplicate: result.duplicate });
+      }
+      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret)) {
+        throw new ApiError(401, 'bad_signature', 'Tanda tangan tidak valid.');
+      }
+      const body = JSON.parse(raw.toString('utf8'));
+      const result = store.update((db) => domain.markPaymentPaid(db, String(body.providerRef || ''), body.amount, new Date().toISOString()));
+      send(res, 200, { ok: true, duplicate: result.duplicate });
+    } catch (err) {
+      sendError(res, err instanceof ApiError ? err : new ApiError(400, 'invalid_json', 'Pesan tidak valid.'));
+    }
+  });
+}
+
 function serveStatic(req, res, pathname) {
   const rel = pathname === '/' ? '/index.html' : pathname;
   let decoded;
@@ -343,6 +395,9 @@ function createApp({ dataFile, owner, demo = false }) {
     const url = new URL(req.url, 'http://localhost');
     const pathname = url.pathname;
     if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
+    if (pathname === '/api/payments/webhook' && req.method === 'POST') {
+      return handlePaymentWebhook(req, res, store);
+    }
     const photoMatch = pathname.match(/^\/api\/admin\/photos\/([\w-]+)$/);
     if (photoMatch && req.method === 'GET') {
       try {
@@ -377,7 +432,7 @@ function createApp({ dataFile, owner, demo = false }) {
       }
       const params = pathname.match(match.pattern).slice(1);
       const body = ['POST', 'PATCH'].includes(req.method) ? await readBody(req) : {};
-      const result = match.handler(params, body, query, req);
+      const result = await match.handler(params, body, query, req);
       if (actor && req.method !== 'GET') {
         store.update((db) => auth.logAudit(db, { user: actor, action: `${req.method} ${pathname}`, status: result.status, now: new Date().toISOString() }));
       }

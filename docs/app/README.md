@@ -56,3 +56,28 @@ Covers pricing and the v2 economics, passport hashing, stock reservation and rel
 - Business numbers are the v2 defaults and need the owner's confirmation (see `PLAN.md` section 12).
 - "Closs" from the benchmark request did not match any platform in search. Confirm the name.
 - Bank details, group contacts and real farmer group names are placeholders.
+
+## Online payment (virtual account and QRIS)
+
+Buyers choose Virtual Account BCA or BNI, or QRIS, on the order page. Payments use Midtrans Core API.
+
+**Environment variables**
+- `MIDTRANS_SERVER_KEY`: the server key from the Midtrans dashboard. Use the sandbox key (starts with `SB-Mid-server-`) for testing. Without it, the app uses a local simulator.
+- `MIDTRANS_ENV`: `sandbox` (default) or `production`.
+
+Keys go in environment variables only, never in the code or in chat.
+
+**Testing with a tunnel**
+Midtrans must reach the webhook over public HTTPS, and your Mac's `localhost` is not public. Use a tunnel such as ngrok:
+
+```bash
+ngrok http 3000
+```
+
+In the Midtrans sandbox dashboard, set the Payment Notification URL to `https://<tunnel-address>/api/payments/webhook`.
+
+**Notes**
+- Notifications are verified with the SHA-512 signature from Midtrans. Only settlement (or capture with fraud status accept) marks an order paid. Other statuses are acknowledged and ignored.
+- A payment that arrives after an order was cancelled is flagged for the team.
+- Refunds are done in the Midtrans dashboard for now.
+- The exact response fields from Midtrans should be checked against the sandbox on first use.
