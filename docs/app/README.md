@@ -89,3 +89,13 @@ In the Midtrans sandbox dashboard, set the Payment Notification URL to `https://
 - Pembatas masuk: 5 kegagalan per email dalam 15 menit mengunci email itu selama 15 menit. Hitungan ini disimpan di memori dan hilang saat server dimulai ulang.
 - Cadangan: `node scripts/backup.js` membuat salinan database dan foto di folder `backups/`. Bisa dijalankan saat server berjalan.
 - Pemulihan: hentikan server, lalu `node scripts/restore.js backups/<folder> --yes`. Data yang ada disimpan dulu di `data/sebelum-pulih-<waktu>`.
+
+
+## Mengelola katalog (untuk admin)
+
+- **Harga per kategori:** menu Pengaturan → "Harga per kategori". Ubah angka, tulis alasan, lalu simpan. Harga berlaku untuk semua lot di kategori itu, dan perubahan tercatat di Riwayat beserta alasannya.
+- **Teks beranda dan footer:** Pengaturan → "Teks beranda dan footer". Teks standar bisa dikembalikan dengan satu tombol.
+- **Tampilan lot di katalog:** buka lot (menu Lot → Nilai), lalu bagian "Tampilan di katalog": judul, cerita untuk pembeli, unggah foto katalog (JPG atau PNG, maksimal 2 MB), pilih satu foto sebagai sampul, lalu simpan.
+- **Foto pemeriksaan** (sampel dan karung) hanya untuk tim dan tidak pernah tampil ke pembeli.
+- **Tayang:** lot tetap harus diverifikasi dan diterbitkan seperti biasa. Penilai bisa melihat tampilan katalog tetapi tidak bisa mengubahnya.
+- Setiap perubahan dicatat di Riwayat (siapa, kapan, dan apa yang berubah).

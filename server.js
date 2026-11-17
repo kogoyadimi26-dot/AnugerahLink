@@ -9,6 +9,7 @@ const { SqlStore } = require('./lib/sqlstore');
 const { mergeTheme, validateOverrides } = require('./lib/theme');
 const { LoginLimiter } = require('./lib/ratelimit');
 const { productionProblems } = require('./lib/prodcheck');
+const content = require('./lib/content');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -129,6 +130,7 @@ function publicConfig(demoOn, settings) {
     gradeBands: config.gradeBands,
     demoAccounts: demoOn ? DEMO_USERS.map((u) => ({ name: u.name, email: u.email, role: u.role, roleLabel: auth.ROLES[u.role].label, password: u.password })) : [],
     theme: mergeTheme(require('./config/theme'), settings && settings.theme),
+    content: content.contentFor(settings),
   };
 }
 
@@ -282,7 +284,43 @@ function buildRoutes(ctx) {
   route('PATCH', /^\/api\/admin\/orders\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { order: store.update((db) => domain.updateOrderStatus(db, id, body, now())) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('GET', /^\/api\/admin\/feedback$/, () => ({ status: 200, body: { feedback: store.read().feedback } }), { perm: 'feedback' });
   route('PATCH', /^\/api\/admin\/feedback\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { feedback: store.update((db) => domain.tagFeedback(db, id, body)) } }), { perm: 'feedback' });
-  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/photos$/, ([id], body) => {
+  // Harga per kategori: satu sumber kebenaran, setiap perubahan wajib beralasan dan tercatat.
+  route('GET', /^\/api\/admin\/prices$/, () => ({ status: 200, body: { prices: Object.fromEntries(Object.entries(require('./config/business').tiers).map(([c, t]) => [c, t.pricePerKg])), base: content.BASE_PRICES }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'settings' });
+  route('PUT', /^\/api\/admin\/prices$/, (_p, body) => {
+    const { prices, reason } = content.validatePrices(body);
+    const before = store.read().settings?.prices || {};
+    const changed = Object.keys(prices).filter((c) => (before[c] || content.BASE_PRICES[c]) !== prices[c]);
+    if (changed.length === 0) throw new ApiError(400, 'invalid_input', 'Tidak ada harga yang berubah.');
+    store.update((db) => { db.settings = { ...(db.settings || {}), prices }; });
+    content.applySettings(store.read().settings);
+    const detail = 'Harga: ' + changed.map((c) => `${c} ${before[c] || content.BASE_PRICES[c]} → ${prices[c]}`).join(', ') + `. Alasan: ${reason}`;
+    return { status: 200, body: { prices }, auditDetail: detail };
+  }, { perm: 'settings' });
+
+  // Teks situs (beranda dan footer).
+  route('GET', /^\/api\/admin\/content$/, () => ({ status: 200, body: { content: content.contentFor(store.read().settings), defaults: content.defaults }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'settings' });
+  route('PUT', /^\/api\/admin\/content$/, (_p, body) => {
+    const out = content.validateContent(body);
+    store.update((db) => { db.settings = { ...(db.settings || {}), content: out }; });
+    return { status: 200, body: { content: content.contentFor(store.read().settings) }, auditDetail: 'Teks situs diperbarui.' };
+  }, { perm: 'settings' });
+
+  // Tampilan katalog lot: judul, cerita, dan foto sampul (hanya admin).
+  route('PATCH', /^\/api\/admin\/lots\/([\w-]+)\/listing$/, ([id], body) => {
+    const lot = store.update((db) => domain.setListing(db, id, body, now()));
+    return { status: 200, body: { lot: { id: lot.id, code: lot.code, headline: lot.headline, story: lot.story, coverPhotoId: lot.coverPhotoId } }, auditDetail: `Katalog ${lot.code} diperbarui.` };
+  }, { perm: 'publish' });
+  route('DELETE', /^\/api\/admin\/photos\/([\w-]+)$/, ([photoId]) => {
+    const found = domain.findPhoto(store.read(), photoId);
+    if (!found) throw new ApiError(404, 'not_found', 'Foto tidak ditemukan.');
+    if (found.photo.kind !== 'listing') throw new ApiError(403, 'forbidden', 'Foto pemeriksaan tidak bisa dihapus dari sini.');
+    const file = store.update((db) => domain.removePhoto(db, photoId));
+    try { fs.unlinkSync(path.join(photoDir, file)); } catch { /* berkas sudah tidak ada */ }
+    return { status: 200, body: { ok: true }, auditDetail: `Foto katalog ${found.lot.code} dihapus.` };
+  }, { perm: 'publish' });
+
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/photos$/, ([id], body, _q, req) => {
+    if (body.kind === 'listing') requirePerm(req, store, 'publish');
     const m = typeof body.dataUrl === 'string' ? /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(body.dataUrl) : null;
     if (!m) throw new ApiError(400, 'invalid_input', 'Foto harus berformat JPG atau PNG.', { dataUrl: 'Foto harus berformat JPG atau PNG.' });
     const bytes = Buffer.from(m[2], 'base64');
@@ -403,6 +441,7 @@ function createApp({ dataFile, owner, demo = false }) {
   const store = new SqlStore(dataFile, seed, path.join(path.dirname(dataFile), 'db.json'));
   store.load();
   if (auth.ensureOwner(store.db, owner, new Date().toISOString())) store.save(store.db);
+  content.applySettings(store.db.settings);
   if (demo) {
     store.update((db) => {
       db.users = db.users || [];
@@ -429,6 +468,20 @@ function createApp({ dataFile, owner, demo = false }) {
     if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
     if (pathname === '/api/payments/webhook' && req.method === 'POST') {
       return handlePaymentWebhook(req, res, store);
+    }
+    const publicPhoto = pathname.match(/^\/api\/lots\/([\w-]+)\/photos\/([\w-]+)$/);
+    if (publicPhoto && req.method === 'GET') {
+      try {
+        const lot = store.read().lots.find((l) => l.code === publicPhoto[1] && l.status === 'listed');
+        const photo = lot && (lot.photos || []).find((p) => p.id === publicPhoto[2] && domain.LISTING_PHOTO_KINDS.includes(p.kind));
+        if (!photo) throw new ApiError(404, 'not_found', 'Foto tidak ditemukan.');
+        const bytes = fs.readFileSync(path.join(photoDir, photo.file));
+        const ext = path.extname(photo.file).slice(1);
+        res.writeHead(200, baseHeaders({ 'Content-Type': PHOTO_TYPE[ext] || 'application/octet-stream', 'Content-Length': bytes.length, 'Cache-Control': 'public, max-age=300' }));
+        return res.end(bytes);
+      } catch (err) {
+        return sendError(res, err);
+      }
     }
     const photoMatch = pathname.match(/^\/api\/admin\/photos\/([\w-]+)$/);
     if (photoMatch && req.method === 'GET') {
@@ -466,7 +519,7 @@ function createApp({ dataFile, owner, demo = false }) {
       const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : {};
       const result = await match.handler(params, body, query, req);
       if (actor && req.method !== 'GET') {
-        store.update((db) => auth.logAudit(db, { user: actor, action: `${req.method} ${pathname}`, status: result.status, now: new Date().toISOString() }));
+        store.update((db) => auth.logAudit(db, { user: actor, action: `${req.method} ${pathname}`, status: result.status, now: new Date().toISOString(), detail: result.auditDetail }));
       }
       const headers = { 'Cache-Control': 'no-store', ...(result.headers || {}) };
       send(res, result.status, result.body, headers);

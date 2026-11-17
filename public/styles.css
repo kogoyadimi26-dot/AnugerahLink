@@ -114,6 +114,7 @@ main:focus { outline: none; }
 @media (min-width: 640px) { .steps { grid-template-columns: repeat(3, 1fr); } }
 
 /* ---------- lot dan label ---------- */
+.lot-cover { display: block; width: calc(100% + 40px); max-width: none; margin: -20px -20px 4px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--green-soft); }
 .lot-card { display: flex; flex-direction: column; gap: 8px; border-top: 4px solid var(--brand); transition: transform var(--ease), box-shadow var(--ease); }
 .lot-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(0,40,16,.12); }
 .lot-card .code { font-size: 13px; color: var(--ink-muted); }
