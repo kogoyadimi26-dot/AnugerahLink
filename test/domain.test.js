@@ -163,7 +163,7 @@ test('customer validation reports the field', () => {
 
 test('intake creates a received lot; it must be graded before publishing', () => {
   const db = freshDb();
-  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 200, process: 'Washed' }, NOW);
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 200, process: 'Washed', sampleId: 'S-001', moisturePct: 11, defectCount: 10 }, NOW);
   assert.equal(lot.status, 'received');
   assert.throws(() => domain.publishLot(db, lot.id, NOW), (e) => e.status === 409);
   domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '190', moisturePct: '11' });
@@ -186,7 +186,7 @@ test('a listed lot cannot be graded until withdrawn, and withdrawal needs no ope
 
 test('sellable kg cannot exceed kg received', () => {
   const db = freshDb();
-  const lot = domain.createIntake(db, { groupId: 'g-2', harvestDate: '2026-11-10', kgIn: 100 }, NOW);
+  const lot = domain.createIntake(db, { groupId: 'g-2', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-002', moisturePct: 11, defectCount: 10 }, NOW);
   assert.throws(() => domain.gradeLot(db, lot.id, { sellableKg: 150 }), (e) => Boolean(e.fields.sellableKg));
 });
 
@@ -276,4 +276,50 @@ test('a problem report needs a real description', () => {
   Object.assign(order, { status: 'delivered' });
   order.timeline.push({ status: 'delivered', at: NOW, note: '' });
   assert.throws(() => domain.reportProblem(order, { message: 'bad' }, NOW), (e) => Boolean(e.fields && e.fields.message));
+});
+
+// ---------- pemeriksaan saat pembelian ----------
+
+test('a lot that passes intake is paid at the full price', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-10', moisturePct: 11, defectCount: 12 }, NOW);
+  assert.equal(lot.intakeCheck.result, 'passed');
+  assert.equal(lot.intakeCheck.amountDue, 100 * 120000);
+  assert.equal(lot.intakeCheck.cashApproved, true);
+  assert.equal(lot.status, 'received');
+});
+
+test('a lot with too many defects is paid at the reduced price', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-11', moisturePct: 11, defectCount: 40 }, NOW);
+  assert.equal(lot.intakeCheck.result, 'adjusted');
+  assert.equal(lot.intakeCheck.effectivePricePerKg, Math.round(120000 * 0.9));
+  assert.equal(lot.intakeCheck.amountDue, 100 * Math.round(120000 * 0.9));
+});
+
+test('a lot with bad moisture is rejected: no cash, cannot be graded or listed', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-12', moisturePct: 16, defectCount: 5 }, NOW);
+  assert.equal(lot.status, 'rejected');
+  assert.equal(lot.intakeCheck.cashApproved, false);
+  assert.equal(lot.intakeCheck.amountDue, 0);
+  assert.throws(() => domain.gradeLot(db, lot.id, { tier: 'local', grade: 'G3', cupScore: 70, sellableKg: 90 }), (e) => e.code === 'rejected_at_intake');
+});
+
+test('intake needs a sample number and a valid moisture and defect count', () => {
+  const db = freshDb();
+  try {
+    domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100 }, NOW);
+    assert.fail('expected validation error');
+  } catch (e) {
+    assert.equal(e.status, 400);
+    assert.ok(e.fields.sampleId && e.fields.moisturePct && e.fields.defectCount);
+  }
+});
+
+test('hulling yield is recorded when gabah and green weights are given', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-13', moisturePct: 11, defectCount: 5, gabahKg: 50, greenKg: 40 }, NOW);
+  assert.equal(lot.intakeCheck.yieldPct, 80);
+  assert.throws(() => domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-14', moisturePct: 11, defectCount: 5, gabahKg: 10, greenKg: 20 }, NOW), (e) => Boolean(e.fields && e.fields.greenKg));
 });

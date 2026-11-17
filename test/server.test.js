@@ -104,7 +104,7 @@ test('orders with bad input return 400 and field messages', async () => {
 
 test('admin can publish a new lot and see it on the storefront only after grading', async () => {
   const intake = await call('POST', '/api/admin/lots', {
-    token: TOKEN, body: { groupId: 'g-1', harvestDate: '2026-11-12', kgIn: 150, process: 'Honey' },
+    token: TOKEN, body: { groupId: 'g-1', harvestDate: '2026-11-12', kgIn: 150, process: 'Honey', sampleId: 'S-SRV-1', moisturePct: 11, defectCount: 8 },
   });
   assert.equal(intake.status, 201);
   const id = intake.json.lot.id;

@@ -36,6 +36,15 @@ module.exports = {
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
   defaultMix: { reserve: 0.05, premium: 0.25, verified: 0.40, local: 0.30 },
 
+  // Pemeriksaan saat pembelian (intake). Semua angka perlu dikonfirmasi pemilik.
+  // Sampel: jumlah biji yang diperiksa per sampel (gram).
+  intake: {
+    sampleGrams: 300,
+    moisture: { min: 10, max: 12, rejectBelow: 8, rejectAbove: 14 }, // persen
+    defects: { pass: 25, reject: 60 },                               // cacat per sampel
+    deductionPct: 10,                                                // potongan harga untuk lot "dipotong"
+  },
+
   // Penjelasan proses pengolahan untuk pembeli. "match" adalah nama yang sering dipakai
   // produsen. Tambah atau ubah di sini; halaman lot dan paspor ikut berubah.
   processes: {
