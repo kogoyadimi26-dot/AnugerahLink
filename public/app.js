@@ -152,6 +152,24 @@
       </article>`;
   }
 
+  function policySection() {
+    const pol = state.config.policy;
+    return `
+      <section class="policy" aria-labelledby="policy-title">
+        <div class="policy-head">
+          <h2 id="policy-title">Klaim dan pengembalian</h2>
+          ${pol.status !== 'approved' ? '<span class="pill warn">Draf</span>' : ''}
+        </div>
+        <ol class="policy-list">
+          ${pol.sections.map((x, i) => `
+            <li><details ${i === 0 ? 'open' : ''}>
+              <summary>${esc(x.title)}</summary>
+              <p>${esc(x.text)}</p>
+            </details></li>`).join('')}
+        </ol>
+      </section>`;
+  }
+
   async function viewHome() {
     setMain(`<p class="muted">Memuat lot…</p>`);
     const { lots } = await api('/api/lots?sort=cup_desc');
@@ -164,20 +182,14 @@
         <div class="btn-row"><a class="btn" href="#/catalogue">Lihat lot tersedia</a><a class="btn secondary" href="#/about">Cara kerja kami</a></div>
       </section>
       <section aria-labelledby="how">
-        <h2 id="how">Cara kerja kami</h2>
-        <div class="steps">
-          <div class="card"><h3>1. Dibeli</h3><p>Dibeli tunai dari kelompok tani.</p></div>
-          <div class="card"><h3>2. Dinilai</h3><p>Dinilai dan dicupping sebelum dijual.</p></div>
-          <div class="card"><h3>3. Tertelusur</h3><p>Paspor menunjukkan asal dan harga.</p></div>
-        </div>
-      </section>
-      <section aria-labelledby="tiers">
-        <h2 id="tiers">Empat kategori</h2>
-        <div class="steps">
-          ${Object.entries(tiers).map(([code, t]) => `
-            <div class="card"><span class="${tierClass(code)}">${esc(t.label)}</span>
-              <p class="price num" style="margin-top:8px;font-weight:700">${rp(t.pricePerKg)} <span class="muted" style="font-weight:400;font-size:14px">per kg</span></p>
-              </div>`).join('')}
+        <h2 id="how">Cara kami bekerja</h2>
+        <div class="pillars">
+          ${(state.config.about.pillars || []).map((x) => `
+            <article class="pillar">
+              <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
+              <h3>${esc(x.title)}</h3>
+              <p>${esc(x.text)}</p>
+            </article>`).join('')}
         </div>
       </section>
       <section aria-labelledby="values">
@@ -195,7 +207,8 @@
         <h2 id="featured">Lot tersedia sekarang</h2>
         ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<p class="muted">Belum ada lot tersedia. Silakan cek kembali nanti.</p>'}
         <p style="margin-top:16px"><a href="#/catalogue">Lihat semua lot</a></p>
-      </section>`);
+      </section>
+      ${policySection()}`);
   }
 
   async function viewCatalogue(query) {
