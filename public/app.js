@@ -132,11 +132,9 @@
         <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}" style="color:inherit;text-decoration:none">Cupping ${esc(l.cupScore)} · ${esc(l.regionName)}</a></h3>
         <p class="muted">${esc(l.groupName)} · ${esc(l.process)} · ${esc(l.grade)}</p>
         <p class="price num">${rp(l.pricePerKg)} <span class="muted" style="font-size:14px;font-weight:400">per kg</span></p>
-        <p class="muted" style="font-size:14px">${esc(l.shippingNoteId || l.shippingNote)}</p>
         <div class="btn-row">
           ${soldOut ? '<span class="pill bad">Habis terjual</span>' : `<span class="pill">${kg(l.availableKg)} tersedia</span>`}
           ${l.lowStock ? '<span class="pill warn">Stok menipis</span>' : ''}
-          ${l.sample ? '<span class="pill demo">Lot contoh</span>' : ''}
         </div>
         <div class="btn-row" style="margin-top:auto">
           <a class="btn secondary small" href="${lotHref(l.code)}">Lihat lot</a>
@@ -153,15 +151,15 @@
     setMain(`
       <section class="hero">
         <h1>Kopi Papua terverifikasi, dibeli langsung dari kelompok tani.</h1>
-        <p class="lead">Setiap lot dinilai sebelum dijual, ditelusuri ke kelompok tani asalnya, dan dijual dengan paspor lot. Petani dibayar tunai di kebun.</p>
+        <p class="lead">Setiap lot dinilai, ditelusuri ke kelompok tani, dan disertai paspor.</p>
         <div class="btn-row"><a class="btn" href="#/catalogue">Lihat lot tersedia</a><a class="btn secondary" href="#/about">Cara kerja kami</a></div>
       </section>
       <section aria-labelledby="how">
         <h2 id="how">Cara kerja kami</h2>
         <div class="steps">
-          <div class="card"><h3>1. Dibeli</h3><p>Tim lapangan kami membeli dari kelompok tani secara tunai, dengan harga yang diumumkan.</p></div>
-          <div class="card"><h3>2. Dinilai</h3><p>Penilai kami mencicipi (cupping) setiap lot dan menetapkan grade, skor cupping dan kategori sebelum dijual.</p></div>
-          <div class="card"><h3>3. Tertelusur</h3><p>Setiap lot punya paspor yang menunjukkan wilayah, kelompok tani, panen dan harga yang dibayarkan.</p></div>
+          <div class="card"><h3>1. Dibeli</h3><p>Dibeli tunai dari kelompok tani.</p></div>
+          <div class="card"><h3>2. Dinilai</h3><p>Dinilai dan dicupping sebelum dijual.</p></div>
+          <div class="card"><h3>3. Tertelusur</h3><p>Paspor menunjukkan asal dan harga.</p></div>
         </div>
       </section>
       <section aria-labelledby="tiers">
@@ -170,7 +168,7 @@
           ${Object.entries(tiers).map(([code, t]) => `
             <div class="card"><span class="${tierClass(code)}">${esc(t.label)}</span>
               <p class="price num" style="margin-top:8px;font-weight:700">${rp(t.pricePerKg)} <span class="muted" style="font-weight:400;font-size:14px">per kg</span></p>
-              <p class="muted" style="font-size:14px">${esc(t.description)}</p></div>`).join('')}
+              </div>`).join('')}
         </div>
       </section>
       <section aria-labelledby="featured">
@@ -190,7 +188,6 @@
     const { lots } = await api('/api/lots?' + params.toString());
     setMain(`
       <h1>Katalog</h1>
-      <p class="muted">Setiap lot dinilai dan diverifikasi sebelum dijual.</p>
       <form class="filters card" id="filters" role="search" aria-label="Saring lot">
         <div class="field"><label for="f-tier">Kategori</label>
           <select id="f-tier" name="tier"><option value="">Semua kategori</option>
@@ -235,7 +232,6 @@
         <article class="card">
           <div class="btn-row" style="justify-content:space-between"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
           <h1 style="margin-top:12px">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</h1>
-          <p class="muted">${esc(lot.tierDescription)}</p>
           <dl class="kv" style="margin:16px 0">
             <dt>Kelompok tani</dt><dd>${esc(lot.groupName)}</dd>
             <dt>Kabupaten</dt><dd>${esc(lot.regency)}</dd>
@@ -245,8 +241,7 @@
             <dt>Stok</dt><dd>${lot.soldOut ? '<span class="pill bad">Habis terjual</span>' : kg(lot.availableKg) + (lot.lowStock ? ' <span class="pill warn">Stok menipis</span>' : '')}</dd>
           </dl>
           <p class="price num" style="font-size:24px;font-weight:700">${rp(lot.pricePerKg)} <span class="muted" style="font-size:15px;font-weight:400">per kg</span></p>
-          <p class="muted" style="font-size:14px">${esc(lot.shippingNoteId || lot.shippingNote)}. Pesanan minimum ${lot.minOrderKg} kg.</p>
-          ${lot.sample ? '<p class="demo">Lot contoh untuk demonstrasi.</p>' : ''}
+          <p class="muted" style="font-size:14px">Minimum ${lot.minOrderKg} kg.</p>
           ${lot.soldOut ? '' : `
           <form id="add-form" style="margin-top:16px">
             <div class="field"><label for="kg">Jumlah (kg)</label>
@@ -255,7 +250,7 @@
                 <input id="kg" name="kg" type="number" inputmode="numeric" min="${lot.minOrderKg}" max="${maxKg}" step="${lot.stepKg}" value="${startKg}">
                 <button type="button" class="btn secondary" data-step="${lot.stepKg}" aria-label="Tambah">+</button>
               </div>
-              <p class="help">Minimum ${lot.minOrderKg} kg, kelipatan ${lot.stepKg} kg. Maksimal ${kg(lot.availableKg)}.</p>
+              <p class="help">Kelipatan ${lot.stepKg} kg · maks. ${kg(lot.availableKg)}</p>
               <p class="error" id="kg-error" hidden></p>
             </div>
             <div class="btn-row">
@@ -303,8 +298,6 @@
     setMain(`
       <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/catalogue">Katalog</a> / Paspor</nav>
       <h1 style="margin-top:12px">Paspor lot: ${esc(r.code)}</h1>
-      <p class="muted">Catatan terverifikasi tentang asal lot ini dan bagaimana lot ini dinilai.</p>
-      ${p.sample ? '<p class="demo">Lot contoh untuk demonstrasi.</p>' : ''}
       <div class="grid" style="grid-template-columns:1fr">
         <section class="card" aria-labelledby="origin">
           <h2 id="origin" style="margin-top:0">Asal</h2>
@@ -331,11 +324,11 @@
         <section class="card" aria-labelledby="record">
           <h2 id="record" style="margin-top:0">Pemeriksaan catatan</h2>
           ${match === true
-            ? '<p class="notice ok">Catatan terverifikasi. Data di halaman ini sesuai dengan kode hash yang dicatat saat lot diterbitkan.</p>'
+            ? '<p class="notice ok">Data sesuai dengan hash saat diterbitkan.</p>'
             : match === false
-              ? '<p class="notice bad">Catatan tidak lagi sesuai dengan hash yang dicatat saat penerbitan. Tanyakan ke tim sebelum membeli.</p>'
-              : '<p class="notice">Belum ada hash tersimpan untuk lot ini.</p>'}
-          <p class="muted">Hash dihitung dari data di atas. Jika ada data yang berubah setelah diterbitkan, hash-nya ikut berubah. Ini menunjukkan adanya perubahan; ini tidak dengan sendirinya membuktikan bahwa tidak pernah ada perubahan.</p>
+              ? '<p class="notice bad">Data tidak sesuai dengan hash saat diterbitkan. Tanyakan ke tim.</p>'
+              : '<p class="notice">Belum ada hash untuk lot ini.</p>'}
+          <p class="muted" style="font-size:14px">Hash dihitung dari data di atas.</p>
           <p><span class="muted">Kode hash catatan (SHA-256)</span></p>
           <p class="hash">${esc(p.hash)}</p>
           <p class="muted" style="font-size:14px">Diterbitkan ${tanggal(p.publishedAt)}. ${p.status === 'withdrawn' ? '<span class="pill warn">Ditarik dari penjualan</span>' : ''}</p>
@@ -384,7 +377,7 @@
           <tr><td>Ongkir</td><td class="num">${quote.totals.shipping ? rp(quote.totals.shipping) : 'Termasuk atau diambil'}</td></tr>
           <tr class="total-row"><td>Total</td><td class="num">${rp(quote.totals.total)}</td></tr>
         </tbody></table>
-        <p class="muted" style="font-size:14px">Harga dihitung ulang di server. Pembayaran dengan transfer bank berdasarkan faktur.</p>
+        <p class="muted" style="font-size:14px">Pembayaran dengan transfer bank.</p>
         <div class="btn-row"><a class="btn" href="#/checkout" ${quote.stockIssues && quote.stockIssues.length ? 'aria-disabled="true" onclick="return false"' : ''}>Lanjut ke pembayaran</a><a class="btn secondary" href="#/catalogue">Lanjut belanja</a></div>
       </div>`);
     main.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
@@ -398,7 +391,7 @@
     if (state.cart.length === 0) { location.hash = '#/cart'; return; }
     setMain(`
       <h1>Pembayaran</h1>
-      <p class="muted">AnugerahLink menjual kepada pembeli usaha: kafe, roaster dan bisnis. Pembayaran dengan transfer bank berdasarkan faktur. Tim kami mengonfirmasi transfer secara manual.</p>
+      <p class="muted">Untuk pembeli usaha. Pembayaran dengan transfer bank.</p>
       <form id="checkout" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <h2 style="margin-top:0">Pembeli</h2>
@@ -410,9 +403,9 @@
           <div class="field"><label for="c-name">Nama kontak <span class="muted">(wajib)</span></label>
             <input id="c-name" name="name" required autocomplete="name"></div>
           <div class="field"><label for="c-phone">Telepon <span class="muted">(wajib)</span></label>
-            <input id="c-phone" name="phone" type="tel" required autocomplete="tel"><p class="help">Cantumkan kode negara jika di luar Indonesia.</p></div>
+            <input id="c-phone" name="phone" type="tel" required autocomplete="tel"></div>
           <div class="field wide"><label for="c-email">Email <span class="muted">(wajib)</span></label>
-            <input id="c-email" name="email" type="email" required autocomplete="email"><p class="help">Kami memakai email ini untuk kabar pesanan dan pelacakan pesanan Anda.</p></div>
+            <input id="c-email" name="email" type="email" required autocomplete="email"></div>
         </div>
         <h2>Pengiriman</h2>
         <div class="form-grid">
@@ -474,7 +467,7 @@
           <dt>Nomor rekening</dt><dd>${esc(state.config.payment.bank.accountNumber)}</dd>
           <dt>Referensi</dt><dd>${esc(number)}</dd>
         </dl>
-        <p class="muted" style="font-size:14px;margin-top:12px">Detail rekening masih berupa contoh sampai tim mengonfirmasinya. Gunakan nomor pesanan sebagai referensi transfer.</p>
+        <p class="muted" style="font-size:14px;margin-top:12px">Gunakan nomor pesanan sebagai referensi.</p>
       </div>
       <div class="btn-row" style="margin-top:16px">
         ${last && last.email ? `<a class="btn" href="#/track/${encodeURIComponent(number)}">Lacak pesanan ini</a>` : '<a class="btn" href="#/track">Lacak pesanan ini</a>'}
@@ -596,12 +589,12 @@
     const email = session('al-email') || '';
     setMain(`
       <h1>Umpan balik tentang pesanan Anda</h1>
-      <p class="muted">Masukan Anda membantu kelompok tani kami berkembang. Kami tidak pernah membagikan nama atau harga yang Anda bayar.</p>
+      <p class="muted">Terima kasih sudah berbagi pendapat.</p>
       <form id="fb" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="field"><label for="fb-email">Email yang dipakai saat memesan</label><input id="fb-email" name="email" type="email" required value="${esc(email)}"></div>
         <div class="field"><label for="fb-number">Nomor pesanan</label><input id="fb-number" name="number" required value="${esc(number)}"></div>
-        <div class="field"><label for="fb-items">Kode lot yang Anda nilai</label><input id="fb-items" name="lotCode" required placeholder="AL-2611-001"><p class="help">Masukkan satu kode lot. Umpan balik dikirim satu lot per kali.</p></div>
+        <div class="field"><label for="fb-items">Kode lot yang Anda nilai</label><input id="fb-items" name="lotCode" required placeholder="AL-2611-001"></div>
         <div class="field"><label for="fb-taste">Bagaimana rasanya?</label><textarea id="fb-taste" name="taste" maxlength="300" placeholder="Contoh: manis, bersih, agak hambar setelah dua minggu"></textarea></div>
         <div class="field"><label for="fb-issues">Ada masalah mutu?</label>
           <select id="fb-issues" name="issues">
@@ -636,16 +629,14 @@
     const pol = state.config.policy;
     setMain(`
       <h1>Tentang AnugerahLink</h1>
-      <p class="lead">AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan paspor yang menunjukkan asalnya.</p>
+      <p class="lead">Kopi dari dataran tinggi Papua. Setiap lot dinilai dan ditelusuri sampai ke kelompok tani.</p>
       <div class="grid" style="grid-template-columns:1fr;margin-top:16px">
-        <section class="card"><h2 style="margin-top:0">Bagaimana petani dibayar</h2><p>Kami membeli secara tunai di kebun, dengan harga yang diumumkan. Petani tidak perlu menunggu pembayaran.</p></section>
-        <section class="card"><h2 style="margin-top:0">Apa yang kami periksa</h2><p>Setiap lot ditimbang, disortir, dicupping dan dinilai sebelum dijual. Grade, skor cupping dan kategori ditampilkan di halaman lot dan paspor.</p></section>
-        <section class="card"><h2 style="margin-top:0">Arti paspor</h2><p>Paspor memuat data lot yang tercatat dan hash-nya. Jika ada data yang berubah setelah diterbitkan, hash tidak lagi sesuai dan paspor memberi tahu Anda. Ini menunjukkan adanya perubahan; ini bukan jaminan terhadap setiap kemungkinan perubahan.</p></section>
-        <section class="card" aria-labelledby="policy"><h2 id="policy" style="margin-top:0">Klaim dan pengembalian</h2>
-          ${pol.status !== 'approved' ? '<p class="notice">Draf. Ketentuan ini menunggu persetujuan pemilik dan belum berlaku.</p>' : ''}
-          ${pol.sections.map((s) => `<h3>${esc(s.title)}</h3><p>${esc(s.text)}</p>`).join('')}
+        <section class="card"><h3>Petani dibayar tunai</h3><p>Harga diumumkan di kebun, dibayar saat pengambilan.</p></section>
+        <section class="card"><h3>Paspor setiap lot</h3><p>Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.</p></section>
+        <section class="card" aria-labelledby="policy"><h3 id="policy">Klaim dan pengembalian</h3>
+          ${pol.status !== 'approved' ? '<p class="notice">Draf, menunggu persetujuan pemilik.</p>' : ''}
+          ${pol.sections.map((s) => `<p><strong>${esc(s.title)}.</strong> ${esc(s.text)}</p>`).join('')}
         </section>
-        <section class="card"><h2 style="margin-top:0">Harga</h2><p>Harga per kg, sudah termasuk pengiriman, menurut kategori. Reserve dan Premium sudah termasuk ongkir. Standar Terverifikasi ditambah ongkir per kg. Lokal diambil di Papua.</p></section>
       </div>`);
   }
 
@@ -713,7 +704,7 @@
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Kg tersedia</th></tr></thead>
         <tbody>${Object.entries(s.stockKgByTier).map(([t, k]) => `<tr><td><span class="${tierClass(t)}">${esc(tierLabel(t))}</span></td><td class="num">${kg(k)}</td></tr>`).join('')}</tbody></table></div>
       <h2>Ekonomi per kg dibeli</h2>
-      <p class="muted" style="font-size:14px">Campuran grade: ${s.mixSource === 'listed stock' ? 'dari stok tayang' : 'asumsi standar'}. Angka mengikuti rumus rencana v2. Kehilangan sortir berlaku untuk penjualan, ongkir dan biaya.</p>
+      
       <div class="table-wrap"><table>
         <tbody>
           <tr><td>Penjualan</td><td class="num">${rp(e.salesPerKgBought)}</td></tr>
@@ -740,11 +731,10 @@
             <select id="i-group" name="groupId" required>
               <option value="">Pilih kelompok</option>
               ${groups.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('')}
-            </select>
-            <p class="help">Belum ada kelompok? <a href="#/admin/groups-new">Tambahkan di bawah</a>.</p></div>
+            </select></div>
           <div class="field"><label for="i-date">Tanggal panen</label><input id="i-date" name="harvestDate" type="date" required></div>
           <div class="field"><label for="i-kg">Kg diterima</label><input id="i-kg" name="kgIn" type="number" min="1" step="1" required></div>
-          <div class="field"><label for="i-price">Harga beli per kg (Rp)</label><input id="i-price" name="buyPricePerKg" type="number" min="1000" step="1000" value="${esc(state.config.buyPricePerKg || 120000)}"><p class="help">Dibayar tunai saat pengambilan.</p></div>
+          <div class="field"><label for="i-price">Harga beli per kg (Rp)</label><input id="i-price" name="buyPricePerKg" type="number" min="1000" step="1000" value="${esc(state.config.buyPricePerKg || 120000)}"></div>
           <div class="field"><label for="i-process">Proses</label><input id="i-process" name="process" placeholder="Dicuci, natural, honey"></div>
           <div class="field wide"><label for="i-notes">Catatan</label><textarea id="i-notes" name="notes"></textarea></div>
         </div>
@@ -754,7 +744,7 @@
       <form id="group" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="form-grid">
-          <div class="field"><label for="g-name">Nama kelompok</label><input id="g-name" name="name" required minlength="3" maxlength="80"><p class="help">Gunakan nama yang disetujui kelompok untuk ditampilkan ke publik.</p></div>
+          <div class="field"><label for="g-name">Nama kelompok</label><input id="g-name" name="name" required minlength="3" maxlength="80"></div>
           <div class="field"><label for="g-region">Wilayah</label><select id="g-region" name="regionId" required>${regions.map((r) => `<option value="${esc(r.id)}">${esc(r.name)} (${esc(r.regency)})</option>`).join('')}</select></div>
           <div class="field wide"><label for="g-contact">Kontak (hanya internal)</label><input id="g-contact" name="contact" maxlength="200"></div>
         </div>
@@ -791,7 +781,7 @@
     const { lots } = await api('/api/admin/lots', { admin: true });
     setMain(adminShell('lots', `
       <h2 style="margin-top:0">Lot</h2>
-      <p class="muted" style="font-size:14px">Lot yang diterima perlu dinilai. Lot yang sudah dinilai bisa diterbitkan. Lot yang sudah tayang dikunci sampai ditarik.</p>
+      <p class="muted" style="font-size:14px">Nilai lot, lalu terbitkan.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Kode</th><th>Kelompok</th><th>Status</th><th>Kategori</th><th class="num">Cupping</th><th class="num">Siap jual</th><th class="num">Tersedia</th><th></th></tr></thead>
         <tbody>
@@ -838,8 +828,8 @@
             </select><p class="help" id="g-price">${lot.tier ? rp(state.config.tiers[lot.tier].pricePerKg) + ' per kg' : ''}</p></div>
           <div class="field"><label for="g-grade">Grade</label><input id="g-grade" name="grade" value="${esc(lot.grade || '')}" placeholder="SNI Grade 1"></div>
           <div class="field"><label for="g-cup">Skor cupping (60 sampai 100)</label><input id="g-cup" name="cupScore" type="number" min="60" max="100" step="1" value="${esc(lot.cupScore || '')}"></div>
-          <div class="field"><label for="g-moist">Kadar air %</label><input id="g-moist" name="moisturePct" type="number" min="5" max="20" step="0.1" value="${esc(lot.moisturePct || '')}"><p class="help">Target 10% sampai 12%.</p></div>
-          <div class="field"><label for="g-sell">Kg siap jual setelah sortir</label><input id="g-sell" name="sellableKg" type="number" min="1" step="1" value="${esc(lot.sellableKg || '')}"><p class="help">Biasanya sekitar 95% dari kg diterima. Timbang hasil sortir.</p></div>
+          <div class="field"><label for="g-moist">Kadar air %</label><input id="g-moist" name="moisturePct" type="number" min="5" max="20" step="0.1" value="${esc(lot.moisturePct || '')}"></div>
+          <div class="field"><label for="g-sell">Kg siap jual setelah sortir</label><input id="g-sell" name="sellableKg" type="number" min="1" step="1" value="${esc(lot.sellableKg || '')}"></div>
           <div class="field"><label for="g-process">Proses</label><input id="g-process" name="process" value="${esc(lot.process || '')}"></div>
           <div class="field wide"><label for="g-notes">Catatan</label><textarea id="g-notes" name="notes">${esc(lot.notes || '')}</textarea></div>
         </div>
@@ -871,7 +861,7 @@
     const statuses = ['requested', 'confirmed', 'paid', 'shipped', 'delivered', 'cancelled'];
     setMain(adminShell('orders', `
       <h2 style="margin-top:0">Pesanan</h2>
-      <p class="muted" style="font-size:14px">Tandai pesanan sudah dibayar hanya setelah transfer bank masuk ke rekening. Isi nomor referensi transfer.</p>
+      <p class="muted" style="font-size:14px">Isi referensi transfer sebelum menandai dibayar.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Pesanan</th><th>Pembeli</th><th>Status</th><th class="num">Total</th><th>Perbarui</th></tr></thead>
         <tbody>
@@ -915,7 +905,7 @@
     const tags = [['pass-to-farmer', 'Teruskan ke petani'], ['internal-quality', 'Mutu internal'], ['internal-logistics', 'Logistik internal'], ['discard', 'Buang']];
     setMain(adminShell('feedback', `
       <h2 style="margin-top:0">Umpan balik</h2>
-      <p class="muted" style="font-size:14px">Beri tag pada setiap item. Hanya item "Teruskan ke petani" yang masuk laporan petani. Nama pembeli dan harga tidak pernah ikut.</p>
+      <p class="muted" style="font-size:14px">Hanya "Teruskan ke petani" yang masuk laporan.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Pesanan · Lot</th><th>Rasa</th><th>Masalah</th><th>Pesan ulang</th><th>Tag</th></tr></thead>
         <tbody>
@@ -960,7 +950,6 @@
     const c = await api('/api/admin/config', { admin: true });
     setMain(adminShell('settings', `
       <h2 style="margin-top:0">Aturan bisnis yang dipakai</h2>
-      <p class="muted" style="font-size:14px">Berasal dari <code>config/business.js</code>, berdasarkan ${esc(c.source)}. Pemilik belum mengonfirmasi angka-angka ini.</p>
       <div class="table-wrap"><table><tbody>
         <tr><td>Harga beli per kg</td><td class="num">${rp(c.buyPricePerKg)}</td></tr>
         <tr><td>Kehilangan sortir dan pengeringan</td><td class="num">${Math.round(c.sortingLossPct * 100)}%</td></tr>
