@@ -12,17 +12,59 @@
 <body>
   <a class="skip" href="#main">Lewati ke isi halaman</a>
   <header class="site-header">
-    <div class="wrap bar">
-      <a class="wordmark" href="#/" aria-label="Beranda AnugerahLink"><img src="/img/logo-180.png" srcset="/img/logo-180.png 180w, /img/logo-480.png 480w" sizes="90px" width="180" height="90" alt="AnugerahLink"></a>
-      <nav class="nav" aria-label="Menu utama">
-        <a href="#/catalogue">Katalog</a>
-        <a href="#/track">Lacak pesanan</a>
-        <a href="#/akun">Akun</a>
-        <a href="#/cart" class="cart-link" id="cart-link">Keranjang <span class="badge" id="cart-count" hidden>0</span></a>
-        <button type="button" class="theme-toggle" id="theme-toggle">Tema: Sistem</button>
-      </nav>
+    <div class="topbar">
+      <div class="wrap topbar-row">
+        <a class="wordmark" href="#/" aria-label="Beranda AnugerahLink"><img src="/img/logo-180.png" srcset="/img/logo-180.png 180w, /img/logo-480.png 480w" sizes="90px" width="180" height="90" alt="AnugerahLink"></a>
+        <a class="locate" href="#/about"><span class="locate-k">Asal kopi</span><span class="locate-v">Papua, Indonesia</span></a>
+        <form class="searchbox" id="search-form" role="search" aria-label="Cari lot">
+          <label class="sr" for="search-cat">Kategori</label>
+          <select id="search-cat" name="cat">
+            <option value="kopi">Kopi</option>
+            <option value="kakao">Kakao (segera hadir)</option>
+            <option value="kepiting">Kepiting (segera hadir)</option>
+          </select>
+          <label class="sr" for="search-q">Cari</label>
+          <input id="search-q" name="q" type="search" placeholder="Cari kode lot, wilayah, atau kelompok tani" autocomplete="off">
+          <button type="submit" class="search-go" aria-label="Cari">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+          </button>
+        </form>
+        <div class="topbar-right">
+          <button type="button" class="theme-toggle" id="theme-toggle">Tema: Sistem</button>
+          <a class="acct" href="#/akun"><span class="acct-k">Halo, masuk</span><span class="acct-v">Akun &amp; daftar</span></a>
+          <a class="acct" href="#/track"><span class="acct-k">Pesanan</span><span class="acct-v">Lacak &amp; faktur</span></a>
+          <a class="cartlink" href="#/cart" id="cart-link" aria-label="Keranjang">
+            <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="9.5" cy="19.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="19.5" r="1.5" fill="currentColor"/></svg>
+            <span class="badge" id="cart-count" hidden>0</span>
+            <span class="cart-label">Keranjang</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="menubar">
+      <div class="wrap">
+        <nav class="nav" aria-label="Menu utama">
+          <a href="#/catalogue" class="menu-all">Produk</a>
+          <a href="#/kategori">Kategori</a>
+          <a href="#/track">Lacak pesanan</a>
+          <a href="#/about">Tentang</a>
+          <a href="#/kebijakan-privasi">Kebijakan privasi</a>
+          <a href="#/syarat">Syarat</a>
+        </nav>
+      </div>
     </div>
   </header>
+  <div class="subbar">
+    <div class="wrap">
+      <nav aria-label="Pintasan katalog">
+        <a href="#/catalogue?sort=cup_desc">Skor cupping tertinggi</a>
+        <a href="#/catalogue?sort=freshest">Panen terbaru</a>
+        <a href="#/catalogue?sort=price_asc">Harga terendah</a>
+        <a href="#/catalogue?inStock=0">Termasuk yang habis</a>
+        <a href="#/kategori">Kategori</a>
+      </nav>
+    </div>
+  </div>
   <main id="main" class="wrap" tabindex="-1">
     <p class="muted">Memuat…</p>
   </main>
