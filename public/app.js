@@ -1176,15 +1176,24 @@ const ICONS = {
     });
   }
 
-  async function viewAdminLots() {
+  // Jenis produk setiap lot. Semua lot saat ini kopi.
+  const jenisLot = (l) => l.komoditas || 'kopi';
+
+  async function viewAdminLots(jenis = 'semua') {
     const { lots } = await api('/api/admin/lots', { admin: true });
+    const shown = lots.filter((l) => jenis === 'semua' || jenisLot(l) === jenis);
     setMain(adminShell('lots', `
       <h2 style="margin-top:0">Lot</h2>
       <p class="muted" style="font-size:14px">Nilai lot, lalu terbitkan.</p>
+      <nav class="chips" aria-label="Jenis produk">
+        ${JENIS_PRODUK.map((j) => j.aktif
+          ? `<button type="button" class="chip${jenis === j.key ? ' is-active' : ''}" data-jenis="${esc(j.key)}" aria-pressed="${jenis === j.key}">${esc(j.label)} <small>${(j.key === 'semua' ? lots : lots.filter((l) => jenisLot(l) === j.key)).length}</small></button>`
+          : `<span class="chip is-soon" aria-disabled="true">${esc(j.label)} <small>segera</small></span>`).join('')}
+      </nav>
       <div class="table-wrap"><table>
         <thead><tr><th>Kode</th><th>Kelompok</th><th>Status</th><th>Kategori</th><th class="num">Cupping</th><th class="num">Siap jual</th><th class="num">Tersedia</th><th></th></tr></thead>
         <tbody>
-          ${lots.map((l) => `
+          ${shown.map((l) => `
             <tr>
               <td>${esc(l.code)}${l.sample ? ' <span class="demo">contoh</span>' : ''}</td>
               <td>${esc(l.groupName)}</td>
@@ -1202,6 +1211,7 @@ const ICONS = {
             </tr>`).join('') || '<tr><td colspan="8">Belum ada lot. Catat pembelian di menu Pembelian.</td></tr>'}
         </tbody></table></div>`));
     wireSignOut();
+    main.querySelectorAll('[data-jenis]').forEach((b) => b.addEventListener('click', () => viewAdminLots(b.dataset.jenis)));
     main.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
       try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.verify)}/verify`, { method: 'POST', admin: true }); toast('Lot diverifikasi'); viewAdminLots(); }
       catch (err) { toast(err.message); }
