@@ -7,6 +7,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { SqlStore } = require('./lib/sqlstore');
 const { mergeTheme, validateOverrides } = require('./lib/theme');
+const { LoginLimiter } = require('./lib/ratelimit');
+const { productionProblems } = require('./lib/prodcheck');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -136,6 +138,7 @@ const PHOTO_TYPE = { jpg: 'image/jpeg', png: 'image/png' };
 
 function buildRoutes(ctx) {
   const { store, photoDir } = ctx;
+  const limiter = ctx.limiter;
   const now = () => new Date().toISOString();
   const r = [];
   const route = (method, pattern, handler, { perm = null } = {}) => r.push({ method, pattern, handler, perm });
@@ -208,13 +211,30 @@ function buildRoutes(ctx) {
     return { status: 201, body: { order: domain.publicOrder(updated) } };
   });
 
-  route('POST', /^\/api\/auth\/login$/, (_p, body) => {
-    const result = store.update((db) => {
-      const r = auth.login(db, body.email, body.password, now());
-      const u = db.users.find((x) => x.id === r.user.id);
-      auth.logAudit(db, { user: u, action: 'login', status: 200, now: now() });
-      return r;
-    });
+  route('POST', /^\/api\/auth\/login$/, (_p, body, _q, req) => {
+    const email = String(body.email || '').trim().toLowerCase();
+    const ip = (req && req.socket && req.socket.remoteAddress) || 'tidak-diketahui';
+    const wait = Math.max(limiter.retryAfter('email', email), limiter.retryAfter('ip', ip));
+    if (wait > 0) {
+      const menit = Math.ceil(wait / 60);
+      throw new ApiError(429, 'too_many_attempts', `Terlalu banyak percobaan masuk. Coba lagi dalam ${menit} menit.`);
+    }
+    let result;
+    try {
+      result = store.update((db) => {
+        const r = auth.login(db, body.email, body.password, now());
+        const u = db.users.find((x) => x.id === r.user.id);
+        auth.logAudit(db, { user: u, action: 'login', status: 200, now: now() });
+        return r;
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        limiter.recordFailure('email', email);
+        limiter.recordFailure('ip', ip);
+      }
+      throw err;
+    }
+    limiter.recordSuccess('email', email);
     return { status: 200, body: result, headers: { 'Cache-Control': 'no-store' } };
   });
   route('POST', /^\/api\/auth\/logout$/, (_p, _b, _q, req) => {
@@ -401,7 +421,7 @@ function createApp({ dataFile, owner, demo = false }) {
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
   const photoDir = path.join(path.dirname(dataFile), 'photos');
-  const routes = buildRoutes({ store, photoDir, demo });
+  const routes = buildRoutes({ store, photoDir, demo, limiter: new LoginLimiter() });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -465,6 +485,12 @@ if (require.main === module) {
     email: process.env.OWNER_EMAIL || 'owner@anugerahlink.local',
     password: process.env.OWNER_PASSWORD || '',
   };
+  const problems = productionProblems(process.env);
+  if (problems.length) {
+    console.error('[berhenti] Pengaturan belum aman untuk pengguna sungguhan:');
+    for (const p of problems) console.error('  - ' + p);
+    process.exit(1);
+  }
   if (!owner.password) {
     owner.password = 'ganti-saya-sekarang-123';
     console.warn('[warn] OWNER_PASSWORD is not set. Using a development password. Set OWNER_EMAIL and OWNER_PASSWORD before going live.');

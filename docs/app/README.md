@@ -81,3 +81,11 @@ In the Midtrans sandbox dashboard, set the Payment Notification URL to `https://
 - A payment that arrives after an order was cancelled is flagged for the team.
 - Refunds are done in the Midtrans dashboard for now.
 - The exact response fields from Midtrans should be checked against the sandbox on first use.
+
+
+## Sebelum dipakai untuk data sungguhan
+
+- Atur `NODE_ENV=production`, `OWNER_EMAIL`, dan `OWNER_PASSWORD` (minimal 12 karakter). Server menolak mulai bila kata sandi masih contoh atau `DEMO_ACCOUNTS=1`.
+- Pembatas masuk: 5 kegagalan per email dalam 15 menit mengunci email itu selama 15 menit. Hitungan ini disimpan di memori dan hilang saat server dimulai ulang.
+- Cadangan: `node scripts/backup.js` membuat salinan database dan foto di folder `backups/`. Bisa dijalankan saat server berjalan.
+- Pemulihan: hentikan server, lalu `node scripts/restore.js backups/<folder> --yes`. Data yang ada disimpan dulu di `data/sebelum-pulih-<waktu>`.
