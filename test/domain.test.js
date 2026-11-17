@@ -323,3 +323,10 @@ test('hulling yield is recorded when gabah and green weights are given', () => {
   assert.equal(lot.intakeCheck.yieldPct, 80);
   assert.throws(() => domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-14', moisturePct: 11, defectCount: 5, gabahKg: 10, greenKg: 20 }, NOW), (e) => Boolean(e.fields && e.fields.greenKg));
 });
+
+test('a single lot line cannot exceed the maximum order size', () => {
+  const db = freshDb();
+  const lot = db.lots.find((l) => l.code === 'AL-2611-001');
+  assert.ok(config.maxOrderKg > 0, 'maxOrderKg is configured');
+  assert.throws(() => domain.quote(db, [{ lotCode: lot.code, kg: config.maxOrderKg + 1 }]), (e) => e.status === 400);
+});

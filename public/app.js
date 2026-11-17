@@ -258,7 +258,7 @@
     const { lot } = await api('/api/lots/' + encodeURIComponent(code));
     const inCart = state.cart.find((l) => l.lotCode === lot.code);
     const startKg = inCart ? inCart.kg : lot.minOrderKg;
-    const maxKg = Math.max(lot.minOrderKg, lot.availableKg);
+    const maxKg = Math.max(lot.minOrderKg, Math.min(lot.availableKg, lot.maxOrderKg || lot.availableKg));
     setMain(`
       <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/catalogue">Katalog</a> / ${esc(lot.code)}</nav>
       <div class="grid" style="grid-template-columns:1fr;margin-top:12px">
@@ -283,7 +283,7 @@
                 <input id="kg" name="kg" type="number" inputmode="numeric" min="${lot.minOrderKg}" max="${maxKg}" step="${lot.stepKg}" value="${startKg}">
                 <button type="button" class="btn secondary" data-step="${lot.stepKg}" aria-label="Tambah">+</button>
               </div>
-              <p class="help">Kelipatan ${lot.stepKg} kg · maks. ${kg(lot.availableKg)}</p>
+              <p class="help">Kelipatan ${lot.stepKg} kg · maks. ${kg(maxKg)} per pesanan</p>
               <p class="error" id="kg-error" hidden></p>
             </div>
             <div class="btn-row">
@@ -307,6 +307,7 @@
       if (!Number.isInteger(n)) problem = 'Masukkan jumlah kg berupa bilangan bulat.';
       else if (n < lot.minOrderKg) problem = `Pesanan minimum ${lot.minOrderKg} kg.`;
       else if ((n - lot.minOrderKg) % lot.stepKg !== 0) problem = `Gunakan kelipatan ${lot.stepKg} kg.`;
+      else if (lot.maxOrderKg && n > lot.maxOrderKg) problem = `Maksimal ${lot.maxOrderKg} kg per lot.`;
       else if (n > lot.availableKg) problem = `Sisa ${lot.availableKg} kg.`;
       if (problem) { err.hidden = false; err.textContent = 'Galat: ' + problem; input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', 'kg-error'); return; }
       state.cart = state.cart.filter((l) => l.lotCode !== lot.code);
