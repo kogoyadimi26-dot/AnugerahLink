@@ -160,12 +160,12 @@
         <h2 id="how">Cara kerja kami</h2>
         <div class="steps">
           <div class="card"><h3>1. Dibeli</h3><p>Tim lapangan kami membeli dari kelompok tani secara tunai, dengan harga yang diumumkan.</p></div>
-          <div class="card"><h3>2. Dinilai</h3><p>Penilai kami mencicipi (cupping) setiap lot dan menetapkan grade, skor cupping dan tier sebelum dijual.</p></div>
+          <div class="card"><h3>2. Dinilai</h3><p>Penilai kami mencicipi (cupping) setiap lot dan menetapkan grade, skor cupping dan kategori sebelum dijual.</p></div>
           <div class="card"><h3>3. Tertelusur</h3><p>Setiap lot punya paspor yang menunjukkan wilayah, kelompok tani, panen dan harga yang dibayarkan.</p></div>
         </div>
       </section>
       <section aria-labelledby="tiers">
-        <h2 id="tiers">Empat tier</h2>
+        <h2 id="tiers">Empat kategori</h2>
         <div class="steps">
           ${Object.entries(tiers).map(([code, t]) => `
             <div class="card"><span class="${tierClass(code)}">${esc(t.label)}</span>
@@ -192,8 +192,8 @@
       <h1>Katalog</h1>
       <p class="muted">Setiap lot dinilai dan diverifikasi sebelum dijual.</p>
       <form class="filters card" id="filters" role="search" aria-label="Saring lot">
-        <div class="field"><label for="f-tier">Tier</label>
-          <select id="f-tier" name="tier"><option value="">Semua tier</option>
+        <div class="field"><label for="f-tier">Kategori</label>
+          <select id="f-tier" name="tier"><option value="">Semua kategori</option>
             ${Object.entries(state.config.tiers).map(([c, t]) => `<option value="${esc(c)}" ${query.tier === c ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
           </select></div>
         <div class="field"><label for="f-region">Wilayah</label>
@@ -365,7 +365,7 @@
       <h1>Keranjang Anda</h1>
       ${quote.stockIssues && quote.stockIssues.length ? `<p class="notice">Ada lot yang berubah: ${quote.stockIssues.map((s) => esc(s.lotCode) + ' ' + esc(s.message)).join(' · ')}</p>` : ''}
       <div class="table-wrap"><table>
-        <thead><tr><th>Lot</th><th>Tier</th><th class="num">Jumlah</th><th class="num">Harga per kg</th><th class="num">Total baris</th><th><span class="muted">Hapus</span></th></tr></thead>
+        <thead><tr><th>Lot</th><th>Kategori</th><th class="num">Jumlah</th><th class="num">Harga per kg</th><th class="num">Total baris</th><th><span class="muted">Hapus</span></th></tr></thead>
         <tbody>
           ${quote.lines.map((l) => `
             <tr>
@@ -538,7 +538,7 @@
         <section class="card" aria-labelledby="items">
           <h2 id="items" style="margin-top:0">Barang</h2>
           <div class="table-wrap"><table>
-            <thead><tr><th>Lot</th><th>Tier</th><th class="num">Kg</th><th class="num">Total</th></tr></thead>
+            <thead><tr><th>Lot</th><th>Kategori</th><th class="num">Kg</th><th class="num">Total</th></tr></thead>
             <tbody>${o.lines.map((l) => `<tr><td>${esc(l.lotCode)}</td><td>${esc(l.tierLabel)}</td><td class="num">${kg(l.kg)}</td><td class="num">${rp(l.lineTotal + l.shippingTotal)}</td></tr>`).join('')}</tbody>
           </table></div>
           <table class="summary-lines" style="margin-top:12px"><tbody>
@@ -639,13 +639,13 @@
       <p class="lead">AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan paspor yang menunjukkan asalnya.</p>
       <div class="grid" style="grid-template-columns:1fr;margin-top:16px">
         <section class="card"><h2 style="margin-top:0">Bagaimana petani dibayar</h2><p>Kami membeli secara tunai di kebun, dengan harga yang diumumkan. Petani tidak perlu menunggu pembayaran.</p></section>
-        <section class="card"><h2 style="margin-top:0">Apa yang kami periksa</h2><p>Setiap lot ditimbang, disortir, dicupping dan dinilai sebelum dijual. Grade, skor cupping dan tier ditampilkan di halaman lot dan paspor.</p></section>
+        <section class="card"><h2 style="margin-top:0">Apa yang kami periksa</h2><p>Setiap lot ditimbang, disortir, dicupping dan dinilai sebelum dijual. Grade, skor cupping dan kategori ditampilkan di halaman lot dan paspor.</p></section>
         <section class="card"><h2 style="margin-top:0">Arti paspor</h2><p>Paspor memuat data lot yang tercatat dan hash-nya. Jika ada data yang berubah setelah diterbitkan, hash tidak lagi sesuai dan paspor memberi tahu Anda. Ini menunjukkan adanya perubahan; ini bukan jaminan terhadap setiap kemungkinan perubahan.</p></section>
         <section class="card" aria-labelledby="policy"><h2 id="policy" style="margin-top:0">Klaim dan pengembalian</h2>
           ${pol.status !== 'approved' ? '<p class="notice">Draf. Ketentuan ini menunggu persetujuan pemilik dan belum berlaku.</p>' : ''}
           ${pol.sections.map((s) => `<h3>${esc(s.title)}</h3><p>${esc(s.text)}</p>`).join('')}
         </section>
-        <section class="card"><h2 style="margin-top:0">Harga</h2><p>Harga per kg, sudah termasuk pengiriman, menurut tier. Reserve dan Premium sudah termasuk ongkir. Standar Terverifikasi ditambah ongkir per kg. Lokal diambil di Papua.</p></section>
+        <section class="card"><h2 style="margin-top:0">Harga</h2><p>Harga per kg, sudah termasuk pengiriman, menurut kategori. Reserve dan Premium sudah termasuk ongkir. Standar Terverifikasi ditambah ongkir per kg. Lokal diambil di Papua.</p></section>
       </div>`);
   }
 
@@ -709,8 +709,8 @@
         <div class="card stat"><div class="label">Nilai pesanan terbuka</div><div class="value">${rp(s.openRevenue)}</div></div>
         <div class="card stat"><div class="label">Umpan balik untuk ditandai</div><div class="value">${s.feedbackToReview}</div></div>
       </div>
-      <h2>Stok per tier</h2>
-      <div class="table-wrap"><table><thead><tr><th>Tier</th><th class="num">Kg tersedia</th></tr></thead>
+      <h2>Stok per kategori</h2>
+      <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Kg tersedia</th></tr></thead>
         <tbody>${Object.entries(s.stockKgByTier).map(([t, k]) => `<tr><td><span class="${tierClass(t)}">${esc(tierLabel(t))}</span></td><td class="num">${kg(k)}</td></tr>`).join('')}</tbody></table></div>
       <h2>Ekonomi per kg dibeli</h2>
       <p class="muted" style="font-size:14px">Campuran grade: ${s.mixSource === 'listed stock' ? 'dari stok tayang' : 'asumsi standar'}. Angka mengikuti rumus rencana v2. Kehilangan sortir berlaku untuk penjualan, ongkir dan biaya.</p>
@@ -793,7 +793,7 @@
       <h2 style="margin-top:0">Lot</h2>
       <p class="muted" style="font-size:14px">Lot yang diterima perlu dinilai. Lot yang sudah dinilai bisa diterbitkan. Lot yang sudah tayang dikunci sampai ditarik.</p>
       <div class="table-wrap"><table>
-        <thead><tr><th>Kode</th><th>Kelompok</th><th>Status</th><th>Tier</th><th class="num">Cupping</th><th class="num">Siap jual</th><th class="num">Tersedia</th><th></th></tr></thead>
+        <thead><tr><th>Kode</th><th>Kelompok</th><th>Status</th><th>Kategori</th><th class="num">Cupping</th><th class="num">Siap jual</th><th class="num">Tersedia</th><th></th></tr></thead>
         <tbody>
           ${lots.map((l) => `
             <tr>
@@ -832,8 +832,8 @@
       <form id="grade" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="form-grid">
-          <div class="field"><label for="g-tier">Tier</label>
-            <select id="g-tier" name="tier" required><option value="">Pilih tier</option>
+          <div class="field"><label for="g-tier">Kategori</label>
+            <select id="g-tier" name="tier" required><option value="">Pilih kategori</option>
               ${Object.entries(state.config.tiers).map(([c, t]) => `<option value="${c}" ${lot.tier === c ? 'selected' : ''}>${esc(t.label)} · ${rp(t.pricePerKg)}/kg</option>`).join('')}
             </select><p class="help" id="g-price">${lot.tier ? rp(state.config.tiers[lot.tier].pricePerKg) + ' per kg' : ''}</p></div>
           <div class="field"><label for="g-grade">Grade</label><input id="g-grade" name="grade" value="${esc(lot.grade || '')}" placeholder="SNI Grade 1"></div>
@@ -948,7 +948,7 @@
         <div class="card">
           <h3 style="margin-top:0">${esc(rep.group)}</h3>
           <h4>Lot Anda</h4>
-          <div class="table-wrap"><table><thead><tr><th>Lot</th><th>Grade</th><th class="num">Cupping</th><th>Tier</th><th class="num">Kg terjual</th></tr></thead>
+          <div class="table-wrap"><table><thead><tr><th>Lot</th><th>Grade</th><th class="num">Cupping</th><th>Kategori</th><th class="num">Kg terjual</th></tr></thead>
           <tbody>${rep.lots.map((l) => `<tr><td>${esc(l.code)}</td><td>${esc(l.grade)}</td><td class="num">${esc(l.cupScore)}</td><td>${esc(tierLabel(l.tier))}</td><td class="num">${kg(l.soldKg)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada lot yang dinilai.</td></tr>'}</tbody></table></div>
           <h4>Apa kata pembeli (sudah disetujui untuk dibagikan)</h4>
           <ul>${rep.comments.map((c) => `<li><strong>${esc(c.lotCode)}:</strong> ${esc(c.taste || 'Tidak ada catatan rasa')}${c.issues && c.issues !== 'none' ? ' · Masalah: ' + esc(c.issues) : ''}</li>`).join('') || '<li>Belum ada komentar yang disetujui.</li>'}</ul>
@@ -970,8 +970,8 @@
         <tr><td>Pesanan minimum per lot</td><td class="num">${c.minOrderKg} kg</td></tr>
         <tr><td>Asumsi campuran grade (dipakai sebelum ada stok)</td><td class="num">${Object.entries(c.defaultMix).map(([k, v]) => esc(tierLabel(k)) + ' ' + Math.round(v * 100) + '%').join(' · ')}</td></tr>
       </tbody></table></div>
-      <h2>Tier</h2>
-      <div class="table-wrap"><table><thead><tr><th>Tier</th><th class="num">Harga per kg</th><th>Ongkir</th></tr></thead><tbody>
+      <h2>Kategori</h2>
+      <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Harga per kg</th><th>Ongkir</th></tr></thead><tbody>
         ${Object.entries(c.tiers).map(([k, t]) => `<tr><td><span class="${tierClass(k)}">${esc(t.label)}</span></td><td class="num">${rp(t.pricePerKg)}</td><td>${esc(t.shippingBy === 'anugerah' ? 'Termasuk (ditanggung AnugerahLink)' : t.shippingBy === 'buyer' ? 'Pembeli membayar ' + rp(t.shippingPerKgExtra) + '/kg' : 'Diambil di Papua')}</td></tr>`).join('')}
       </tbody></table></div>`));
     wireSignOut();
