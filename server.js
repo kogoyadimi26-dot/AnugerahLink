@@ -61,7 +61,7 @@ function sendError(res, err) {
     return;
   }
   console.error('[server] unexpected error:', err);
-  send(res, 500, { error: { code: 'server_error', message: 'Something went wrong. Please try again.' } });
+  send(res, 500, { error: { code: 'server_error', message: 'Terjadi kesalahan. Silakan coba lagi.' } });
 }
 
 function readBody(req) {
@@ -71,7 +71,7 @@ function readBody(req) {
     req.on('data', (c) => {
       size += c.length;
       if (size > MAX_BODY) {
-        reject(new ApiError(413, 'too_large', 'The request is too large.'));
+        reject(new ApiError(413, 'too_large', 'Data permintaan terlalu besar.'));
         req.destroy();
         return;
       }
@@ -82,11 +82,11 @@ function readBody(req) {
       try {
         const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          return reject(new ApiError(400, 'invalid_json', 'Send a JSON object.'));
+          return reject(new ApiError(400, 'invalid_json', 'Kirim data dalam format objek JSON.'));
         }
         resolve(parsed);
       } catch {
-        reject(new ApiError(400, 'invalid_json', 'The request is not valid JSON.'));
+        reject(new ApiError(400, 'invalid_json', 'Format data tidak valid.'));
       }
     });
     req.on('error', reject);
@@ -102,7 +102,7 @@ function tokenOk(given, expected) {
 function requireAdmin(req, adminToken) {
   const header = req.headers.authorization || '';
   const given = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!tokenOk(given, adminToken)) throw new ApiError(401, 'unauthorised', 'Admin sign-in needed.');
+  if (!tokenOk(given, adminToken)) throw new ApiError(401, 'unauthorised', 'Silakan masuk sebagai tim terlebih dahulu.');
 }
 
 function publicConfig() {
@@ -133,12 +133,12 @@ function buildRoutes(ctx) {
   route('GET', /^\/api\/lots$/, (_p, _b, q) => ({ status: 200, body: { lots: domain.listPublicLots(store.read(), q) } }));
   route('GET', /^\/api\/lots\/([A-Za-z0-9-]+)$/, ([code]) => {
     const lot = store.read().lots.find((l) => l.code === code && l.status === 'listed');
-    if (!lot) throw new ApiError(404, 'not_found', 'This lot is not available.');
+    if (!lot) throw new ApiError(404, 'not_found', 'Lot ini tidak tersedia.');
     return { status: 200, body: { lot: domain.publicLot(store.read(), lot) } };
   });
   route('GET', /^\/api\/passport\/([A-Za-z0-9-]+)$/, ([code]) => {
     const lot = store.read().lots.find((l) => l.code === code && ['listed', 'withdrawn'].includes(l.status));
-    if (!lot) throw new ApiError(404, 'not_found', 'Passport not found.');
+    if (!lot) throw new ApiError(404, 'not_found', 'Paspor lot tidak ditemukan.');
     return { status: 200, body: { passport: domain.passportView(store.read(), lot) } };
   });
   route('POST', /^\/api\/cart\/quote$/, (_p, body) => {
@@ -151,12 +151,12 @@ function buildRoutes(ctx) {
   });
   route('GET', /^\/api\/orders\/(ALO-\d{4}-\d{3})$/, ([number], _b, q) => {
     const order = domain.findOrderForBuyer(store.read(), number, q.email);
-    if (!order) throw new ApiError(404, 'not_found', 'No order matches that number and email.');
+    if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
     return { status: 200, body: { order: domain.publicOrder(order) }, headers: { 'Cache-Control': 'no-store' } };
   });
   route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/feedback$/, ([number], body) => {
     const order = domain.findOrderForBuyer(store.read(), number, body.email);
-    if (!order) throw new ApiError(404, 'not_found', 'No order matches that number and email.');
+    if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
     const created = store.update((db) => {
       const o = db.orders.find((x) => x.id === order.id);
       return domain.createFeedback(db, o, body, now());
@@ -166,13 +166,13 @@ function buildRoutes(ctx) {
 
   route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/confirm-receipt$/, ([number], body) => {
     const order = domain.findOrderForBuyer(store.read(), number, body.email);
-    if (!order) throw new ApiError(404, 'not_found', 'No order matches that number and email.');
+    if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
     const updated = store.update((db) => domain.confirmReceipt(db.orders.find((x) => x.id === order.id), now()));
     return { status: 200, body: { order: domain.publicOrder(updated) } };
   });
   route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/problem$/, ([number], body) => {
     const order = domain.findOrderForBuyer(store.read(), number, body.email);
-    if (!order) throw new ApiError(404, 'not_found', 'No order matches that number and email.');
+    if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
     store.update((db) => domain.reportProblem(db.orders.find((x) => x.id === order.id), body, now()));
     const updated = store.read().orders.find((x) => x.id === order.id);
     return { status: 201, body: { order: domain.publicOrder(updated) } };
@@ -253,7 +253,7 @@ function createApp({ dataFile, adminToken }) {
       const match = routes.find((rt) => rt.method === req.method && rt.pattern.test(pathname));
       if (!match) {
         const pathExists = routes.some((rt) => rt.pattern.test(pathname));
-        throw new ApiError(pathExists ? 405 : 404, pathExists ? 'method_not_allowed' : 'not_found', 'Not found.');
+        throw new ApiError(pathExists ? 405 : 404, pathExists ? 'method_not_allowed' : 'not_found', 'Tidak ditemukan.');
       }
       if (match.admin) requireAdmin(req, adminToken);
       const params = pathname.match(match.pattern).slice(1);

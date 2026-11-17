@@ -27,10 +27,10 @@ module.exports = {
   // Tiers. shippingBy: 'anugerah' = included in price, AnugerahLink pays;
   // 'buyer' = buyer pays shippingPerKg on top; 'none' = collected in Papua.
   tiers: {
-    reserve: { label: 'Reserve', pricePerKg: 350000, shippingBy: 'anugerah', description: 'Top specialty cafes and export samples. Cup score 86+, small lots.' },
-    premium: { label: 'Premium', pricePerKg: 250000, shippingBy: 'anugerah', description: 'Specialty cafes and premium roasters. SNI Grade 1, cup score 84 to 85.' },
-    verified: { label: 'Verified standard', pricePerKg: 150000, shippingBy: 'buyer', description: 'Roasters in Jakarta and Surabaya. SNI Grade 1 to 2, cup score 80 to 83.' },
-    local: { label: 'Local', pricePerKg: 100000, shippingBy: 'none', description: 'Cafes and roasters in Papua. Grade 3 and below, cup score under 80.' },
+    reserve: { label: 'Reserve', pricePerKg: 350000, shippingBy: 'anugerah', description: 'Kafe spesialti terbaik dan contoh ekspor. Skor cupping 86+, lot kecil.' },
+    premium: { label: 'Premium', pricePerKg: 250000, shippingBy: 'anugerah', description: 'Kafe spesialti dan roaster premium. SNI Grade 1, skor cupping 84 sampai 85.' },
+    verified: { label: 'Standar Terverifikasi', pricePerKg: 150000, shippingBy: 'buyer', description: 'Roaster di Jakarta dan Surabaya. SNI Grade 1 sampai 2, skor cupping 80 sampai 83.' },
+    local: { label: 'Lokal', pricePerKg: 100000, shippingBy: 'none', description: 'Kafe dan roaster di Papua. Grade 3 ke bawah, skor cupping di bawah 80.' },
   },
 
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
@@ -42,13 +42,13 @@ module.exports = {
     status: 'draft',
     claimWindowHours: 48,
     sections: [
-      { title: 'What we guarantee', text: 'Each lot matches the tier, grade and cup score on its listing, and the weight on your order.' },
-      { title: 'Checking on arrival', text: 'Check the bags on arrival: count, weight and packaging. Note any damage before you open them.' },
-      { title: 'Reporting a problem', text: 'Report a problem from your order page within 48 hours of delivery, with a description. Send photos of the bags and of a sample to the team by email.' },
-      { title: 'What we do', text: 'The team reviews each claim within [3 working days, TO CONFIRM]. The remedy is a replacement from another lot, a credit on your next order, or a refund of the disputed lines, as agreed with you.' },
-      { title: 'After 48 hours', text: 'Late claims are handled case by case. Contact the team as soon as you notice a problem.' },
-      { title: 'Cancellations', text: 'You can cancel before we ship. Refund terms for paid orders are [TO CONFIRM].' },
-      { title: 'Returns', text: 'We do not take coffee back because the taste is not to your liking. Claims for lots that do not match their listing are handled as above.' },
+      { title: 'Yang kami jamin', text: 'Setiap lot sesuai tier, grade dan skor cupping di daftar jual, serta berat pada pesanan Anda.' },
+      { title: 'Pemeriksaan saat tiba', text: 'Periksa karung saat tiba: jumlah, berat dan kemasan. Catat kerusakan sebelum karung dibuka.' },
+      { title: 'Melaporkan masalah', text: 'Laporkan masalah dari halaman pesanan Anda dalam 48 jam sejak pengantaran, disertai uraian. Kirim foto karung dan contoh kopi ke tim melalui email.' },
+      { title: 'Tindakan kami', text: 'Tim meninjau setiap klaim dalam [3 hari kerja, PERLU DIKONFIRMASI]. Solusinya berupa penggantian dari lot lain, kredit untuk pesanan berikutnya, atau pengembalian dana untuk lot yang dipersoalkan, sesuai kesepakatan dengan Anda.' },
+      { title: 'Setelah 48 jam', text: 'Klaim yang terlambat ditangani kasus per kasus. Hubungi tim segera setelah Anda melihat masalah.' },
+      { title: 'Pembatalan', text: 'Anda dapat membatalkan sebelum kami mengirim. Ketentuan pengembalian dana untuk pesanan yang sudah dibayar: [PERLU DIKONFIRMASI].' },
+      { title: 'Pengembalian barang', text: 'Kami tidak menerima kopi kembali karena selera rasa tidak cocok. Klaim untuk lot yang tidak sesuai daftar jual ditangani seperti di atas.' },
     ],
   },
 
