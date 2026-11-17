@@ -330,3 +330,26 @@ test('a single lot line cannot exceed the maximum order size', () => {
   assert.ok(config.maxOrderKg > 0, 'maxOrderKg is configured');
   assert.throws(() => domain.quote(db, [{ lotCode: lot.code, kg: config.maxOrderKg + 1 }]), (e) => e.status === 400);
 });
+
+test('grade bands set the price: defects 26 to 45 pay 90%, 46 to 60 pay 80%', () => {
+  const db = freshDb();
+  const b = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-20', moisturePct: 11, defectCount: 30 }, NOW);
+  assert.equal(b.intakeCheck.gradeKey, 'B');
+  assert.equal(b.intakeCheck.payPct, 90);
+  const c = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-21', moisturePct: 11, defectCount: 50 }, NOW);
+  assert.equal(c.intakeCheck.gradeKey, 'C');
+  assert.equal(c.intakeCheck.amountDue, 100 * 120000 * 0.8);
+});
+
+test('moisture outside target keeps a lot out of grade A', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-22', moisturePct: 9, defectCount: 5 }, NOW);
+  assert.equal(lot.intakeCheck.gradeKey, 'B');
+  assert.equal(lot.intakeCheck.result, 'adjusted');
+});
+
+test('intake records the three field checks', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-23', moisturePct: 11, defectCount: 5, scaleCalibrated: true, farmerPresent: 'true', retainedSample: false }, NOW);
+  assert.deepEqual(lot.intakeCheck.evidence, { scaleCalibrated: true, farmerPresent: true, retainedSample: false });
+});

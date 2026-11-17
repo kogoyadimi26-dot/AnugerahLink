@@ -12,7 +12,7 @@ const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const MAX_BODY = 64 * 1024;
+const MAX_BODY = 3 * 1024 * 1024; // cukup untuk foto sampel yang sudah dikompres
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -119,12 +119,17 @@ function publicConfig() {
     policy: config.policy,
     about: config.about,
     values: config.values,
+    gradeBands: config.gradeBands,
     theme: require('./config/theme'),
   };
 }
 
+const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+const PHOTO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png' };
+const PHOTO_TYPE = { jpg: 'image/jpeg', png: 'image/png' };
+
 function buildRoutes(ctx) {
-  const { store, adminToken } = ctx;
+  const { store, adminToken, photoDir } = ctx;
   const now = () => new Date().toISOString();
   const r = [];
   const route = (method, pattern, handler, { admin = false } = {}) => r.push({ method, pattern, handler, admin });
@@ -202,6 +207,21 @@ function buildRoutes(ctx) {
   route('PATCH', /^\/api\/admin\/orders\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { order: store.update((db) => domain.updateOrderStatus(db, id, body, now())) }, headers: { 'Cache-Control': 'no-store' } }), { admin: true });
   route('GET', /^\/api\/admin\/feedback$/, () => ({ status: 200, body: { feedback: store.read().feedback } }), { admin: true });
   route('PATCH', /^\/api\/admin\/feedback\/([\w-]+)$/, ([id], body) => ({ status: 200, body: { feedback: store.update((db) => domain.tagFeedback(db, id, body)) } }), { admin: true });
+  route('POST', /^\/api\/admin\/lots\/([\w-]+)\/photos$/, ([id], body) => {
+    const m = typeof body.dataUrl === 'string' ? /^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(body.dataUrl) : null;
+    if (!m) throw new ApiError(400, 'invalid_input', 'Foto harus berformat JPG atau PNG.', { dataUrl: 'Foto harus berformat JPG atau PNG.' });
+    const bytes = Buffer.from(m[2], 'base64');
+    if (bytes.length === 0 || bytes.length > PHOTO_MAX_BYTES) {
+      throw new ApiError(400, 'invalid_input', 'Ukuran foto maksimal 2 MB.', { dataUrl: 'Ukuran foto maksimal 2 MB.' });
+    }
+    const ext = PHOTO_EXT[m[1]];
+    const photoId = crypto.randomUUID();
+    const file = `${photoId}.${ext}`;
+    fs.mkdirSync(photoDir, { recursive: true });
+    fs.writeFileSync(path.join(photoDir, file), bytes);
+    const photo = store.update((db) => domain.addPhoto(db, id, body.kind, file, now()));
+    return { status: 201, body: { photo: { id: photo.id, kind: photo.kind, createdAt: photo.createdAt } } };
+  }, { admin: true });
   route('GET', /^\/api\/admin\/farmer-report\/([\w-]+)$/, ([groupId]) => ({ status: 200, body: domain.farmerReport(store.read(), groupId) }), { admin: true });
 
   return r;
@@ -268,12 +288,27 @@ function createApp({ dataFile, adminToken }) {
   const migrated = domain.ensurePassportHashes(store.db);
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
-  const routes = buildRoutes({ store, adminToken });
+  const photoDir = path.join(path.dirname(dataFile), 'photos');
+  const routes = buildRoutes({ store, adminToken, photoDir });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const pathname = url.pathname;
     if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
+    const photoMatch = pathname.match(/^\/api\/admin\/photos\/([\w-]+)$/);
+    if (photoMatch && req.method === 'GET') {
+      try {
+        requireAdmin(req, adminToken);
+        const found = domain.findPhoto(store.read(), photoMatch[1]);
+        if (!found) throw new ApiError(404, 'not_found', 'Foto tidak ditemukan.');
+        const ext = path.extname(found.photo.file).slice(1);
+        const bytes = fs.readFileSync(path.join(photoDir, found.photo.file));
+        res.writeHead(200, baseHeaders({ 'Content-Type': PHOTO_TYPE[ext] || 'application/octet-stream', 'Content-Length': bytes.length, 'Cache-Control': 'private, no-store' }));
+        return res.end(bytes);
+      } catch (err) {
+        return sendError(res, err);
+      }
+    }
     if (!pathname.startsWith('/api/')) {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(405, baseHeaders({ Allow: 'GET' }));

@@ -126,6 +126,16 @@
     else { btn.textContent = btn.dataset.label || btn.textContent; btn.disabled = false; }
   }
 
+  function readAsDataUrl(file) {
+    if (file.size > 2 * 1024 * 1024) return Promise.reject({ message: 'Foto terlalu besar. Maksimal 2 MB.', fields: {} });
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject({ message: 'Foto tidak bisa dibaca.', fields: {} });
+      r.readAsDataURL(file);
+    });
+  }
+
   function passportHref(code) { return '#/passport/' + encodeURIComponent(code); }
   function lotHref(code) { return '#/lot/' + encodeURIComponent(code); }
 
@@ -812,6 +822,12 @@ const ICONS = {
           <div class="field"><label for="i-sample">Nomor sampel</label><input id="i-sample" name="sampleId" required placeholder="S-2611-001"></div>
           <div class="field"><label for="i-moist">Kadar air %</label><input id="i-moist" name="moisturePct" type="number" min="5" max="20" step="0.1" required><p class="help">Ideal 10 sampai 12.</p></div>
           <div class="field"><label for="i-defect">Cacat per 300 g</label><input id="i-defect" name="defectCount" type="number" min="0" max="300" step="1" required><p class="help">Hitung cacat dari sampel 300 g.</p></div>
+          <div class="field wide"><h3 style="margin:8px 0 4px">Bukti pemeriksaan</h3></div>
+          <div class="field wide"><label class="check"><input type="checkbox" name="scaleCalibrated"> Timbangan sudah dikalibrasi hari ini</label></div>
+          <div class="field wide"><label class="check"><input type="checkbox" name="farmerPresent"> Petani hadir saat menimbang</label></div>
+          <div class="field wide"><label class="check"><input type="checkbox" name="retainedSample"> Sampel disimpan (300 g, diberi label)</label></div>
+          <div class="field"><label for="i-photo-s">Foto sampel</label><input id="i-photo-s" type="file" accept="image/jpeg,image/png"><p class="help">JPG atau PNG, maks. 2 MB.</p></div>
+          <div class="field"><label for="i-photo-b">Foto karung (opsional)</label><input id="i-photo-b" type="file" accept="image/jpeg,image/png"></div>
           <div class="field"><label for="i-gabah">Kg gabah (opsional)</label><input id="i-gabah" name="gabahKg" type="number" min="0.1" step="0.1"></div>
           <div class="field"><label for="i-green">Kg biji hijau setelah hulling (opsional)</label><input id="i-green" name="greenKg" type="number" min="0.1" step="0.1"></div>
           <div class="field wide"><label for="i-notes">Catatan</label><textarea id="i-notes" name="notes"></textarea></div>
@@ -838,12 +854,17 @@ const ICONS = {
       busy(btn, true, 'Menyimpan…');
       try {
         const { lot } = await api('/api/admin/lots', { method: 'POST', admin: true, body: formData(form) });
+        for (const [inputId, kind] of [['i-photo-s', 'sample'], ['i-photo-b', 'bags']]) {
+          const f = document.getElementById(inputId).files[0];
+          if (f) await api(`/api/admin/lots/${encodeURIComponent(lot.id)}/photos`, { method: 'POST', admin: true, body: { kind, dataUrl: await readAsDataUrl(f) } });
+        }
         const c = lot.intakeCheck;
+        const band = (state.config.gradeBands || []).find((b) => b.key === c.gradeKey);
         if (c.result === 'rejected') {
           toast(`${lot.code} ditolak. Tidak ada pembayaran.`);
           location.hash = '#/admin/lots';
         } else {
-          toast(`${lot.code} ${c.result === 'passed' ? 'lolos' : 'dipotong'}. Bayar ${rp(c.amountDue)}.`);
+          toast(`${lot.code} ${band ? band.label : ''}. Bayar ${rp(c.amountDue)}.`);
           location.hash = '#/admin/lots/' + encodeURIComponent(lot.id);
         }
       } catch (err) { busy(btn, false); showFormError(form, err); if (err.status === 401) adminFail(err); }
@@ -873,7 +894,7 @@ const ICONS = {
             <tr>
               <td>${esc(l.code)}${l.sample ? ' <span class="demo">contoh</span>' : ''}</td>
               <td>${esc(l.groupName)}</td>
-              <td><span class="pill">${esc(LOT_STATUS[l.status] || l.status)}</span>${l.intakeCheck ? `<br><span class="muted" style="font-size:13px">${esc(CHECK_TEKS[l.intakeCheck.result])} · ${rp(l.intakeCheck.amountDue)}</span>` : ''}</td>
+              <td><span class="pill">${esc(LOT_STATUS[l.status] || l.status)}</span>${l.intakeCheck ? `<br><span class="muted" style="font-size:13px">${esc(CHECK_TEKS[l.intakeCheck.result])}${l.intakeCheck.gradeKey ? ' · Grade ' + esc(l.intakeCheck.gradeKey) : ''} · ${rp(l.intakeCheck.amountDue)}</span>` : ''}</td>
               <td>${l.tier ? `<span class="${tierClass(l.tier)}">${esc(tierLabel(l.tier))}</span>` : '—'}</td>
               <td class="num">${l.cupScore || '—'}</td>
               <td class="num">${l.sellableKg ? kg(l.sellableKg) : '—'}</td>
@@ -918,8 +939,15 @@ const ICONS = {
           <div class="field wide"><label for="g-notes">Catatan</label><textarea id="g-notes" name="notes">${esc(lot.notes || '')}</textarea></div>
         </div>
         <div class="btn-row"><button class="btn" type="submit" id="g-save">Simpan penilaian</button><a class="btn secondary" href="#/admin/lots">Kembali ke lot</a></div>
-      </form>`));
+      </form>
+      ${(lot.photos || []).length ? `<h3 style="margin-top:20px">Foto pemeriksaan</h3><div class="btn-row">${lot.photos.map((p) => `<figure style="margin:0"><img data-photo="${esc(p.id)}" alt="Foto ${p.kind === 'sample' ? 'sampel' : 'karung'}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)"><figcaption class="help">${p.kind === 'sample' ? 'Sampel' : 'Karung'}</figcaption></figure>`).join('')}</div>` : ''}`));
     wireSignOut();
+    main.querySelectorAll('img[data-photo]').forEach(async (img) => {
+      try {
+        const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.photo)}`, { headers: { Authorization: 'Bearer ' + adminToken() } });
+        if (res.ok) img.src = URL.createObjectURL(await res.blob());
+      } catch { /* foto tidak tersedia */ }
+    });
     const tierSel = document.getElementById('g-tier');
     tierSel.addEventListener('change', () => {
       const t = state.config.tiers[tierSel.value];
