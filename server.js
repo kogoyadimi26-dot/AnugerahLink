@@ -173,6 +173,20 @@ function buildRoutes(ctx) {
     if (!lot) throw new ApiError(404, 'not_found', 'Paspor lot tidak ditemukan.');
     return { status: 200, body: { passport: domain.passportView(store.read(), lot) } };
   });
+  // Pemeriksaan publik: apakah hash yang diberikan cocok dengan catatan yang diterbitkan, dan apakah data masih sama.
+  route('GET', /^\/api\/verify$/, (_p, _b, query) => {
+    const code = String(query.code || '').trim().toUpperCase();
+    const hash = String(query.hash || '').trim().toLowerCase();
+    const db = store.read();
+    const lot = db.lots.find((l) => l.code === code && ['listed', 'withdrawn'].includes(l.status));
+    if (!lot || !lot.passportHash) throw new ApiError(404, 'not_found', 'Lot dengan kode tersebut belum punya catatan yang diterbitkan.');
+    const view = domain.passportView(db, lot);
+    let result;
+    if (view.recomputedHash !== lot.passportHash) result = 'data_berubah';
+    else if (hash !== lot.passportHash) result = 'tidak_cocok';
+    else result = 'cocok';
+    return { status: 200, body: { code: lot.code, result, publishedAt: lot.publishedAt }, headers: { 'Cache-Control': 'no-store' } };
+  });
   route('POST', /^\/api\/cart\/quote$/, (_p, body) => {
     const result = domain.quote(store.read(), body.lines);
     return { status: 200, body: result };

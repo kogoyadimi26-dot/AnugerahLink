@@ -403,6 +403,7 @@
           <p class="muted" style="font-size:14px">Hash dihitung dari data di atas.</p>
           <p><span class="muted">Kode hash catatan (SHA-256)</span></p>
           <p class="hash">${esc(p.hash)}</p>
+          <p style="margin-top:8px"><a href="#/verify?code=${encodeURIComponent(r.code)}&hash=${encodeURIComponent(p.hash)}">Periksa catatan ini</a></p>
           <p class="muted" style="font-size:14px">Diterbitkan ${tanggal(p.publishedAt)}. ${p.status === 'withdrawn' ? '<span class="pill warn">Ditarik dari penjualan</span>' : ''}</p>
         </section>
       </div>
@@ -1754,6 +1755,45 @@ const ICONS = {
   const BUYER_PATHS = ['/api/buyer', '/api/orders'];
   function isBuyerPath(path) { return BUYER_PATHS.some((b) => path === b || path.startsWith(b + '/') || path.startsWith(b + '?')); }
   function buyerToken() { try { return localStorage.getItem('al-buyer') || ''; } catch { return ''; } }
+  // Pemeriksaan publik catatan lot: siapa pun bisa memasukkan kode lot dan hash untuk memastikan datanya tidak berubah.
+  function viewVerify(query) {
+    const code = String(query.code || '');
+    const hash = String(query.hash || '');
+    setMain(`
+      <h1>Periksa catatan lot</h1>
+      <p class="muted">Masukkan kode lot dan kode hash dari paspor. Kami hitung ulang data lot dan membandingkannya dengan catatan saat diterbitkan.</p>
+      <form id="verify-form" class="card" style="max-width:640px" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="field"><label for="v-code">Kode lot</label><input id="v-code" name="code" required placeholder="AL-2611-001" value="${esc(code)}" autocomplete="off"></div>
+        <div class="field"><label for="v-hash">Kode hash (SHA-256)</label><input id="v-hash" name="hash" required value="${esc(hash)}" autocomplete="off" style="font-family:ui-monospace,monospace"></div>
+        <button class="btn" type="submit" data-save>Periksa</button>
+      </form>
+      <div id="verify-result" style="margin-top:16px"></div>`);
+    const form = document.getElementById('verify-form');
+    const out = document.getElementById('verify-result');
+    const show = async () => {
+      const f = formData(form);
+      const c = String(f.code || '').trim();
+      const h = String(f.hash || '').trim();
+      out.innerHTML = '';
+      const btn = form.querySelector('[data-save]'); busy(btn, true, 'Memeriksa…');
+      try {
+        const r = await api(`/api/verify?code=${encodeURIComponent(c)}&hash=${encodeURIComponent(h)}`);
+        const text = {
+          cocok: ['ok', `Cocok. Data lot ${esc(r.code)} sama dengan catatan yang diterbitkan ${tanggal(r.publishedAt)}.`],
+          tidak_cocok: ['bad', 'Tidak cocok. Kode hash yang dimasukkan berbeda dengan catatan kami.'],
+          data_berubah: ['bad', 'Data lot sudah berubah sejak diterbitkan. Tanyakan ke tim AnugerahLink.'],
+        }[r.result];
+        out.innerHTML = `<p class="notice ${text[0]}">${text[1]}</p>`;
+      } catch (err) {
+        out.innerHTML = `<p class="notice bad">${esc(err.message)}</p>`;
+      }
+      busy(btn, false);
+    };
+    form.addEventListener('submit', (e) => { e.preventDefault(); show(); });
+    if (code && hash) show();
+  }
+
   function authPage(title, inner) {
     setMain(`<section class="card" style="max-width:520px;margin:24px auto 0"><h1 style="margin-top:0">${esc(title)}</h1>${inner}</section>`);
   }
@@ -2107,6 +2147,7 @@ const ICONS = {
       if (head === 'feedback' && a) return viewFeedback(a);
       if (head === 'about') return viewAbout();
       if (head === 'kategori') { location.hash = '#/catalogue' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
+      if (head === 'verify') return viewVerify(query);
       if (head === 'akun' && a === 'verifikasi') return await viewVerifyEmail(query.token);
       if (head === 'akun' && a === 'lupa') return viewForgotPassword();
       if (head === 'akun' && a === 'reset') return viewResetPassword(query.token);
