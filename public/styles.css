@@ -365,3 +365,16 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .subnav a { padding: 8px 14px; border-radius: 999px; text-decoration: none; font-weight: 600; color: var(--ink-muted); min-height: 40px; display: inline-flex; align-items: center; }
 .subnav a:hover { background: var(--green-soft); color: var(--green-2); }
 .subnav a[aria-current="page"] { background: var(--brand); color: var(--on-primary); }
+
+/* Kotak cari: mengambil sisa ruang bar atas; teks dan tombol selalu terlihat */
+.searchbox { flex: 1 1 0; min-width: 320px; max-width: 680px; }
+.searchbox select { width: auto; max-width: none; flex: none; padding: 0 30px 0 12px; background-color: color-mix(in srgb, var(--ink) 6%, var(--surface)); font-weight: 600; cursor: pointer; }
+.searchbox input { min-width: 0; }
+.searchbox input::placeholder { color: var(--ink-muted); opacity: 1; }
+.topbar-right { flex: none; }
+.topbar-right .acct-pesanan { display: flex; }
+.topbar .wrap { max-width: 1400px; }
+@media (max-width: 1279px) {
+  .locate { display: none; }
+  .topbar-right .acct-pesanan { display: none; }
+}
