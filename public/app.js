@@ -686,6 +686,9 @@
             : `<p class="num" style="font-size:18px;margin:0 0 8px">${tanggal(o.delivery.earliest)} &ndash; ${tanggal(o.delivery.latest)}</p>
                <p><span class="pill ${o.delivery.status === 'terlambat' ? 'bad' : 'ok'}">${esc(o.delivery.label)}</span></p>
                ${o.delivery.status === 'terlambat' ? '<p class="muted" style="margin-top:8px">Mohon maaf atas keterlambatannya. Tim kami sedang memantau pengiriman dan akan mengabari Anda.</p>' : ''}`}
+          ${o.shipment && o.shipment.events && o.shipment.events.length ? `
+          <h3 style="margin:16px 0 6px;font-size:15px">Riwayat kurir</h3>
+          <ol class="timeline">${o.shipment.events.map((e) => `<li class="done">${esc(e.label)}${e.location ? ' · ' + esc(e.location) : ''} · <span class="muted">${tanggal(e.at)}</span>${e.note ? `<br><span class="muted" style="font-size:13px">${esc(e.note)}</span>` : ''}</li>`).join('')}</ol>` : ''}
         </section>` : ''}
         <section class="card" aria-labelledby="items">
           <h2 id="items" style="margin-top:0">Barang</h2>
@@ -1130,6 +1133,7 @@ const ICONS = {
 
   async function viewAdminDashboard() {
     const s = await api('/api/admin/summary', { admin: true });
+    const late = await api('/api/admin/late-orders', { admin: true }).then((r) => r.orders).catch(() => []);
     const e = s.economics;
     const o = s.ordersByStatus;
     setMain(adminShell('dashboard', `
@@ -1155,6 +1159,11 @@ const ICONS = {
           <p class="stat-note">Belum diperiksa tim</p>
         </div>
       </div>
+      <h2>Pesanan terlambat</h2>
+      ${late.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Nomor</th><th>Pelanggan</th><th>Kurir</th><th>Resi</th><th>Terlambat</th><th>Kejadian terakhir</th></tr></thead>
+        <tbody>${late.map((x) => `<tr><td>${esc(x.number)}</td><td>${esc(x.customerName)}${x.company ? `<br><span class="muted" style="font-size:13px">${esc(x.company)}</span>` : ''}<br><span class="muted" style="font-size:13px">${esc(x.phone)}</span></td><td>${esc(x.courier || '—')}</td><td class="num">${esc(x.waybill || '—')}</td><td><span class="pill bad">${esc(x.delayLabel)}</span></td><td>${x.lastEvent ? `${esc(x.lastEvent.label)} <span class="muted" style="font-size:13px">${tanggal(x.lastEvent.at)}</span>` : '<span class="muted">Belum ada kabar kurir</span>'}</td></tr>`).join('')}</tbody></table></div>`
+        : '<p class="muted">Tidak ada pesanan yang terlambat.</p>'}
       <h2>Stok per kategori</h2>
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Kg tersedia</th></tr></thead>
         <tbody>${Object.entries(s.stockKgByTier).map(([t, k]) => `<tr><td><span class="${tierClass(t)}">${esc(tierLabel(t))}</span></td><td class="num">${kg(k)}</td></tr>`).join('')}</tbody></table></div>
