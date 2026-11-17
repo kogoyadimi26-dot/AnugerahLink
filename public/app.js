@@ -466,12 +466,61 @@
     ['qris', 'QRIS', 'Pindai dengan aplikasi bank atau dompet digital.'],
   ];
 
+  // Pesanan hanya bisa dibuat dengan akun. Keranjang tetap tersimpan selama pembeli membuat akun atau masuk.
+  function viewCheckoutSignIn() {
+    setMain(`
+      <h1>Buat akun atau masuk untuk memesan</h1>
+      <p class="muted">Keranjang Anda tetap tersimpan. Akun dipakai untuk melacak pesanan, mengunduh faktur, dan mengirim umpan balik.</p>
+      <div class="grid" style="grid-template-columns:1fr">
+        <form id="gate-login" class="card" novalidate>
+          <h2 style="margin-top:0">Sudah punya akun</h2>
+          <div class="notice bad" data-form-error hidden role="alert"></div>
+          <div class="field"><label for="gl-email">Email</label><input id="gl-email" name="email" type="email" required autocomplete="email"></div>
+          <div class="field"><label for="gl-pw">Kata sandi</label><input id="gl-pw" name="password" type="password" required autocomplete="current-password"></div>
+          <div class="btn-row"><button class="btn" type="submit" data-save>Masuk dan lanjut</button></div>
+        </form>
+        <form id="gate-signup" class="card" novalidate>
+          <h2 style="margin-top:0">Belum punya akun</h2>
+          <div class="notice bad" data-form-error hidden role="alert"></div>
+          <div class="form-grid">
+            <div class="field"><label for="gs-name">Nama kontak</label><input id="gs-name" name="name" required minlength="2" maxlength="80" autocomplete="name"></div>
+            <div class="field"><label for="gs-phone">Telepon</label><input id="gs-phone" name="phone" type="tel" required autocomplete="tel"></div>
+            <div class="field"><label for="gs-email">Email</label><input id="gs-email" name="email" type="email" required autocomplete="email"></div>
+            <div class="field"><label for="gs-company">Nama kafe atau perusahaan</label><input id="gs-company" name="company" maxlength="120" autocomplete="organization"></div>
+            <div class="field"><label for="gs-type">Jenis pembeli</label><select id="gs-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
+            <div class="field"><label for="gs-pw">Kata sandi (minimal 8 karakter)</label><input id="gs-pw" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
+          </div>
+          <div class="field"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
+          <div class="btn-row"><button class="btn" type="submit" data-save>Buat akun dan lanjut</button></div>
+        </form>
+      </div>
+      <p class="muted" style="margin-top:12px"><a href="#/cart">Kembali ke keranjang</a></p>`);
+    const login = document.getElementById('gate-login');
+    login.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      login.querySelector('[data-form-error]').hidden = true;
+      const btn = login.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
+      try { const r = await api('/api/buyer/login', { method: 'POST', body: formData(login) }); setBuyerToken(r.token); viewCheckout(); }
+      catch (err) { showFormError(login, err); busy(btn, false); }
+    });
+    const signup = document.getElementById('gate-signup');
+    signup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      signup.querySelector('[data-form-error]').hidden = true;
+      const f = formData(signup);
+      f.consent = signup.elements.consent.checked;
+      const btn = signup.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
+      try { const r = await api('/api/buyer/signup', { method: 'POST', body: f }); setBuyerToken(r.token); toast('Akun dibuat. Silakan lanjut memesan.'); viewCheckout(); }
+      catch (err) { showFormError(signup, err); busy(btn, false); }
+    });
+  }
+
   function viewCheckout() {
     if (state.cart.length === 0) { location.hash = '#/cart'; return; }
+    if (!buyerToken()) return viewCheckoutSignIn();
     setMain(`
       <h1>Bayar sekarang</h1>
       <p class="muted">Pilih cara bayar dan isi data singkat. Data tambahan bisa diisi di bagian bawah bila perlu.</p>
-      ${buyerToken() ? '' : '<p class="notice ok">Punya akun? <a href="#/masuk">Masuk</a> untuk memakai data tersimpan dan melihat riwayat pesanan.</p>'}
       <form id="checkout" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <h2 style="margin-top:0">1. Cara bayar</h2>
@@ -1929,7 +1978,7 @@ const ICONS = {
   function viewBuyerAuth() {
     setMain(`
       <h1>Akun pembeli</h1>
-      <p class="muted">Masuk untuk menyimpan alamat dan melihat riwayat pesanan. Anda tetap bisa memesan tanpa akun.</p>
+      <p class="muted">Masuk untuk memesan, menyimpan alamat, dan melihat riwayat pesanan. Memilih lot dan mengisi keranjang tetap bebas tanpa akun.</p>
       <div class="grid" style="grid-template-columns:1fr">
         <form id="buyer-login" class="card" novalidate><h2 style="margin-top:0">Masuk</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
