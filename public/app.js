@@ -664,6 +664,17 @@ const ICONS = {
         <p class="lead">${esc(a.lead)}</p>
         <div class="btn-row"><a class="btn" href="#/catalogue">Lihat lot tersedia</a></div>
       </section>
+      <section class="values-block" aria-labelledby="about-values">
+        <h2 id="about-values">Nilai kami</h2>
+        <div class="pillars">
+          ${(state.config.values || []).map((x) => `
+            <article class="pillar">
+              <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
+              <h3>${esc(x.title)}</h3>
+              <p>${esc(x.text)}</p>
+            </article>`).join('')}
+        </div>
+      </section>
       <section class="pillars" aria-label="Keunggulan kami">
         ${a.pillars.map((x) => `
           <article class="pillar">
