@@ -133,3 +133,25 @@ test('static files are served with security headers, and traversal is blocked', 
   const traversal = await fetch(base + '/..%2F..%2Fpackage.json');
   assert.notEqual(traversal.status, 200);
 });
+
+// ---------- foto pemeriksaan ----------
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+test('staff can upload a sample photo and view it; visitors cannot', async () => {
+  const intake = await call('POST', '/api/admin/lots', {
+    token: TOKEN, body: { groupId: 'g-1', harvestDate: '2026-11-12', kgIn: 90, sampleId: 'S-PHOTO', moisturePct: 11, defectCount: 4, scaleCalibrated: true, farmerPresent: true, retainedSample: true },
+  });
+  assert.equal(intake.status, 201);
+  assert.equal(intake.json.lot.intakeCheck.evidence.retainedSample, true);
+  const id = intake.json.lot.id;
+  const up = await call('POST', `/api/admin/lots/${id}/photos`, { token: TOKEN, body: { kind: 'sample', dataUrl: PNG_1PX } });
+  assert.equal(up.status, 201);
+  const photoId = up.json.photo.id;
+  const bad = await call('POST', `/api/admin/lots/${id}/photos`, { token: TOKEN, body: { kind: 'sample', dataUrl: 'data:text/plain;base64,aGk=' } });
+  assert.equal(bad.status, 400);
+  const view = await fetch(`${base}/api/admin/photos/${photoId}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  assert.equal(view.status, 200);
+  assert.equal(view.headers.get('content-type'), 'image/png');
+  const anon = await fetch(`${base}/api/admin/photos/${photoId}`);
+  assert.equal(anon.status, 401);
+});

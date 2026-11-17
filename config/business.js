@@ -44,8 +44,16 @@ module.exports = {
     sampleGrams: 300,
     moisture: { min: 10, max: 12, rejectBelow: 8, rejectAbove: 14 }, // persen
     defects: { pass: 25, reject: 60 },                               // cacat per sampel
-    deductionPct: 10,                                                // potongan harga untuk lot "dipotong"
+    deductionPct: 10,                                                // (lama) potongan harga; diganti grade bands
   },
+
+  // Grade pembelian berdasarkan jumlah cacat per sampel. Harga dibayar = payPct persen
+  // dari harga beli. Angka ini default sementara dan perlu dikonfirmasi pemilik.
+  gradeBands: [
+    { key: 'A', label: 'Grade A', maxDefects: 25, payPct: 100 },
+    { key: 'B', label: 'Grade B', maxDefects: 45, payPct: 90 },
+    { key: 'C', label: 'Grade C', maxDefects: 60, payPct: 80 },
+  ],
 
   // Penjelasan proses pengolahan untuk pembeli. "match" adalah nama yang sering dipakai
   // produsen. Tambah atau ubah di sini; halaman lot dan paspor ikut berubah.
