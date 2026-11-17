@@ -153,11 +153,12 @@
     const soldOut = l.soldOut;
     return `
       <article class="card lot-card" aria-labelledby="lot-${esc(l.code)}">
+        ${l.coverPhotoId ? `<img class="lot-cover" src="/api/lots/${encodeURIComponent(l.code)}/photos/${encodeURIComponent(l.coverPhotoId)}" alt="Foto ${esc(l.title)}" loading="lazy">` : ''}
         <div class="btn-row" style="justify-content:space-between">
           <span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span>
           <span class="code">${esc(l.code)}</span>
         </div>
-        <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}" style="color:inherit;text-decoration:none">Cupping ${esc(l.cupScore)} · ${esc(l.regionName)}</a></h3>
+        <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}" style="color:inherit;text-decoration:none">${esc(l.title)}</a></h3>
         <p class="muted">${esc(l.groupName)} · ${esc(l.process)} · ${esc(l.grade)}</p>
         <p class="price num">${rp(l.pricePerKg)} <span class="muted" style="font-size:14px;font-weight:400">per kg</span></p>
         <div class="btn-row">
@@ -196,8 +197,8 @@
     const tiers = state.config.tiers;
     setMain(`
       <section class="hero">
-        <h1>Kopi Papua terverifikasi, dibeli langsung dari kelompok tani.</h1>
-        <p class="lead">Setiap lot dinilai, ditelusuri ke kelompok tani, dan disertai paspor.</p>
+        <h1>${esc(state.config.content.homeTitle)}</h1>
+        <p class="lead">${esc(state.config.content.homeLead)}</p>
         <div class="btn-row"><a class="btn" href="#/catalogue">Lihat lot tersedia</a><a class="btn secondary" href="#/about">Cara kerja kami</a></div>
       </section>
       <section aria-labelledby="how">
@@ -283,7 +284,10 @@
       <div class="grid" style="grid-template-columns:1fr;margin-top:12px">
         <article class="card">
           <div class="btn-row" style="justify-content:space-between"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
-          <h1 style="margin-top:12px">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</h1>
+          <h1 style="margin-top:12px">${esc(lot.title)}</h1>
+          ${lot.coverPhotoId ? `<img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(lot.coverPhotoId)}" alt="Foto ${esc(lot.title)}" style="width:100%;max-height:360px;object-fit:cover;border-radius:var(--radius-lg);margin-bottom:12px">` : ''}
+          ${lot.story ? `<p class="lead" style="white-space:pre-line">${esc(lot.story)}</p>` : ''}
+          <p class="muted" style="margin-bottom:8px">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</p>
           <dl class="kv" style="margin:16px 0">
             <dt>Kelompok tani</dt><dd>${esc(lot.groupName)}</dd>
             <dt>Kabupaten</dt><dd>${esc(lot.regency)}</dd>
@@ -1196,8 +1200,10 @@ const ICONS = {
         </div>
         <div class="btn-row"><button class="btn" type="submit" id="g-save">Simpan penilaian</button><a class="btn secondary" href="#/admin/lots">Kembali ke lot</a></div>
       </form>
-      ${(lot.photos || []).length ? `<h3 style="margin-top:20px">Foto pemeriksaan</h3><div class="btn-row">${lot.photos.map((p) => `<figure style="margin:0"><img data-photo="${esc(p.id)}" alt="Foto ${p.kind === 'sample' ? 'sampel' : 'karung'}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)"><figcaption class="help">${p.kind === 'sample' ? 'Sampel' : 'Karung'}</figcaption></figure>`).join('')}</div>` : ''}`));
+      ${(lot.photos || []).length ? `<h3 style="margin-top:20px">Foto pemeriksaan</h3><div class="btn-row">${lot.photos.map((p) => `<figure style="margin:0"><img data-photo="${esc(p.id)}" alt="Foto ${p.kind === 'sample' ? 'sampel' : 'karung'}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)"><figcaption class="help">${p.kind === 'sample' ? 'Sampel' : 'Karung'}</figcaption></figure>`).join('')}</div>` : ''}
+      ${listingEditorHtml(lot)}`));
     wireSignOut();
+    wireListingEditor(lot);
     main.querySelectorAll('img[data-photo]').forEach(async (img) => {
       try {
         const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.photo)}`, { headers: { Authorization: 'Bearer ' + adminToken() } });
@@ -1336,9 +1342,13 @@ const ICONS = {
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Harga per kg</th><th>Ongkir</th></tr></thead><tbody>
         ${Object.entries(c.tiers).map(([k, t]) => `<tr><td><span class="${tierClass(k)}">${esc(t.label)}</span></td><td class="num">${rp(t.pricePerKg)}</td><td>${esc(t.shippingBy === 'anugerah' ? 'Termasuk (ditanggung AnugerahLink)' : t.shippingBy === 'buyer' ? 'Pembeli membayar ' + rp(t.shippingPerKgExtra) + '/kg' : 'Diambil di Papua')}</td></tr>`).join('')}
       </tbody></table></div>
+      ${priceEditorHtml(c.tiers)}
+      ${contentEditorHtml(c.content || state.config.content)}
       ${themeEditorHtml(c.theme || state.config.theme)}`));
     wireSignOut();
     wireThemeEditor();
+    wirePriceEditor();
+    wireContentEditor();
   }
 
   // ---------- tampilan: admin mengubah warna dan sudut ----------
@@ -1423,6 +1433,153 @@ const ICONS = {
         toast('Tampilan dikembalikan ke standar.');
         viewAdminSettings();
       } catch (err) { toast(err.message || 'Belum bisa dikembalikan.'); }
+    });
+  }
+
+  // ---------- harga, teks situs, dan katalog lot ----------
+  const KATEGORI_HARGA = ['reserve', 'premium', 'verified', 'local'];
+  const TEKS_SITUS = [['homeTitle', 'Judul beranda'], ['homeLead', 'Kalimat pembuka beranda'], ['footerTagline', 'Tagline di footer']];
+
+  function priceEditorHtml(tiers) {
+    return `
+      <h2>Harga per kategori</h2>
+      <p class="muted">Harga ini berlaku untuk semua lot di kategori itu. Setiap perubahan wajib diberi alasan dan tercatat di Riwayat.</p>
+      <form class="card" id="price-form" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="form-grid">
+          ${KATEGORI_HARGA.map((c) => `<div class="field"><label for="p-${c}">${esc(tiers[c].label)} (Rp per kg)</label><input id="p-${c}" name="${c}" type="number" inputmode="numeric" min="10000" max="10000000" step="1000" value="${esc(tiers[c].pricePerKg)}"></div>`).join('')}
+          <div class="field wide"><label for="p-reason">Alasan perubahan</label><textarea id="p-reason" name="reason" maxlength="300" placeholder="Contoh: harga pasar Juli turun"></textarea></div>
+        </div>
+        <div class="btn-row"><button class="btn" type="submit" data-save>Simpan harga</button></div>
+      </form>`;
+  }
+
+  function wirePriceEditor() {
+    const form = document.getElementById('price-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      const body = formData(form);
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        await api('/api/admin/prices', { method: 'PUT', body, admin: true });
+        state.config = await api('/api/config');
+        toast('Harga disimpan dan berlaku sekarang.');
+        viewAdminSettings();
+      } catch (err) {
+        showFormError(form, err);
+      } finally { busy(btn, false); }
+    });
+  }
+
+  function contentEditorHtml(content) {
+    return `
+      <h2>Teks beranda dan footer</h2>
+      <p class="muted">Teks yang dilihat semua pengunjung. Tulis kalimat biasa, tanpa tanda &lt; atau &gt;.</p>
+      <form class="card" id="content-form" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        ${TEKS_SITUS.map(([k, label]) => `<div class="field"><label for="c-${k}">${esc(label)}</label><textarea id="c-${k}" name="${k}" maxlength="300">${esc(content[k])}</textarea></div>`).join('')}
+        <div class="btn-row"><button class="btn" type="submit" data-save>Simpan teks</button><button class="btn secondary" type="button" data-reset-content>Kembalikan teks standar</button></div>
+      </form>`;
+  }
+
+  function wireContentEditor() {
+    const form = document.getElementById('content-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        await api('/api/admin/content', { method: 'PUT', body: formData(form), admin: true });
+        state.config = await api('/api/config');
+        toast('Teks disimpan. Pengunjung melihatnya saat membuka halaman.');
+        viewAdminSettings();
+      } catch (err) {
+        showFormError(form, err);
+      } finally { busy(btn, false); }
+    });
+    form.querySelector('[data-reset-content]').addEventListener('click', async () => {
+      if (!confirm('Kembalikan teks ke standar?')) return;
+      try {
+        const r = await api('/api/admin/content', { admin: true });
+        await api('/api/admin/content', { method: 'PUT', body: r.defaults, admin: true });
+        state.config = await api('/api/config');
+        toast('Teks dikembalikan ke standar.');
+        viewAdminSettings();
+      } catch (err) { toast(err.message || 'Belum bisa dikembalikan.'); }
+    });
+  }
+
+  // Tampilan katalog lot. Pembeli hanya melihat judul, cerita, dan foto sampul; foto pemeriksaan tetap privat.
+  function listingEditorHtml(lot) {
+    const can = canDo('publish');
+    const dis = can ? '' : 'disabled';
+    const photos = (lot.photos || []).filter((p) => p.kind === 'listing');
+    return `
+      <h2>Tampilan di katalog</h2>
+      <p class="muted">Judul, cerita, dan foto yang dilihat pembeli. Foto pemeriksaan tidak pernah ditampilkan ke pembeli.</p>
+      ${can ? '' : '<p class="notice">Hanya admin yang bisa mengubah tampilan katalog. Anda hanya bisa melihatnya.</p>'}
+      <form id="listing" class="card" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="field"><label for="l-head">Judul (kosongkan untuk judul otomatis)</label>
+          <input id="l-head" name="headline" maxlength="120" value="${esc(lot.headline || '')}" ${dis} placeholder="Contoh: Tiom natural, manis cokelat"></div>
+        <div class="field"><label for="l-story">Cerita untuk pembeli</label>
+          <textarea id="l-story" name="story" maxlength="1000" ${dis}>${esc(lot.story || '')}</textarea>
+          <p class="help">Maksimal 1000 karakter. Tulis fakta dari kebun: asal, panen, dan cara proses.</p></div>
+        <div class="field"><span class="label">Foto katalog</span>
+          <div class="btn-row" style="align-items:flex-start">
+            ${photos.map((p) => `<figure style="margin:0;width:160px"><img data-listing="${esc(p.id)}" alt="Foto katalog" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)">
+              <figcaption style="margin-top:6px"><label><input type="radio" name="cover" value="${esc(p.id)}" ${lot.coverPhotoId === p.id ? 'checked' : ''} ${dis}> Sampul</label>
+              ${can ? `<button type="button" class="btn danger small" data-del="${esc(p.id)}" style="margin-top:6px">Hapus</button>` : ''}</figcaption></figure>`).join('') || '<p class="muted">Belum ada foto katalog.</p>'}
+          </div>
+          ${can ? '<input type="file" id="l-file" accept="image/jpeg,image/png" style="margin-top:10px">' : ''}
+          <p class="help">JPG atau PNG, maksimal 2 MB. Pilih satu foto sebagai sampul.</p></div>
+        <div class="btn-row">${can ? '<button class="btn" type="submit" data-save>Simpan tampilan</button>' : ''}</div>
+      </form>`;
+  }
+
+  function wireListingEditor(lot) {
+    const form = document.getElementById('listing');
+    if (!form) return;
+    form.querySelectorAll('img[data-listing]').forEach(async (img) => {
+      try {
+        const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.listing)}`, { headers: { Authorization: 'Bearer ' + adminToken() } });
+        if (res.ok) img.src = URL.createObjectURL(await res.blob());
+      } catch { /* foto tidak tersedia */ }
+    });
+    if (!canDo('publish')) return;
+    document.getElementById('l-file').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const dataUrl = await readAsDataUrl(file);
+        await api(`/api/admin/lots/${encodeURIComponent(lot.id)}/photos`, { method: 'POST', admin: true, body: { kind: 'listing', dataUrl } });
+        toast('Foto katalog ditambahkan.');
+        viewAdminGrade(lot.id);
+      } catch (err) { toast(err.message || 'Foto belum bisa diunggah.'); }
+    });
+    form.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+      if (!confirm('Hapus foto ini dari katalog?')) return;
+      try {
+        await api(`/api/admin/photos/${encodeURIComponent(b.dataset.del)}`, { method: 'DELETE', admin: true });
+        viewAdminGrade(lot.id);
+      } catch (err) { toast(err.message || 'Foto belum bisa dihapus.'); }
+    }));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      const cover = form.querySelector('input[name="cover"]:checked');
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        await api(`/api/admin/lots/${encodeURIComponent(lot.id)}/listing`, { method: 'PATCH', admin: true, body: { headline: form.elements.headline.value, story: form.elements.story.value, coverPhotoId: cover ? cover.value : '' } });
+        toast('Tampilan katalog disimpan.');
+        viewAdminGrade(lot.id);
+      } catch (err) { showFormError(form, err); } finally { busy(btn, false); }
     });
   }
 
@@ -1540,6 +1697,8 @@ const ICONS = {
     try {
       state.config = await api('/api/config');
       applyTheme(state.config.theme);
+      const tag = document.querySelector('.footer-tag');
+      if (tag && state.config.content) tag.textContent = state.config.content.footerTagline;
     } catch (err) {
       setMain(`<h1>AnugerahLink</h1><p class="notice bad">${esc(err.message)}</p>`);
       return;
