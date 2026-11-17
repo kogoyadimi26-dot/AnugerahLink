@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnugerahLink: UI prototype</title>
+<style>
+/* Tokens from docs/app/DESIGN.md */
+:root{--bg:#FAF7F2;--surface:#FFFFFF;--ink:#2A211B;--ink-muted:#6B5D52;--line:#E6DDD2;--brand:#5B3A24;--brand-ink:#FFFFFF;--accent:#2F6B4F;--warn:#9A5B00;--danger:#A3262B;--radius:10px;--radius-sm:8px;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1B1714;--surface:#27211C;--ink:#F3ECE3;--ink-muted:#B5A697;--line:#3E342C;--brand:#D9A66B;--brand-ink:#1B1714;--accent:#7FC4A0;--warn:#F0B45A;--danger:#F08A8D;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1B1714;--surface:#27211C;--ink:#F3ECE3;--ink-muted:#B5A697;--line:#3E342C;--brand:#D9A66B;--brand-ink:#1B1714;--accent:#7FC4A0;--warn:#F0B45A;--danger:#F08A8D;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.5;min-height:100vh;overflow-x:hidden}
+a{color:var(--brand)}
+h1{font-size:28px;line-height:1.2;margin:0 0 12px}
+h2{font-size:22px;line-height:1.2;margin:24px 0 12px}
+h3{font-size:18px;line-height:1.2;margin:0 0 8px}
+p{margin:0 0 12px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+.muted{color:var(--ink-muted)}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+header{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 16px;max-width:1120px;margin:0 auto}
+.logo{display:flex;align-items:center;text-decoration:none}
+.logo img{height:56px;width:auto;display:block}
+nav.main{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+nav.main a{text-decoration:none;color:var(--ink);min-height:44px;display:inline-flex;align-items:center}
+.badge{display:inline-block;min-width:22px;padding:0 6px;border-radius:11px;background:var(--brand);color:var(--brand-ink);font-size:13px;text-align:center;margin-left:4px}
+main{padding:24px 0 48px;min-height:70vh}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:640px){.grid.lots{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.form-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1024px){.grid.lots{grid-template-columns:repeat(3,1fr)}.stats{grid-template-columns:repeat(4,1fr)}}
+.steps{display:grid;gap:16px;grid-template-columns:1fr}
+.stats{display:grid;gap:16px;grid-template-columns:repeat(2,1fr)}
+.form-grid{display:grid;gap:0 16px;grid-template-columns:1fr}
+.form-grid .wide{grid-column:1/-1}
+.hero{padding:24px 0 8px}
+.lead{font-size:18px;color:var(--ink-muted);max-width:60ch}
+.tier{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.tier::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.t-reserve{color:var(--brand)}.t-premium{color:var(--accent)}.t-verified{color:var(--ink-muted)}.t-local{color:var(--warn)}
+.pill{display:inline-block;font-size:13px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+.pill.warn{color:var(--warn);border-color:var(--warn)}.pill.ok{color:var(--accent);border-color:var(--accent)}.pill.bad{color:var(--danger);border-color:var(--danger)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:var(--radius-sm);border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn.secondary{background:transparent;color:var(--brand)}
+.btn.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn.small{min-height:36px;padding:4px 10px;font-size:14px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+.lot{display:flex;flex-direction:column;gap:8px}
+.code{font-size:13px;color:var(--ink-muted)}
+.price{font-size:20px;font-weight:700}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-weight:600}
+.help{font-size:13px;color:var(--ink-muted)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);min-height:44px;padding:8px 10px;width:100%;max-width:100%}
+textarea{min-height:88px}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper input{width:120px;text-align:center}
+.stepper button{width:44px;height:44px;font-size:20px}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600}
+td.num,th.num{text-align:right}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}
+.kv dt{color:var(--ink-muted)}.kv dd{margin:0}
+.timeline{list-style:none;padding:0;margin:0}
+.timeline li{padding:8px 0 8px 22px;position:relative;border-left:2px solid var(--line);margin-left:6px}
+.timeline li::before{content:"";position:absolute;left:-7px;top:14px;width:12px;height:12px;border-radius:50%;background:var(--line)}
+.timeline li.done::before{background:var(--accent)}
+.timeline li.current{font-weight:700}.timeline li.current::before{background:var(--brand)}
+.notice{border-left:4px solid var(--warn);background:var(--surface);padding:12px 16px;border-radius:var(--radius-sm);margin-bottom:16px}
+.notice.ok{border-color:var(--accent)}.notice.bad{border-color:var(--danger)}
+.hash{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;word-break:break-all}
+.demo{font-size:13px;color:var(--warn)}
+.sum td{padding:8px 0;border-bottom:1px solid var(--line)}
+.sum tr.total td{font-weight:700;font-size:18px;border-bottom:none;padding-top:12px}
+.toast{position:fixed;left:16px;right:16px;bottom:16px;max-width:480px;margin:0 auto;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:var(--radius-sm);z-index:20}
+.proto-banner{background:var(--surface);border-bottom:1px dashed var(--warn);color:var(--warn);font-size:13px;text-align:center;padding:6px 12px}
+footer{border-top:1px solid var(--line);padding:24px 0;color:var(--ink-muted);font-size:14px;background:var(--surface)}
+</style>
+</head>
+<body>
+<div class="proto-banner">Clickable UI prototype with sample data. Nothing is saved or sent. The working app is in <code>server.js</code>.</div>
+<header>
+  <div class="bar">
+    <a class="logo" href="#/" aria-label="AnugerahLink home"><img src="data:image/png;base64,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" alt="AnugerahLink" width="180" height="90"></a>
+    <nav class="main" aria-label="Main">
+      <a href="#/catalogue">Catalogue</a>
+      <a href="#/track">Track order</a>
+      <a href="#/about">About</a>
+      <a href="#/cart">Cart <span class="badge" id="cartCount" hidden>0</span></a>
+      <a href="#/admin">Team</a>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1"></main>
+<footer><div class="wrap"><p>Every lot is graded by AnugerahLink before it is listed. Farmers are paid in cash at the farm gate.</p></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  // Sample data. Mirrors the shape the working app returns.
+  const TIERS = {
+    reserve:  { label: "Reserve",           price: 350000, ship: "Shipping included",         desc: "Top specialty cafes and export samples. Cup 86+, small lots." },
+    premium:  { label: "Premium",           price: 250000, ship: "Shipping included",         desc: "Specialty cafes and premium roasters. Cup 84 to 85." },
+    verified: { label: "Verified standard", price: 150000, ship: "Shipping extra: Rp20.000/kg", desc: "Roasters in Jakarta and Surabaya. Cup 80 to 83." },
+    local:    { label: "Local",             price: 100000, ship: "Collected in Papua",        desc: "Cafes and roasters in Papua. Cup under 80." },
+  };
+  const LOTS = [
+    { code: "AL-2611-001", tier: "premium",  cup: 85, region: "Baliem Valley", group: "Baliem Group 1 (sample)", process: "Washed",  grade: "SNI Grade 1", harvest: "2026-08-15", kg: 285, moist: 11, kgIn: 300, buy: 120000 },
+    { code: "AL-2611-002", tier: "reserve",  cup: 87, region: "Tiom",          group: "Tiom Group 1 (sample)",   process: "Natural", grade: "SNI Grade 1", harvest: "2026-08-20", kg: 190, moist: 11, kgIn: 200, buy: 120000 },
+    { code: "AL-2611-003", tier: "verified", cup: 82, region: "Baliem Valley", group: "Baliem Group 1 (sample)", process: "Washed",  grade: "SNI Grade 2", harvest: "2026-08-25", kg: 380, moist: 12, kgIn: 400, buy: 120000 },
+    { code: "AL-2611-004", tier: "local",    cup: 78, region: "Oksibil",       group: "Oksibil Group (sample)",  process: "Honey",   grade: "Grade 3",     harvest: "2026-07-30", kg: 40,  moist: 13, kgIn: 60,  buy: 120000 },
+  ];
+  const ORDERS = [
+    { number: "ALO-2611-001", status: "shipped", buyer: "Ayu Test", company: "Kopi Uji", email: "ayu@example.com", total: 7500000, lines: [{ code: "AL-2611-001", kg: 30, tier: "premium" }], timeline: { requested: "2026-11-10", confirmed: "2026-11-11", paid: "2026-11-12", shipped: "2026-11-14" } },
+    { number: "ALO-2611-002", status: "requested", buyer: "Budi Roaster", company: "Roastery B", email: "budi@example.com", total: 4950000, lines: [{ code: "AL-2611-003", kg: 30, tier: "verified" }], timeline: { requested: "2026-11-16" } },
+  ];
+  const cart = [];
+  const CUP_DESC = null;
+
+  const money = (n) => "Rp " + Number(n).toLocaleString("id-ID");
+  const kg = (n) => Number(n).toLocaleString("id-ID") + " kg";
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const tierClass = (t) => "tier t-" + t;
+  const $ = (sel) => document.querySelector(sel);
+  const main = $("#main");
+
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 3500);
+  }
+  function setCount() {
+    const n = cart.reduce((a, l) => a + l.kg, 0);
+    const b = $("#cartCount"); b.hidden = n === 0; b.textContent = n;
+  }
+  function view(html) { main.innerHTML = html; main.focus({ preventScroll: true }); window.scrollTo(0, 0); }
+  const available = (l) => l.kg;
+
+  function lotCard(l) {
+    const t = TIERS[l.tier];
+    return `<article class="card lot" aria-labelledby="h-${l.code}">
+      <div class="row between"><span class="${tierClass(l.tier)}">${esc(t.label)}</span><span class="code">${esc(l.code)}</span></div>
+      <h3 id="h-${l.code}"><a href="#/lot/${l.code}" style="color:inherit;text-decoration:none">Cup ${l.cup} · ${esc(l.region)}</a></h3>
+      <p class="muted" style="font-size:14px">${esc(l.group)} · ${esc(l.process)} · ${esc(l.grade)}</p>
+      <p class="price num">${money(t.price)} <span class="muted" style="font-size:14px;font-weight:400">per kg</span></p>
+      <p class="muted" style="font-size:14px">${esc(t.ship)}</p>
+      <div class="row">${l.kg < 60 ? '<span class="pill warn">Low stock</span>' : ""}<span class="pill">${kg(l.kg)} in stock</span></div>
+      <div class="row" style="margin-top:auto"><a class="btn secondary small" href="#/lot/${l.code}">View lot</a><a class="btn secondary small" href="#/passport/${l.code}">Passport</a></div>
+    </article>`;
+  }
+
+  function home() {
+    view(`
+      <section class="hero">
+        <h1>Verified Papuan coffee, bought directly from farmer groups.</h1>
+        <p class="lead">Every lot is graded before it is listed, traced to the farmer group it came from, and sold with its passport. Farmers are paid in cash at the farm gate.</p>
+        <div class="row"><a class="btn" href="#/catalogue">Browse lots in stock</a><a class="btn secondary" href="#/about">How it works</a></div>
+      </section>
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="card"><h3>1. Bought</h3><p>Our field team buys from farmer groups in cash, at a published price.</p></div>
+        <div class="card"><h3>2. Graded</h3><p>Our grader cups every lot and sets its grade, cup score and tier before it is listed.</p></div>
+        <div class="card"><h3>3. Traced</h3><p>Each lot has a passport showing its region, group, harvest and the price paid.</p></div>
+      </div>
+      <h2>The four tiers</h2>
+      <div class="steps">${Object.entries(TIERS).map(([k, t]) => `<div class="card"><span class="${tierClass(k)}">${esc(t.label)}</span><p class="price num" style="margin-top:8px">${money(t.price)} <span class="muted" style="font-size:14px;font-weight:400">per kg</span></p><p class="muted" style="font-size:14px">${esc(t.desc)}</p></div>`).join("")}</div>
+      <h2>Lots in stock now</h2>
+      <div class="grid lots">${LOTS.slice(0, 3).map(lotCard).join("")}</div>
+    `);
+  }
+
+  function catalogue() {
+    const tier = (location.hash.split("tier=")[1] || "").split("&")[0];
+    const list = LOTS.filter((l) => !tier || l.tier === tier).sort((a, b) => b.cup - a.cup);
+    view(`
+      <h1>Catalogue</h1>
+      <p class="muted">Every lot is graded and verified before it is listed.</p>
+      <form class="card row" style="margin:16px 0" aria-label="Filter lots">
+        <div class="field" style="margin:0;min-width:180px;flex:1"><label for="ftier">Tier</label>
+          <select id="ftier"><option value="">All tiers</option>${Object.entries(TIERS).map(([k, t]) => `<option value="${k}" ${tier === k ? "selected" : ""}>${esc(t.label)}</option>`).join("")}</select></div>
+        <div class="field" style="margin:0;min-width:180px;flex:1"><label for="fsort">Sort by</label>
+          <select id="fsort"><option>Cup score, high to low</option><option>Price, low to high</option><option>Harvest, newest first</option></select></div>
+      </form>
+      <p class="muted" role="status">${list.length} lots in stock</p>
+      <div class="grid lots">${list.map(lotCard).join("")}</div>`);
+    $("#ftier").addEventListener("change", (e) => (location.hash = "#/catalogue" + (e.target.value ? "?tier=" + e.target.value : "")));
+  }
+
+  function lot(code) {
+    const l = LOTS.find((x) => x.code === code);
+    if (!l) return notFound();
+    const t = TIERS[l.tier];
+    view(`
+      <nav class="muted" style="font-size:14px"><a href="#/catalogue">Catalogue</a> / ${esc(l.code)}</nav>
+      <article class="card" style="margin-top:12px;max-width:720px">
+        <div class="row between"><span class="${tierClass(l.tier)}">${esc(t.label)}</span><span class="code">${esc(l.code)}</span></div>
+        <h1 style="margin-top:12px">Cup ${l.cup} · ${esc(l.region)}</h1>
+        <p class="muted">${esc(t.desc)}</p>
+        <dl class="kv" style="margin:16px 0">
+          <dt>Farmer group</dt><dd>${esc(l.group)}</dd><dt>Process</dt><dd>${esc(l.process)}</dd>
+          <dt>Grade</dt><dd>${esc(l.grade)}</dd><dt>Harvest</dt><dd>${esc(l.harvest)}</dd>
+          <dt>In stock</dt><dd>${kg(l.kg)}</dd>
+        </dl>
+        <p class="price num" style="font-size:24px">${money(t.price)} <span class="muted" style="font-size:15px;font-weight:400">per kg</span></p>
+        <p class="muted" style="font-size:14px">${esc(t.ship)}. Minimum order 30 kg.</p>
+        <form id="add" style="margin-top:16px">
+          <div class="field"><label for="kgIn">Quantity (kg)</label>
+            <div class="stepper"><button type="button" class="btn secondary" data-step="-1" aria-label="Less">−</button>
+            <input id="kgIn" type="number" min="30" max="${l.kg}" step="1" value="30" inputmode="numeric">
+            <button type="button" class="btn secondary" data-step="1" aria-label="More">+</button></div>
+            <p class="help">Minimum 30 kg, in steps of 1 kg. Up to ${kg(l.kg)}.</p>
+            <p class="notice bad" id="kgErr" hidden></p></div>
+          <div class="row"><button class="btn" type="submit">Add to cart</button><a class="btn secondary" href="#/passport/${l.code}">View passport</a></div>
+        </form>
+      </article>`);
+    const input = $("#kgIn");
+    main.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => (input.value = Math.max(0, +input.value + 10 * +b.dataset.step))));
+    $("#add").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const n = +input.value; const err = $("#kgErr");
+      let msg = null;
+      if (!Number.isInteger(n)) msg = "Enter a whole number of kg.";
+      else if (n < 30) msg = "Minimum order is 30 kg.";
+      else if (n > l.kg) msg = "Only " + l.kg + " kg left.";
+      if (msg) { err.hidden = false; err.textContent = "Error: " + msg; input.setAttribute("aria-invalid", "true"); return; }
+      const i = cart.findIndex((x) => x.code === l.code);
+      if (i >= 0) cart[i].kg = n; else cart.push({ code: l.code, kg: n });
+      setCount(); toast(l.code + ": " + n + " kg in your cart"); location.hash = "#/cart";
+    });
+  }
+
+  function passport(code) {
+    const l = LOTS.find((x) => x.code === code);
+    if (!l) return notFound();
+    const t = TIERS[l.tier];
+    const hash = "9f3c2a7e" + code.replace(/\D/g, "") + "b41d0c5a8e77f29306d1c4ab52e8f0917d3a6c48e2f5b0d19a7c3e6f8b2d4a1";
+    view(`
+      <nav class="muted" style="font-size:14px"><a href="#/catalogue">Catalogue</a> / Passport</nav>
+      <h1 style="margin-top:12px">Lot passport: ${esc(l.code)}</h1>
+      <p class="muted">A verified record of where this lot came from and how it was graded.</p>
+      <p class="demo">Sample lot for demonstration.</p>
+      <div class="grid">
+        <section class="card"><h2 style="margin-top:0">Origin</h2><dl class="kv"><dt>Region</dt><dd>${esc(l.region)}</dd><dt>Farmer group</dt><dd>${esc(l.group)}</dd><dt>Harvest</dt><dd>${esc(l.harvest)}</dd><dt>Process</dt><dd>${esc(l.process)}</dd></dl></section>
+        <section class="card"><h2 style="margin-top:0">Grading</h2><dl class="kv"><dt>Grade</dt><dd>${esc(l.grade)}</dd><dt>Cup score</dt><dd>${l.cup}</dd><dt>Moisture</dt><dd>${l.moist}%</dd><dt>Tier</dt><dd><span class="${tierClass(l.tier)}">${esc(t.label)}</span></dd><dt>Kg received</dt><dd>${kg(l.kgIn)}</dd><dt>Farm-gate price paid</dt><dd>${money(l.buy)} per kg</dd></dl></section>
+        <section class="card"><h2 style="margin-top:0">Record check</h2>
+          <p class="notice ok">Verified record. The fields on this page match the hash recorded when the lot was published.</p>
+          <p class="muted">The hash is computed from the fields above. If any of them changes after publishing, the hash changes. This shows change; it does not by itself prove that no change was ever made.</p>
+          <p class="muted">Record hash (SHA-256)</p><p class="hash">${hash}</p></section>
+      </div>
+      <div class="row" style="margin-top:16px"><a class="btn" href="#/lot/${l.code}">Buy this lot</a><a class="btn secondary" href="#/catalogue">Back to catalogue</a></div>`);
+  }
+
+  function cartView() {
+    if (!cart.length) {
+      return view(`<h1>Your cart</h1><div class="card"><p>Your cart is empty.</p><p><a class="btn" href="#/catalogue">Browse lots</a></p></div>`);
+    }
+    const lines = cart.map((c) => { const l = LOTS.find((x) => x.code === c.code); const t = TIERS[l.tier]; return { ...c, l, t, sub: c.kg * t.price, ship: l.tier === "verified" ? c.kg * 20000 : 0 }; });
+    const sub = lines.reduce((a, x) => a + x.sub, 0), ship = lines.reduce((a, x) => a + x.ship, 0);
+    view(`
+      <h1>Your cart</h1>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Lot</th><th>Tier</th><th class="num">Kg</th><th class="num">Price per kg</th><th class="num">Line total</th><th></th></tr></thead>
+        <tbody>${lines.map((x) => `<tr><td><a href="#/lot/${x.code}">${esc(x.code)}</a></td><td><span class="${tierClass(x.l.tier)}">${esc(x.t.label)}</span></td><td class="num">${kg(x.kg)}</td><td class="num">${money(x.t.price)}</td><td class="num">${money(x.sub)}${x.ship ? `<br><span class="muted" style="font-size:13px">+ ${money(x.ship)} shipping</span>` : ""}</td><td><button class="btn danger small" data-rm="${x.code}">Remove</button></td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="card" style="margin-top:16px;max-width:420px;margin-left:auto">
+        <table class="sum"><tbody>
+          <tr><td>Subtotal</td><td class="num">${money(sub)}</td></tr>
+          <tr><td>Shipping</td><td class="num">${ship ? money(ship) : "Included or collected"}</td></tr>
+          <tr class="total"><td>Total</td><td class="num">${money(sub + ship)}</td></tr>
+        </tbody></table>
+        <p class="muted" style="font-size:14px">Payment is by bank transfer against an invoice.</p>
+        <div class="row"><a class="btn" href="#/checkout">Go to checkout</a><a class="btn secondary" href="#/catalogue">Keep shopping</a></div>
+      </div>`);
+    main.querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", () => {
+      cart.splice(cart.findIndex((x) => x.code === b.dataset.rm), 1); setCount(); cartView();
+    }));
+  }
+
+  function checkout() {
+    if (!cart.length) { location.hash = "#/cart"; return; }
+    view(`
+      <h1>Checkout</h1>
+      <p class="muted">AnugerahLink sells to business buyers: cafes, roasters and businesses. Payment is by bank transfer against an invoice.</p>
+      <form id="co" class="card" novalidate>
+        <h2 style="margin-top:0">Buyer</h2>
+        <div class="form-grid">
+          <div class="field"><label for="bt">Buyer type</label><select id="bt"><option>Specialty cafe</option><option>Premium roaster</option><option>Roaster</option><option>Cafe or business in Papua</option><option>Other</option></select></div>
+          <div class="field"><label for="cc">Company or cafe name</label><input id="cc"></div>
+          <div class="field"><label for="cn">Contact name <span class="muted">(required)</span></label><input id="cn" required></div>
+          <div class="field"><label for="cp">Phone <span class="muted">(required)</span></label><input id="cp" type="tel" required><p class="help">Include the country code if outside Indonesia.</p></div>
+          <div class="field wide"><label for="ce">Email <span class="muted">(required)</span></label><input id="ce" type="email" required><p class="help">Used for order updates and tracking.</p></div>
+        </div>
+        <h2>Delivery</h2>
+        <div class="form-grid">
+          <div class="field"><label for="city">Delivery city <span class="muted">(required)</span></label><input id="city" required></div>
+          <div class="field wide"><label for="notes">Notes for the team</label><textarea id="notes"></textarea></div>
+        </div>
+        <div class="row"><button class="btn" type="submit">Place order</button><a class="btn secondary" href="#/cart">Back to cart</a></div>
+      </form>`);
+    $("#co").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const bad = [...f.querySelectorAll("[required]")].find((el) => !el.value.trim());
+      if (bad) { bad.setAttribute("aria-invalid", "true"); bad.focus(); toast("Please fill in the required fields."); return; }
+      const number = "ALO-2611-" + String(ORDERS.length + 1).padStart(3, "0");
+      ORDERS.unshift({ number, status: "requested", buyer: $("#cn").value, company: $("#cc").value, email: $("#ce").value, total: cart.reduce((a, c) => a + c.kg * TIERS[LOTS.find((x) => x.code === c.code).tier].price, 0), lines: cart.map((c) => ({ code: c.code, kg: c.kg, tier: LOTS.find((x) => x.code === c.code).tier })), timeline: { requested: new Date().toISOString().slice(0, 10) } });
+      cart.length = 0; setCount();
+      location.hash = "#/track/" + number;
+    });
+  }
+
+  function track(number) {
+    if (!number) {
+      return view(`
+        <h1>Track your order</h1>
+        <form class="card" style="max-width:520px" id="tr">
+          <div class="field"><label for="tn">Order number</label><input id="tn" placeholder="ALO-2611-001" required></div>
+          <div class="field"><label for="te">Email used for the order</label><input id="te" type="email" required></div>
+          <button class="btn" type="submit">Show order</button>
+        </form>`) || $("#tr").addEventListener("submit", (e) => { e.preventDefault(); location.hash = "#/track/" + $("#tn").value.trim(); });
+    }
+    const o = ORDERS.find((x) => x.number === number);
+    if (!o) return notFound("No order matches that number.");
+    const steps = ["requested", "confirmed", "paid", "shipped", "delivered", "completed"];
+    const cur = steps.indexOf(o.status);
+    const total = o.total;
+    view(`
+      <nav class="muted" style="font-size:14px"><a href="#/track">Track order</a> / ${esc(o.number)}</nav>
+      <h1 style="margin-top:12px">Order ${esc(o.number)}</h1>
+      <p><span class="pill ok">${esc(o.status.charAt(0).toUpperCase() + o.status.slice(1))}</span></p>
+      <div class="grid">
+        <section class="card"><h2 style="margin-top:0">Status</h2>
+          <ol class="timeline">${steps.map((s, i) => `<li class="${i < cur ? "done" : ""} ${i === cur ? "current" : ""}">${s.charAt(0).toUpperCase() + s.slice(1)}${o.timeline[s] ? ` · <span class="muted">${o.timeline[s]}</span>` : ""}</li>`).join("")}</ol></section>
+        <section class="card"><h2 style="margin-top:0">Items</h2>
+          <div class="table-wrap"><table><thead><tr><th>Lot</th><th>Tier</th><th class="num">Kg</th></tr></thead><tbody>${o.lines.map((l) => `<tr><td>${l.code}</td><td><span class="${tierClass(l.tier)}">${TIERS[l.tier].label}</span></td><td class="num">${kg(l.kg)}</td></tr>`).join("")}</tbody></table></div>
+          <p style="margin-top:12px"><strong>Total ${money(total)}</strong></p></section>
+      </div>
+      ${o.status === "delivered" ? `<div class="card" style="margin-top:16px"><h3>Your delivery</h3><p>Confirm receipt once the coffee has arrived and you have checked it. This opens feedback.</p><button class="btn" id="rc">I have received this order</button></div>` : ""}`);
+    const rc = $("#rc");
+    if (rc) rc.addEventListener("click", () => { o.status = "completed"; o.timeline.completed = new Date().toISOString().slice(0, 10); toast("Receipt confirmed. Thank you."); track(o.number); });
+  }
+
+  function about() {
+    view(`
+      <h1>About AnugerahLink</h1>
+      <p class="lead">AnugerahLink buys coffee from farmer groups in the Papua highlands, grades every lot, and sells it with a passport that shows where it came from.</p>
+      <div class="grid" style="margin-top:16px">
+        <section class="card"><h2 style="margin-top:0">How farmers are paid</h2><p>We buy in cash at the farm gate, at a published price.</p></section>
+        <section class="card"><h2 style="margin-top:0">Claims and returns</h2><p class="notice">Draft. These terms are pending owner approval and are not yet in effect.</p><p>Report a problem within 48 hours of delivery, with a description and photos of the bags and a sample. The team reviews each claim and offers a replacement, a credit, or a refund of the disputed lines.</p></section>
+      </div>`);
+  }
+
+  function admin() {
+    const kgTotal = LOTS.reduce((a, l) => a + l.kg, 0);
+    view(`
+      <div class="row between"><h1 style="margin:0">Back office</h1><span class="muted">Sample data</span></div>
+      <nav class="row" style="margin:12px 0 16px"><a class="btn small">Dashboard</a><a class="btn secondary small" href="#/admin/orders">Orders</a><a class="btn secondary small" href="#/admin/lots">Lots</a><a class="btn secondary small" href="#/admin/feedback">Feedback</a></nav>
+      <div class="stats">
+        <div class="card"><div class="muted" style="font-size:13px">Kg in stock</div><div class="num" style="font-size:26px;font-weight:700">${kg(kgTotal)}</div></div>
+        <div class="card"><div class="muted" style="font-size:13px">Open orders</div><div class="num" style="font-size:26px;font-weight:700">${ORDERS.filter((o) => o.status !== "completed").length}</div></div>
+        <div class="card"><div class="muted" style="font-size:13px">Open order value</div><div class="num" style="font-size:26px;font-weight:700">${money(ORDERS.reduce((a, o) => a + o.total, 0))}</div></div>
+        <div class="card"><div class="muted" style="font-size:13px">Break-even</div><div class="num" style="font-size:26px;font-weight:700">11,800 kg/yr</div></div>
+      </div>
+      <h2>Economics per kg bought</h2>
+      <div class="table-wrap"><table><tbody>
+        <tr><td>Sales</td><td class="num">Rp 161.500</td></tr>
+        <tr><td>Paid to farmers</td><td class="num">Rp 120.000</td></tr>
+        <tr><td>Shipping paid by AnugerahLink</td><td class="num">Rp 5.700</td></tr>
+        <tr><td>Fees: samples, claims, payment</td><td class="num">Rp 1.900</td></tr>
+        <tr><th>Gross margin</th><th class="num">Rp 33.900 (21%)</th></tr>
+      </tbody></table></div>
+      <p class="muted" style="font-size:14px;margin-top:8px">Figures follow the v2 plan. Grade mix is the assumed default until stock exists.</p>`);
+  }
+
+  function adminOrders() {
+    view(`
+      <h1>Orders</h1>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Order</th><th>Buyer</th><th>Status</th><th class="num">Total</th></tr></thead>
+        <tbody>${ORDERS.map((o) => `<tr><td>${esc(o.number)}</td><td>${esc(o.buyer)}<br><span class="muted" style="font-size:13px">${esc(o.company)} · ${esc(o.email)}</span></td><td><span class="pill">${esc(o.status)}</span></td><td class="num">${money(o.total)}</td></tr>`).join("")}</tbody>
+      </table></div>
+      <p class="muted" style="font-size:14px;margin-top:8px">Status changes, payment references and problem reports are handled here in the working app.</p>`);
+  }
+
+  function adminLots() {
+    view(`
+      <h1>Lots</h1>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Code</th><th>Group</th><th>Tier</th><th class="num">Cup</th><th class="num">In stock</th></tr></thead>
+        <tbody>${LOTS.map((l) => `<tr><td>${l.code}</td><td>${esc(l.group)}</td><td><span class="${tierClass(l.tier)}">${TIERS[l.tier].label}</span></td><td class="num">${l.cup}</td><td class="num">${kg(l.kg)}</td></tr>`).join("")}</tbody>
+      </table></div>`);
+  }
+
+  function adminFeedback() {
+    view(`
+      <h1>Feedback</h1>
+      <p class="muted">Only items tagged "pass-to-farmer" reach the farmer report. Buyer names and prices never do.</p>
+      <div class="card"><h3>Ayu Test, ALO-2611-001</h3><p>Sweet and clean, a little flat after two weeks.</p><p class="muted" style="font-size:14px">Reorder: yes · Issues: none</p>
+        <div class="field" style="max-width:280px"><label for="tag">Tag</label><select id="tag"><option>Untagged</option><option>pass-to-farmer</option><option>internal-quality</option><option>internal-logistics</option><option>discard</option></select></div></div>`);
+  }
+
+  function notFound(msg) {
+    view(`<h1>Page not found</h1><p class="muted">${esc(msg || "This page does not exist in the prototype.")}</p><p><a href="#/">Home</a></p>`);
+  }
+
+  function route() {
+    const h = location.hash.replace(/^#\/?/, "").split("?")[0];
+    const [a, b] = h.split("/");
+    setCount();
+    if (!h) return home();
+    if (a === "catalogue") return catalogue();
+    if (a === "lot") return lot(b);
+    if (a === "passport") return passport(b);
+    if (a === "cart") return cartView();
+    if (a === "checkout") return checkout();
+    if (a === "track") return track(b);
+    if (a === "about") return about();
+    if (a === "admin") {
+      if (b === "orders") return adminOrders();
+      if (b === "lots") return adminLots();
+      if (b === "feedback") return adminFeedback();
+      return admin();
+    }
+    notFound();
+  }
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>
+</body>
+</html>
