@@ -84,7 +84,7 @@ test('full buyer flow: quote, order, track, reject wrong email', async () => {
   const order = await call('POST', '/api/orders', {
     body: {
       lines: [{ lotCode: 'AL-2611-001', kg: 30 }],
-      customer: { name: 'Ayu Test', company: '', buyerType: 'premium_roaster', phone: '081234567890', email: 'Ayu@Example.com', city: 'Surabaya', notes: '' },
+      consent: true, customer: { name: 'Ayu Test', company: '', buyerType: 'premium_roaster', phone: '081234567890', email: 'Ayu@Example.com', city: 'Surabaya', notes: '' },
     },
   });
   assert.equal(order.status, 201);
@@ -100,7 +100,7 @@ test('full buyer flow: quote, order, track, reject wrong email', async () => {
 });
 
 test('orders with bad input return 400 and field messages', async () => {
-  const r = await call('POST', '/api/orders', { body: { lines: [{ lotCode: 'AL-2611-001', kg: 10 }], customer: { name: 'A', email: 'x' } } });
+  const r = await call('POST', '/api/orders', { body: { lines: [{ lotCode: 'AL-2611-001', kg: 10 }], consent: true, customer: { name: 'A', email: 'x' } } });
   assert.equal(r.status, 400);
   assert.ok(r.json.error.fields.email || r.json.error.fields.name);
 });
@@ -261,7 +261,7 @@ test('online payment: start with VA or QRIS, a signed webhook marks the order pa
   const secret = 'webhook-uji-rahasia';
   process.env.PAYMENT_WEBHOOK_SECRET = secret;
   const order = await call('POST', '/api/orders', {
-    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], customer: { name: 'Bayar Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'bayar@test.local', city: 'Bandung', notes: '' } },
+    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], consent: true, customer: { name: 'Bayar Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'bayar@test.local', city: 'Bandung', notes: '' } },
   });
   const number = order.json.order.number;
   const total = order.json.order.total;
@@ -295,7 +295,7 @@ test('Midtrans notifications: signature checked, settlement marks paid, other st
   const pw = require('../lib/payments');
   const serverKey = 'SB-Mid-server-uji';
   const order = await call('POST', '/api/orders', {
-    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], customer: { name: 'Midtrans Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'mid@test.local', city: 'Bandung', notes: '' } },
+    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], consent: true, customer: { name: 'Midtrans Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'mid@test.local', city: 'Bandung', notes: '' } },
   });
   const number = order.json.order.number;
   const total = order.json.order.total;

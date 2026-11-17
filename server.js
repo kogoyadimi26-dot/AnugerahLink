@@ -13,6 +13,7 @@ const content = require('./lib/content');
 const buyers = require('./lib/buyers');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
+const legal = require('./config/legal');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -134,6 +135,7 @@ function publicConfig(demoOn, settings) {
     demoAccounts: demoOn ? DEMO_USERS.map((u) => ({ name: u.name, email: u.email, role: u.role, roleLabel: auth.ROLES[u.role].label, password: u.password })) : [],
     theme: mergeTheme(require('./config/theme'), settings && settings.theme),
     content: content.contentFor(settings),
+    legal,
   };
 }
 
@@ -175,11 +177,18 @@ function buildRoutes(ctx) {
     return { status: 200, body: result };
   });
   route('POST', /^\/api\/orders$/, (_p, body, _q, req) => {
+    if (body.consent !== true) {
+      throw new ApiError(400, 'invalid_input', 'Setujui kebijakan privasi sebelum membuat pesanan.', { consent: 'Setujui kebijakan privasi untuk memesan.' });
+    }
     const buyer = buyerFrom(req);
     if (buyer && String((body.customer || {}).email || '').trim().toLowerCase() !== buyer.email) {
       throw new ApiError(400, 'invalid_input', 'Pakai email akun Anda untuk pesanan ini.', { email: 'Pakai email akun Anda.' });
     }
-    const order = store.update((db) => domain.createOrder(db, body, now(), buyer ? buyer.id : null));
+    const order = store.update((db) => {
+      const created = domain.createOrder(db, body, now(), buyer ? buyer.id : null);
+      created.consent = { version: legal.version, givenAt: now() };
+      return created;
+    });
     return { status: 201, body: { order: domain.publicOrder(order) } };
   });
 
@@ -231,6 +240,15 @@ function buildRoutes(ctx) {
   route('DELETE', /^\/api\/buyer\/addresses\/([\w-]+)$/, ([addrId], _b, _q, req) => {
     const b = needBuyer(req);
     store.update((db) => buyers.removeAddress(db, b.id, addrId));
+    return { status: 200, body: { ok: true } };
+  });
+  route('GET', /^\/api\/buyer\/export$/, (_p, _b, _q, req) => {
+    const b = needBuyer(req);
+    return { status: 200, body: buyers.exportBuyer(store.read(), b.id, domain.publicOrder), headers: { 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="data-saya.json"' } };
+  });
+  route('POST', /^\/api\/buyer\/delete$/, (_p, body, _q, req) => {
+    const b = needBuyer(req);
+    store.update((db) => buyers.deleteBuyer(db, b.id, body.password, now()));
     return { status: 200, body: { ok: true } };
   });
   route('GET', /^\/api\/buyer\/orders$/, (_p, _b, _q, req) => {

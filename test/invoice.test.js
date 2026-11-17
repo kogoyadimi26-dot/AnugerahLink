@@ -20,7 +20,7 @@ test.before(async () => {
   STAFF = (await json('POST', '/api/auth/login', { body: OWNER })).json.token;
   BUYER_TOKEN = (await json('POST', '/api/buyer/signup', { body: BUYER })).json.token;
   const lot = (await json('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
-  ORDER = (await json('POST', '/api/orders', { token: BUYER_TOKEN, body: { lines: [{ lotCode: lot.code, kg: 30 }], customer: { name: BUYER.name, company: BUYER.company, buyerType: 'roaster', phone: BUYER.phone, email: BUYER.email, city: 'Jayapura', street: 'Jl. Sentani 12', npwp: '01.234.567.8-901.000' } } })).json.order;
+  ORDER = (await json('POST', '/api/orders', { token: BUYER_TOKEN, body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: BUYER.name, company: BUYER.company, buyerType: 'roaster', phone: BUYER.phone, email: BUYER.email, city: 'Jayapura', street: 'Jl. Sentani 12', npwp: '01.234.567.8-901.000' } } })).json.order;
 });
 test.after(async () => {
   await new Promise((r) => app.server.close(r));
@@ -41,7 +41,7 @@ async function pdf(p, token) {
 }
 
 test('the PDF is well formed: header, cross-reference offsets and end marker', () => {
-  const buf = invoicePdf({ number: 'ALO-2611-009', status: 'requested', createdAt: '2026-11-01T00:00:00Z', customer: { name: 'Uji', email: 'u@x.id', city: 'Jayapura' }, lines: [{ lotCode: 'AL-2611-001', tierLabel: 'Premium', kg: 30, pricePerKg: 250000, lineTotal: 7500000 }], subtotal: 7500000, shipping: 0, total: 7500000 });
+  const buf = invoicePdf({ number: 'ALO-2611-009', status: 'requested', createdAt: '2026-11-01T00:00:00Z', consent: true, customer: { name: 'Uji', email: 'u@x.id', city: 'Jayapura' }, lines: [{ lotCode: 'AL-2611-001', tierLabel: 'Premium', kg: 30, pricePerKg: 250000, lineTotal: 7500000 }], subtotal: 7500000, shipping: 0, total: 7500000 });
   const text = buf.toString('latin1');
   assert.ok(text.startsWith('%PDF-1.4'));
   assert.ok(text.trimEnd().endsWith('%%EOF'));
@@ -76,7 +76,7 @@ test('a buyer downloads only their own invoices', async () => {
 
 test('NPWP is optional but must look like a tax number; it appears on the buyer profile', async () => {
   const lot = (await json('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
-  const bad = await json('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], customer: { name: 'Uji', buyerType: 'roaster', phone: '081211112222', email: 'npwp@x.id', city: 'Jayapura', npwp: 'salah' } } });
+  const bad = await json('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Uji', buyerType: 'roaster', phone: '081211112222', email: 'npwp@x.id', city: 'Jayapura', npwp: 'salah' } } });
   assert.equal(bad.status, 400);
   assert.ok(bad.json.error.fields.npwp);
   const me = await json('PATCH', '/api/buyer/me', { token: BUYER_TOKEN, body: { name: 'Dewi Kopi', phone: BUYER.phone, company: 'Kafe Dewi', buyerType: 'roaster', npwp: '01.234.567.8-901.000' } });

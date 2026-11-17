@@ -33,7 +33,7 @@ async function call(method, p, { body, token } = {}) {
 
 async function paidOrder() {
   const lot = (await call('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
-  const order = (await call('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], customer: { name: 'Budi Kopi', company: '', buyerType: 'roaster', phone: '081298765432', email: 'budi@roaster.test', city: 'Surabaya', street: 'Jl. Raya 1' } } })).json.order;
+  const order = (await call('POST', '/api/orders', { body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Budi Kopi', company: '', buyerType: 'roaster', phone: '081298765432', email: 'budi@roaster.test', city: 'Surabaya', street: 'Jl. Raya 1' } } })).json.order;
   const id = (await call('GET', '/api/admin/orders', { token: STAFF })).json.orders.find((o) => o.number === order.number).id;
   await call('PATCH', `/api/admin/orders/${id}`, { token: STAFF, body: { status: 'confirmed' } });
   await call('PATCH', `/api/admin/orders/${id}`, { token: STAFF, body: { status: 'paid', paymentReference: 'TRF-1' } });
