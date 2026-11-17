@@ -56,7 +56,8 @@
     updateCartCount();
   }
   function updateCartCount() {
-    const n = state.cart.reduce((a, l) => a + l.kg, 0);
+    // Jumlah lot di keranjang, bukan total kilogram.
+    const n = state.cart.length;
     const badge = document.getElementById('cart-count');
     badge.hidden = n === 0;
     badge.textContent = String(n);
