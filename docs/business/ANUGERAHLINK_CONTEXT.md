@@ -78,6 +78,32 @@ Ten tons at Rp100,000/kg is about **Rp1 billion** of stock cash at any one time 
 
 ---
 
+### 3a. Grade-based pricing and intake costs (revised model)
+
+**Pricing change.** Lots are now paid by grade at intake, not one flat price. Target grade A pays 100% of the buying price, grade B pays 90%, and grade C pays 80%. Defaults are in `config/business.js` (`gradeBands`) and need owner confirmation.
+
+**Effect on unit economics (per kg bought).** The calculation uses the same sales mix and cost lines as section 3, and only the buying price changes.
+
+| Case | Buying price per kg | Gross margin per kg bought | Gross margin (% of sales) | Break-even per year |
+|---|---|---|---|---|
+| Flat price (section 3) | Rp 120,000 | Rp 33,900 | 21% | 11,800 kg |
+| Grade-based, assumed grade mix A 60%, B 30%, C 10% | Rp 114,000 | Rp 39,900 | 25% | 10,026 kg |
+
+Grade mix of 60/30/10 is an assumption. The trial lots (section 13) will replace it with real data.
+
+**Caveat, important.** This case assumes lower-grade lots still sell at the same tier mix. A grade B or C lot may only sell at Verified standard or Local prices. If the sales mix shifts down, the margin falls below the flat-price case. The model must be re-run with the trial-lot sales data before it is relied on.
+
+**Intake costs (new cost lines, to be quoted):**
+
+| Cost | Per year | Notes |
+|---|---|---|
+| Scale calibration service | To quote | Calibrated scale, checked before each purchase day |
+| Sample storage (labelled bags, shelf space) | To quote | Retained samples, 300 g each |
+| Photo storage on the server | Included in platform hosting | Photos are small (max 2 MB each) |
+| Sample check time for the field agent | Included in field agent cost | Adds time at each collection |
+
+These lines are not yet in the cost structure above (section 8 of the v2 plan). Add them once quotes are available.
+
 ## 4. Market facts (with sources and dates)
 
 Sources were gathered in an earlier research pass. Several are old (2019, 2022). Re-verify before any external use.
@@ -261,9 +287,9 @@ These values are set in `config/business.js` under `intake` and were confirmed b
 
 **7. Check the scale.** Use a calibrated scale, check it before each purchase day, and weigh with the farmer present.
 
-**What the app already does:** records the sample number, moisture, defect count, hulling yield, and the result; calculates the amount due; blocks grading and sale of rejected lots.
+**What the app already does:** records the sample number, moisture, defect count, hulling yield, and the result; sets the grade and pay percentage; calculates the amount due; records the three field checks; stores sample and bag photos; blocks grading and sale of rejected lots.
 
-**What it does not yet do:** per-grade price lists, sample photos, scale calibration log, and farmer signature on the weight slip.
+**What it does not yet do:** farmer signature on the weight slip, a scale calibration log with dates, and printed price lists for farmers.
 
 ## 14. Core values (Nilai inti)
 
@@ -289,7 +315,7 @@ The same four values are shown on the home page of the web app, from `config/bus
 
 1. The Local tier and "dipotong" lots are below target grade. The values above are kept consistent by labelling them clearly and never selling them as higher tiers. Confirm this is the intended rule.
 2. Avoid claims such as "the best coffee in the world" or "absolute trust". Use what we can show: graded, traced, checked.
-3. Grade-based pricing (section 13) is what turns Empowerment into a real reward. It is not built yet.
+3. Grade-based pricing (section 13 and 3a) is built in the app. Its effect on margin depends on the sales mix of lower grades, which the trial lots must confirm.
 
 ## 11. Glossary
 
