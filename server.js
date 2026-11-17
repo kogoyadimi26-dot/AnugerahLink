@@ -10,6 +10,7 @@ const { mergeTheme, validateOverrides } = require('./lib/theme');
 const { LoginLimiter } = require('./lib/ratelimit');
 const { productionProblems } = require('./lib/prodcheck');
 const content = require('./lib/content');
+const buyers = require('./lib/buyers');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
@@ -141,6 +142,13 @@ const PHOTO_TYPE = { jpg: 'image/jpeg', png: 'image/png' };
 function buildRoutes(ctx) {
   const { store, photoDir } = ctx;
   const limiter = ctx.limiter;
+  const buyerLimiter = ctx.buyerLimiter;
+  const buyerFrom = (req) => buyers.buyerFromToken(store.read(), bearer(req), new Date().toISOString());
+  const needBuyer = (req) => {
+    const b = buyerFrom(req);
+    if (!b) throw new ApiError(401, 'unauthorized', 'Silakan masuk ke akun Anda.');
+    return b;
+  };
   const now = () => new Date().toISOString();
   const r = [];
   const route = (method, pattern, handler, { perm = null } = {}) => r.push({ method, pattern, handler, perm });
@@ -164,9 +172,69 @@ function buildRoutes(ctx) {
     const result = domain.quote(store.read(), body.lines);
     return { status: 200, body: result };
   });
-  route('POST', /^\/api\/orders$/, (_p, body) => {
-    const order = store.update((db) => domain.createOrder(db, body, now()));
+  route('POST', /^\/api\/orders$/, (_p, body, _q, req) => {
+    const buyer = buyerFrom(req);
+    if (buyer && String((body.customer || {}).email || '').trim().toLowerCase() !== buyer.email) {
+      throw new ApiError(400, 'invalid_input', 'Pakai email akun Anda untuk pesanan ini.', { email: 'Pakai email akun Anda.' });
+    }
+    const order = store.update((db) => domain.createOrder(db, body, now(), buyer ? buyer.id : null));
     return { status: 201, body: { order: domain.publicOrder(order) } };
+  });
+
+  // ---- Akun pembeli ----
+  route('POST', /^\/api\/buyer\/signup$/, (_p, body) => {
+    const r = store.update((db) => buyers.signupBuyer(db, body, now()));
+    return { status: 201, body: { token: r.token, buyer: buyers.publicBuyer(r.buyer) }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/buyer\/login$/, (_p, body, _q, req) => {
+    const email = String(body.email || '').trim().toLowerCase();
+    const ip = (req && req.socket && req.socket.remoteAddress) || 'tidak-diketahui';
+    const wait = Math.max(buyerLimiter.retryAfter('email', email), buyerLimiter.retryAfter('ip', ip));
+    if (wait > 0) throw new ApiError(429, 'too_many_attempts', `Terlalu banyak percobaan masuk. Coba lagi dalam ${Math.ceil(wait / 60)} menit.`);
+    let r;
+    try {
+      r = store.update((db) => buyers.loginBuyer(db, body.email, body.password, now()));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        buyerLimiter.recordFailure('email', email);
+        buyerLimiter.recordFailure('ip', ip);
+      }
+      throw err;
+    }
+    buyerLimiter.recordSuccess('email', email);
+    return { status: 200, body: { token: r.token, buyer: buyers.publicBuyer(r.buyer) }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/buyer\/logout$/, (_p, _b, _q, req) => {
+    store.update((db) => buyers.logoutBuyer(db, bearer(req)));
+    return { status: 200, body: { ok: true } };
+  });
+  route('GET', /^\/api\/buyer\/me$/, (_p, _b, _q, req) => ({ status: 200, body: { buyer: buyers.publicBuyer(needBuyer(req)) }, headers: { 'Cache-Control': 'no-store' } }));
+  route('PATCH', /^\/api\/buyer\/me$/, (_p, body, _q, req) => {
+    const b = needBuyer(req);
+    return { status: 200, body: { buyer: buyers.publicBuyer(store.update((db) => buyers.updateProfile(db, b.id, body))) } };
+  });
+  route('POST', /^\/api\/buyer\/password$/, (_p, body, _q, req) => {
+    const b = needBuyer(req);
+    store.update((db) => buyers.changePassword(db, b.id, body));
+    return { status: 200, body: { ok: true } };
+  });
+  route('POST', /^\/api\/buyer\/addresses$/, (_p, body, _q, req) => {
+    const b = needBuyer(req);
+    return { status: 201, body: { address: store.update((db) => buyers.addAddress(db, b.id, body, now())) } };
+  });
+  route('PATCH', /^\/api\/buyer\/addresses\/([\w-]+)$/, ([addrId], body, _q, req) => {
+    const b = needBuyer(req);
+    return { status: 200, body: { address: store.update((db) => buyers.updateAddress(db, b.id, addrId, body)) } };
+  });
+  route('DELETE', /^\/api\/buyer\/addresses\/([\w-]+)$/, ([addrId], _b, _q, req) => {
+    const b = needBuyer(req);
+    store.update((db) => buyers.removeAddress(db, b.id, addrId));
+    return { status: 200, body: { ok: true } };
+  });
+  route('GET', /^\/api\/buyer\/orders$/, (_p, _b, _q, req) => {
+    const b = needBuyer(req);
+    const orders = store.read().orders.filter((o) => o.buyerId === b.id).map((o) => domain.publicOrder(o));
+    return { status: 200, body: { orders }, headers: { 'Cache-Control': 'no-store' } };
   });
   route('GET', /^\/api\/orders\/(ALO-\d{4}-\d{3})$/, ([number], _b, q) => {
     const order = domain.findOrderForBuyer(store.read(), number, q.email);
@@ -460,7 +528,7 @@ function createApp({ dataFile, owner, demo = false }) {
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
   const photoDir = path.join(path.dirname(dataFile), 'photos');
-  const routes = buildRoutes({ store, photoDir, demo, limiter: new LoginLimiter() });
+  const routes = buildRoutes({ store, photoDir, demo, limiter: new LoginLimiter(), buyerLimiter: new LoginLimiter() });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
