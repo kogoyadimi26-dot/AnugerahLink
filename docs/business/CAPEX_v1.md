@@ -139,3 +139,40 @@ Enam orang, sesuai rencana:
 1. **Biaya tetap naik dari asumsi di config.** `config/business.js` memakai `fixedCostsPerYear: 400.000.000`. Opex staf dan software saja sudah Rp397–603 juta per tahun, belum termasuk penyusutan gudang. Dengan margin tengah Rp42.450/kg, titik impas naik dari 9,4 menjadi sekitar 11,7 ton per tahun (tengah). Angka ini perlu diperbarui di config.
 2. **Gudang adalah pilihan besar.** Membangun menambah Rp475–856 juta. Sewa bisa jauh lebih kecil dan belum diteliti.
 3. **Sumber:** UMP dan IKK bersumber. Harga gudang per m², BPJS, gateway WhatsApp, dan penyimpanan backup belum bersumber atau hanya dari penyedia pihak ketiga.
+
+## 11. Keputusan dasar: sewa gudang (update)
+
+Dasar yang dipakai di `config/business.js`: **sewa**, bukan membangun. Alasannya: biaya awal lebih kecil, modal tetap tersedia untuk stok, dan tidak ada risiko harga tanah atau konstruksi selama pilot.
+
+Dasar sewa (asumsi, belum ada penawaran untuk Jayapura):
+- Luas 150 m², Rp40 / 60 / 80 ribu per m² per bulan (rendah / tengah / tinggi).
+- PPN 10% atas sewa (sumber: sewagudang.net).
+- Hasil: **Rp79 / 119 / 158 juta per tahun**.
+
+### Perbandingan (Rp juta)
+
+| | Sewa (dasar) | Bangun |
+|---|---|---|
+| Capex peralatan (bagian 1–5, termasuk kontingensi) | 255 / 433 / 612 | 255 / 433 / 612 |
+| Capex gudang (bagian 6, termasuk kontingensi) | 0 | 547 / 765 / 984 |
+| **Total capex** | **255 / 433 / 612** | **802 / 1.199 / 1.596** |
+| Biaya sewa per tahun | 79 / 119 / 158 | 0 |
+| Opex per tahun (staf + software + sewa) | **477 / 616 / 762** | 397 / 497 / 603 |
+| **Kebutuhan dana tahun pertama** (capex + opex + modal kerja Rp48 juta) | **780 / 1.097 / 1.422** | 1.247 / 1.744 / 2.247 |
+| **Titik impas per tahun** (margin Rp42.450/kg) | **11.225 / 14.512 / 17.944 kg** | 9.360 / 11.711 / 14.213 kg |
+
+Catatan:
+- Titik impas tengah untuk sewa memakai `fixedCostsPerYear: 616.000.000` di config (staf Rp471 juta, software Rp26 juta, sewa Rp119 juta). Angka rendah dan tinggi dari tabel di atas, bukan dari config.
+- Titik impas di atas memakai margin tengah Rp42.450/kg, yang bergantung pada harga Local Rp130.000/kg (lihat bagian 4).
+
+### Perbandingan lima tahun
+
+- Sewa tengah, lima tahun tanpa kenaikan harga: **Rp594 juta**.
+- Bangun tengah (sudah termasuk kontingensi): **Rp765 juta**, belum termasuk tanah, perizinan, pemeliharaan, dan penyusutan.
+- Dengan asumsi ini, sewa lebih murah selama sekitar 6 tahun. Setelah itu membangun bisa lebih murah, tetapi hanya jika lokasi memang tetap dibutuhkan.
+
+### Yang belum diketahui
+
+- Penawaran sewa riil di Jayapura. Harga Rp40–80 ribu per m² adalah asumsi dari harga di kota lain. Saat listing Jayapura tidak ditemukan, angka ini perlu dikonfirmasi dengan agen properti setempat.
+- Kenaikan harga sewa per tahun.
+- Biaya listrik, air, dan keamanan gudang.
