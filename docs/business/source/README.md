@@ -12,3 +12,9 @@ The spreadsheet has these sheets: Inputs, Revenue, Opex, Capex, Expenses, Tiers,
 How these relate to the rest of the repo:
 - `docs/business/ANUGERAHLINK_CONTEXT.md` section 12 reconciles the v2 numbers with the earlier context.
 - The v2 plan is now the more detailed working plan. Where it conflicts with the earlier context doc, v2 is used once the owner confirms.
+
+## Diagram
+
+| File in this folder | Title | Date | Notes |
+|---|---|---|---|
+| `AnugerahLink_Business_Cycle.pdf` | AnugerahLink: the repeating business cycle | 17 Nov 2026 | Uploaded by the owner. Shows the cash, farmer and buyer loops. The 200 kg example matches v2: Rp24M paid out, about Rp30.8M back, about Rp6.8M left. |
