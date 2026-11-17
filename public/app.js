@@ -265,6 +265,7 @@
             <option value="price_asc" ${query.sort === 'price_asc' ? 'selected' : ''}>Harga terendah</option>
             <option value="price_desc" ${query.sort === 'price_desc' ? 'selected' : ''}>Harga tertinggi</option>
             <option value="freshest" ${query.sort === 'freshest' ? 'selected' : ''}>Panen terbaru</option>
+            <option value="alphabetical" ${query.sort === 'alphabetical' ? 'selected' : ''}>Nama A-Z</option>
           </select></div>
         <div class="field"><label class="check"><input type="checkbox" name="inStock" value="1" ${query.inStock !== '0' ? 'checked' : ''}> Hanya yang tersedia</label></div>
       </form>
