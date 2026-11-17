@@ -5,7 +5,7 @@ description: Use when calculating or reviewing AnugerahLink per-kg margins, brea
 
 # AnugerahLink unit economics
 
-Use this skill to build or check the per-kg model. The baseline numbers are in `docs/business/ANUGERAHLINK_CONTEXT.md`, section 3. Read that section first.
+Use this skill to build or check the per-kg model. The earlier baseline is in `docs/business/ANUGERAHLINK_CONTEXT.md`, section 3. The owner's v2 plan supersedes it: four quality tiers, Rp120,000/kg buying price, 5% loss, and staged fixed costs. The v2 spreadsheet is in `docs/business/source/`, and section 12 of the context doc reconciles the two. Use v2 unless the owner says otherwise, and say which basis you used.
 
 ## The formula (trading margin, per kg green coffee)
 

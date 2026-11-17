@@ -199,6 +199,37 @@ These phrases will not survive buyer due diligence. Replace them.
 
 ---
 
+## 12. Reconciliation with the v2 plan (Google Drive, 16 Nov 2026)
+
+The owner's v2 plan and v2 spreadsheet are stored in `docs/business/source/`. They are more detailed than sections 2 to 3 above. They use four quality tiers, a higher farm-gate buying price, and a multi-region scope. The table shows where they differ.
+
+| Item | Earlier context (this doc) | v2 plan and sheet | Note |
+|---|---|---|---|
+| Farm-gate buy price | Rp100,000/kg | Rp120,000/kg, cash at collection | v2 is 20% to 60% above the Rp75,000 to Rp100,000 references. Must be confirmed in the pilot |
+| Sales pricing | One blended Rp180,000/kg | Four tiers: Reserve Rp350k, Premium Rp250k, Verified standard Rp150k, Local Rp100k | Blended Rp170k at the assumed mix |
+| Grade mix (share of volume) | Not set | 5% / 25% / 40% / 30% | Assumed. Grade the first batch |
+| Local tier | Not included | Sells below cost (loss of Rp22k/kg) | Recovers money on low grades only |
+| Sorting and drying loss | 10% | 5% | Weigh the first batch |
+| Shipping and packing | Rp20,000/kg, passed to buyer (commission model) | Rp20,000/kg on Reserve and Premium only. Buyer pays on Verified standard. Rp6,000 blended | Confirm with written cargo quotes |
+| Fees (samples, claims, payment) | Rp7,000/kg (trading) | Rp2,000/kg | Plan includes a Rp2,000/kg claims allowance. Earlier figure was more conservative |
+| Margin per kg | Rp42,000 per kg sold (trading) | Rp42,000 per kg sold; Rp33,900 per kg bought after sorting loss | Both figures are correct on different bases. Quote the basis every time |
+| Fixed costs | Rp400M/yr, full team | Rp400M/yr full team. Monthly by stage: Rp5.5M, Rp15M, Rp30M | Staged hiring is the new element |
+| Break-even volume | About 9.5 t/yr | About 11.8 t/yr (983 kg/month) | Driven by the higher buying price and staged costs |
+| Scope | Wamena coffee, one corridor first | All Papuan coffee regions, rolled out hub by hub. Wamena plus one more hub first | Conflicts with the "one corridor" advice. See open question below |
+| Working capital | Rp1B for 10 t/yr | Rp48M (Stage A), Rp120M (Stage B) for two batches of stock | v2 uses 2 batches, not the full year |
+| Total start-up funding | Not set | Rp131M (Stage A), Rp203M (Stage B) | Includes equipment, registration, six months of fixed costs |
+| Pilot | 500 kg to 1 ton | 200 to 500 kg over 90 days | Similar. v2 has a day-by-day plan |
+| Cacao and crab timing | Cacao next, crab second | Cacao in Year 3, live crab as a separate cold-chain operation in Year 3 | Conflicts with earlier sequencing. Confirm |
+| Platform | Offline app and QR passport first | Pilot on WhatsApp and a spreadsheet. Version 1: catalogue, checkout, offline app, QR passport | Consistent in principle |
+| Claims | Avoid "unalterable" and "absolute trust" | Same, and the plan says to describe QR passport as a verified record | Consistent |
+
+Points to resolve with the owner before building:
+1. Confirm the buying price. Rp120,000 is the plan's assumption. Break-even and margin move with it.
+2. Confirm scope. Start with Wamena and one hub, as v2 says, or open all regions from the start.
+3. Confirm what "Grabs" refers to in the earlier message. Cacao is Year 3 in v2.
+4. Confirm the Local tier. It loses money by design. Decide whether to keep it, reprice it, or drop it.
+5. Confirm the Premium price basis. The Rp250,000/kg Premium price is the top of the listed range for Wamena green beans, and those listings are mostly 1 kg retail packs. v2 itself notes that bulk buyers may pay less. Roasted retail prices (for example Rp150,000 per 250 g from a Papuan processor) are not a green-bean per-kg price and should not be used to justify Premium. Test with five to ten buyers.
+
 ## 11. Glossary
 
 - **Farm-gate price:** what the farmer is paid at the farm, per kg.
