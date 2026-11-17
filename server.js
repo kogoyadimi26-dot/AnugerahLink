@@ -202,6 +202,11 @@ function buildRoutes(ctx) {
     if (token) store.update((db) => auth.logout(db, token));
     return { status: 200, body: { ok: true } };
   });
+  route('POST', /^\/api\/auth\/password$/, (_p, body, _q, req) => {
+    const user = requirePerm(req, store, null);
+    const updated = store.update((db) => auth.changeOwnPassword(db, user.id, body.current, body.password, now()));
+    return { status: 200, body: { user: auth.publicUser(updated) } };
+  });
   route('GET', /^\/api\/auth\/me$/, (_p, _b, _q, req) => ({ status: 200, body: { user: auth.publicUser(requirePerm(req, store, null)) }, headers: { 'Cache-Control': 'no-store' } }));
 
   // ---- Admin ----
@@ -243,6 +248,10 @@ function buildRoutes(ctx) {
   route('GET', /^\/api\/admin\/users$/, () => ({ status: 200, body: { users: store.read().users.map(auth.publicUser) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'users' });
   route('POST', /^\/api\/admin\/users$/, (_p, body) => ({ status: 201, body: { user: auth.publicUser(store.update((db) => auth.createUser(db, body, now()))) } }), { perm: 'users' });
   route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, ([id], body, _q, req) => ({ status: 200, body: { user: auth.publicUser(store.update((db) => auth.updateUser(db, id, body, requirePerm(req, store, 'users').id, now()))) } }), { perm: 'users' });
+  route('GET', /^\/api\/admin\/users\/([\w-]+)\/activity$/, ([id]) => {
+    if (!store.read().users.some((u) => u.id === id)) throw new ApiError(404, 'not_found', 'Pengguna tidak ditemukan.');
+    return { status: 200, body: { entries: auth.activityFor(store.read(), id) }, headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'users' });
   route('GET', /^\/api\/admin\/audit$/, () => ({ status: 200, body: { entries: store.read().audit.slice(-200).reverse() }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'audit' });
   route('GET', /^\/api\/admin\/farmer-report\/([\w-]+)$/, ([groupId]) => ({ status: 200, body: domain.farmerReport(store.read(), groupId) }), { perm: 'feedback' });
 
@@ -347,6 +356,9 @@ function createApp({ dataFile, owner }) {
         throw new ApiError(pathExists ? 405 : 404, pathExists ? 'method_not_allowed' : 'not_found', 'Tidak ditemukan.');
       }
       const actor = match.perm ? requirePerm(req, store, match.perm) : null;
+      if (actor && actor.mustChangePassword) {
+        throw new ApiError(403, 'password_change_required', 'Anda harus mengganti kata sandi terlebih dahulu.');
+      }
       const params = pathname.match(match.pattern).slice(1);
       const body = ['POST', 'PATCH'].includes(req.method) ? await readBody(req) : {};
       const result = match.handler(params, body, query, req);

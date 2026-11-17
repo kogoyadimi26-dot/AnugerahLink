@@ -193,3 +193,39 @@ test('the owner cannot deactivate their own account', async () => {
   const r = await call('PATCH', `/api/admin/users/${me.json.user.id}`, { token: TOKEN, body: { active: false } });
   assert.equal(r.status, 400);
 });
+
+// ---------- pengelolaan staf ----------
+test('admin resets a password: old sessions end, the new password must be changed at next sign-in', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Penilai Uji', email: 'penilai@test.local', role: 'grader', password: 'penilai-awal-123' } });
+  const uid = made.json.user.id;
+  const first = await call('POST', '/api/auth/login', { body: { email: 'penilai@test.local', password: 'penilai-awal-123' } });
+  const oldToken = first.json.token;
+  const reset = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { password: 'penilai-baru-456' } });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.json.user.mustChangePassword, true);
+  assert.equal((await call('GET', '/api/auth/me', { token: oldToken })).status, 401, 'old session ended');
+  const again = await call('POST', '/api/auth/login', { body: { email: 'penilai@test.local', password: 'penilai-baru-456' } });
+  const t = again.json.token;
+  assert.equal(again.json.user.mustChangePassword, true);
+  assert.equal((await call('GET', '/api/admin/lots', { token: t })).status, 403, 'blocked until password changed');
+  const wrong = await call('POST', '/api/auth/password', { token: t, body: { current: 'salah-sekali', password: 'penilai-final-789' } });
+  assert.equal(wrong.status, 400);
+  const ok = await call('POST', '/api/auth/password', { token: t, body: { current: 'penilai-baru-456', password: 'penilai-final-789' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.user.mustChangePassword, false);
+  assert.equal((await call('GET', '/api/admin/lots', { token: t })).status, 200);
+});
+
+test('admin edits name and email and sees a user activity list', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Nama Lama', email: 'lama@test.local', role: 'field_agent', password: 'lama-awal-12345' } });
+  const uid = made.json.user.id;
+  const edit = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { name: 'Nama Baru', email: 'baru@test.local' } });
+  assert.equal(edit.status, 200);
+  assert.equal(edit.json.user.name, 'Nama Baru');
+  const dup = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { email: 'owner@test.local' } });
+  assert.equal(dup.status, 400);
+  await call('POST', '/api/auth/login', { body: { email: 'baru@test.local', password: 'lama-awal-12345' } });
+  const act = await call('GET', `/api/admin/users/${uid}/activity`, { token: TOKEN });
+  assert.equal(act.status, 200);
+  assert.ok(act.json.entries.some((e) => e.action === 'login'));
+});
