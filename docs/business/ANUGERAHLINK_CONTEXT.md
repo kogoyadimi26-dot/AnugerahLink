@@ -37,8 +37,10 @@ A flat 5% commission on sales made through the platform. **This does not cover c
 ### Later revenue
 Traceability and EUDR data sold as a paid service to exporters and cooperatives.
 
-### Decision still open
-The owner has not yet confirmed trading margin over commission. Record the choice here once made.
+### Decision (recommended, pending owner confirmation)
+Trading margin, started with trial lots of 200 to 500 kg per farmer group and buying in batches of 1 to 2 tons. Reason: the promise that every lot is graded before sale can only be kept if the company owns the stock. Commission needs about 57 tons a year to break even; trading needs about 9.4 tons with the current mix (11.8 tons if Local stays at Rp100,000). The Local price depends on Papua buyers paying Rp130,000, which is not yet tested. Cash is the main risk, so the pilot tests margin and cycle time, not full break-even.
+Safeguard (proposed): stop buying from a farmer group if two batches in a row grade below B.
+The owner has not yet confirmed this. Record the confirmed choice here.
 
 ---
 
@@ -250,10 +252,10 @@ The owner's v2 plan and v2 spreadsheet are stored in `docs/business/source/`. Th
 | Claims | Avoid "unalterable" and "absolute trust" | Same, and the plan says to describe QR passport as a verified record | Consistent |
 
 Points to resolve with the owner before building:
-1. Confirm the buying price. Rp120,000 is the plan's assumption. Break-even and margin move with it.
+1. Confirm the buying price. Recommended: plan at Rp120,000, the top price (Grade A), and treat Rp100,000 as an old 2022 reference only. The app uses Rp120,000. With the default grade mix and Local at Rp130,000, margin is Rp42,450/kg and break-even is about 9.4 tons a year. Without the Local price change, it is Rp33,900/kg and 11.8 tons. Replace it after trial lots give real prices.
 2. Confirm scope. Start with Wamena and one hub, as v2 says, or open all regions from the start.
 3. Confirm what "Grabs" refers to in the earlier message. Cacao is Year 3 in v2.
-4. Confirm the Local tier. It loses money by design. Decide whether to keep it, reprice it, or drop it.
+4. Local tier. Recommended and applied: reprice from Rp100,000 to Rp130,000/kg. At Rp120,000 buying, Rp100,000 lost Rp26,900/kg; Rp130,000 gives about Rp1,600/kg, which is a floor, not a return. A test keeps it at or above break-even.
 5. Confirm the Premium price basis. The Rp250,000/kg Premium price is the top of the listed range for Wamena green beans, and those listings are mostly 1 kg retail packs. v2 itself notes that bulk buyers may pay less. Roasted retail prices (for example Rp150,000 per 250 g from a Papuan processor) are not a green-bean per-kg price and should not be used to justify Premium. Test with five to ten buyers.
 
 ## 13. Sourcing and quality strategy (buying from farmer groups)

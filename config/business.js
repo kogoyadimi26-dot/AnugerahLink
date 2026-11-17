@@ -8,7 +8,8 @@
 module.exports = {
   currency: 'IDR',
 
-  // Buying from farmer groups
+  // Buying from farmer groups. Rp120.000 dipakai sebagai asumsi perencanaan (harga tertinggi, Grade A).
+  // Rp100.000 hanya referensi lama (2022). Ganti setelah lot percobaan memberi harga nyata.
   buyPricePerKg: 120000,
   sortingLossPct: 0.05,
 
@@ -21,7 +22,8 @@ module.exports = {
 
   // Ordering rules
   minOrderKg: 30,
-  // Maksimal kg per lot dalam satu pesanan (perlu dikonfirmasi pemilik).
+  // Maksimal kg per lot dalam satu pesanan. 300 kg dipertahankan untuk pilot (bukan dari dokumen; keputusan perencanaan).
+  // Tinjau ulang bila lot sering lebih dari 300 kg atau pembeli minta satu lot penuh.
   maxOrderKg: 300,
   stepKg: 1,
   lowStockKg: 60,
@@ -32,7 +34,9 @@ module.exports = {
     reserve: { label: 'Reserve', pricePerKg: 350000, shippingBy: 'anugerah', description: 'Kafe spesialti terbaik dan contoh ekspor. Skor cupping 86+, lot kecil.' },
     premium: { label: 'Premium', pricePerKg: 250000, shippingBy: 'anugerah', description: 'Kafe spesialti dan roaster premium. SNI Grade 1, skor cupping 84 sampai 85.' },
     verified: { label: 'Standar Terverifikasi', pricePerKg: 150000, shippingBy: 'buyer', description: 'Roaster di Jakarta dan Surabaya. SNI Grade 1 sampai 2, skor cupping 80 sampai 83.' },
-    local: { label: 'Lokal', pricePerKg: 100000, shippingBy: 'none', description: 'Kafe dan roaster di Papua. Grade 3 ke bawah, skor cupping di bawah 80.' },
+    // Harga Lokal dinaikkan dari Rp100.000: pada harga beli Rp120.000, Rp100.000 rugi Rp26.900/kg.
+    // Rp130.000 memberi margin tipis positif (sekitar Rp1.600/kg). Lihat test "local tier stays above break-even".
+    local: { label: 'Lokal', pricePerKg: 130000, shippingBy: 'none', description: 'Kafe dan roaster di Papua. Grade 3 ke bawah, skor cupping di bawah 80.' },
   },
 
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
