@@ -36,6 +36,36 @@ module.exports = {
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
   defaultMix: { reserve: 0.05, premium: 0.25, verified: 0.40, local: 0.30 },
 
+  // Penjelasan proses pengolahan untuk pembeli. "match" adalah nama yang sering dipakai
+  // produsen. Tambah atau ubah di sini; halaman lot dan paspor ikut berubah.
+  processes: {
+    washed: {
+      label: 'Dicuci (fully washed)',
+      match: ['dicuci', 'washed', 'fully washed', 'full wash'],
+      description: 'Kulit dan daging buah dikupas, lalu biji difermentasi dan dicuci dengan air. Hasilnya biasanya bersih dan cerah, dengan keasaman yang jelas.',
+    },
+    wet_hulled: {
+      label: 'Giling basah (semi washed)',
+      match: ['giling basah', 'wet-hulled', 'wet hulled', 'semi washed', 'semi-washed'],
+      description: 'Kulit dan daging buah dikupas, lalu kulit tanduk dilepas saat biji masih basah sebelum dikeringkan. Hasilnya biasanya tubuh lebih tebal, rasa earthy, dan keasaman lebih lembut.',
+    },
+    natural: {
+      label: 'Natural (kering)',
+      match: ['natural', 'kering', 'dry'],
+      description: 'Seluruh buah dikeringkan bersama biji. Hasilnya biasanya manis dan fruity, dengan rasa buah yang kuat.',
+    },
+    honey: {
+      label: 'Honey',
+      match: ['honey', 'pulped natural'],
+      description: 'Kulit dikupas, tetapi sebagian lendir dibiarkan menempel saat dikeringkan. Hasilnya berada di antara dicuci dan natural: manis dengan keasaman lembut. Nama "honey" tidak berarti ada madu.',
+    },
+    anaerobic: {
+      label: 'Anaerobik',
+      match: ['anaerobik', 'anaerobic'],
+      description: 'Buah difermentasi utuh di dalam tangki tertutup tanpa oksigen. Hasilnya biasanya rasa buah yang kuat dan tidak biasa. Ini metode eksperimental.',
+    },
+  },
+
   // About page content. Edit the text here; the page updates from this file.
   // icon: coin | passport | check
   about: {

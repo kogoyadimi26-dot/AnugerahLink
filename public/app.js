@@ -21,6 +21,13 @@
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? esc(iso) : d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   }
+  // Nama proses + penjelasan singkat untuk pembeli.
+  function processHtml(text, info) {
+    if (!info) return esc(text || '—');
+    return `${esc(info.label)}
+      <details class="explain"><summary>Apa artinya?</summary><p>${esc(info.description)}</p></details>`;
+  }
+
   function tierClass(code) { return 'tier tier-' + esc(code); }
   function tierLabel(code) { return (state.config && state.config.tiers[code] && state.config.tiers[code].label) || code; }
   const STATUS_TEKS = {
@@ -235,7 +242,7 @@
           <dl class="kv" style="margin:16px 0">
             <dt>Kelompok tani</dt><dd>${esc(lot.groupName)}</dd>
             <dt>Kabupaten</dt><dd>${esc(lot.regency)}</dd>
-            <dt>Proses</dt><dd>${esc(lot.process)}</dd>
+            <dt>Proses</dt><dd>${processHtml(lot.process, lot.processInfo)}</dd>
             <dt>Grade</dt><dd>${esc(lot.grade)}</dd>
             <dt>Panen</dt><dd>${tanggal(lot.harvestDate)}</dd>
             <dt>Stok</dt><dd>${lot.soldOut ? '<span class="pill bad">Habis terjual</span>' : kg(lot.availableKg) + (lot.lowStock ? ' <span class="pill warn">Stok menipis</span>' : '')}</dd>
@@ -306,7 +313,7 @@
             <dt>Kabupaten</dt><dd>${esc(r.regency)}</dd>
             <dt>Kelompok tani</dt><dd>${esc(r.groupName)}</dd>
             <dt>Panen</dt><dd>${tanggal(r.harvestDate)}</dd>
-            <dt>Proses</dt><dd>${esc(r.process)}</dd>
+            <dt>Proses</dt><dd>${processHtml(r.process, p.processInfo)}</dd>
           </dl>
         </section>
         <section class="card" aria-labelledby="grading">

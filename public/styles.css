@@ -373,3 +373,11 @@ tbody tr:nth-child(even) { background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .lot-card, .btn, .nav a, tbody tr { transition: none !important; transform: none !important; }
 }
+
+/* Penjelasan proses untuk pembeli */
+.explain { margin-top: 6px; }
+.explain summary { display: inline-block; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--green-2); list-style: none; }
+:root[data-theme="dark"] .explain summary { color: var(--gold-hi); }
+.explain summary::-webkit-details-marker { display: none; }
+.explain summary::before { content: "ⓘ "; }
+.explain p { margin: 6px 0 0; font-size: 14px; color: var(--ink-muted); max-width: 56ch; }
