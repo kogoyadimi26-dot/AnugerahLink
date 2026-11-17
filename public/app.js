@@ -391,7 +391,7 @@
     const types = [['specialty_cafe', 'Specialty cafe'], ['premium_roaster', 'Premium roaster'], ['roaster', 'Roaster'], ['papua_business', 'Cafe or business in Papua'], ['other', 'Other']];
     setMain(`
       <h1>Checkout</h1>
-      <p class="muted">Payment is by bank transfer against an invoice. We confirm the transfer by hand.</p>
+      <p class="muted">AnugerahLink sells to business buyers: cafes, roasters and businesses. Payment is by bank transfer against an invoice. We confirm the transfer by hand.</p>
       <form id="checkout" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <h2 style="margin-top:0">Buyer</h2>
@@ -506,7 +506,7 @@
       return;
     }
     const o = data.order;
-    const steps = ['requested', 'confirmed', 'paid', 'shipped', 'delivered'];
+    const steps = ['requested', 'confirmed', 'paid', 'shipped', 'delivered', 'completed'];
     const cancelled = o.status === 'cancelled';
     const done = (s) => cancelled ? false : steps.indexOf(s) <= steps.indexOf(o.status);
     setSession('al-email', email);
@@ -541,7 +541,48 @@
           </tbody></table>
         </section>
       </div>
+      ${o.canConfirmReceipt || o.canReportProblem || o.problems.length ? `
+      <section class="card" aria-labelledby="receipt" style="margin-top:16px">
+        <h2 id="receipt" style="margin-top:0">Your delivery</h2>
+        ${o.problems.length ? `<div class="notice">${o.problems.map((p) => `<p style="margin:0 0 6px"><strong>Problem reported ${date(p.createdAt)}:</strong> ${esc(p.message)} <span class="pill">${esc(p.status)}</span></p>`).join('')}</div>` : ''}
+        ${o.canConfirmReceipt ? `
+          <p>Once the coffee has arrived and you have checked it, confirm receipt. This completes the order and opens feedback.</p>
+          <div class="btn-row"><button class="btn" id="confirm-receipt" type="button">I have received this order</button></div>` : ''}
+        ${o.canReportProblem ? `
+          <details style="margin-top:12px">
+            <summary>Report a problem with this delivery</summary>
+            <form id="problem-form" style="margin-top:12px" novalidate>
+              <div class="notice" data-form-error hidden role="alert"></div>
+              <div class="field"><label for="p-msg">What is wrong?</label>
+                <textarea id="p-msg" name="message" minlength="10" maxlength="1000" required placeholder="For example: 2 bags wet, sample tastes sour"></textarea>
+                <p class="help">Report within ${state.config.policy.claimWindowHours} hours of delivery. Send photos of the bags and sample to the team by email.</p></div>
+              <button class="btn secondary" type="submit" id="p-send">Send report</button>
+            </form>
+          </details>` : ''}
+      </section>` : ''}
       ${o.feedbackOpen ? `<div class="btn-row" style="margin-top:16px"><a class="btn" href="#/feedback/${encodeURIComponent(o.number)}">Share feedback on your order</a></div>` : ''}`);
+
+    const confirmBtn = document.getElementById('confirm-receipt');
+    if (confirmBtn) confirmBtn.addEventListener('click', async () => {
+      busy(confirmBtn, true, 'Confirming…');
+      try {
+        await api(`/api/orders/${encodeURIComponent(o.number)}/confirm-receipt`, { method: 'POST', body: { email } });
+        toast('Receipt confirmed. Thank you.');
+        viewTrackDetail(number, query);
+      } catch (err) { busy(confirmBtn, false); toast(err.message); }
+    });
+    const problemForm = document.getElementById('problem-form');
+    if (problemForm) problemForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = formData(problemForm);
+      const btn = document.getElementById('p-send');
+      busy(btn, true, 'Sending…');
+      try {
+        await api(`/api/orders/${encodeURIComponent(o.number)}/problem`, { method: 'POST', body: { email, message: f.message } });
+        toast('Report sent. The team will reply by email.');
+        viewTrackDetail(number, query);
+      } catch (err) { busy(btn, false); showFormError(problemForm, err); }
+    });
   }
 
   function viewFeedback(number) {
@@ -592,6 +633,10 @@
         <section class="card"><h2 style="margin-top:0">How farmers are paid</h2><p>We buy in cash at the farm gate, at a published price. Farmers do not wait for payment.</p></section>
         <section class="card"><h2 style="margin-top:0">What we check</h2><p>Each lot is weighed, sorted, cupped and graded before it is listed. The grade, cup score and tier are shown on the lot page and the passport.</p></section>
         <section class="card"><h2 style="margin-top:0">What the passport means</h2><p>A passport holds the lot's recorded fields and a hash of them. If a field changes after publishing, the hash no longer matches and the passport says so. It shows change; it is not a guarantee against every possible change.</p></section>
+        <section class="card" aria-labelledby="policy"><h2 id="policy" style="margin-top:0">Claims and returns</h2>
+          ${state.config.policy.status !== 'approved' ? '<p class="notice">Draft. These terms are pending owner approval and are not yet in effect.</p>' : ''}
+          ${state.config.policy.sections.map((s) => `<h3>${esc(s.title)}</h3><p>${esc(s.text)}</p>`).join('')}
+        </section>
         <section class="card"><h2 style="margin-top:0">Pricing</h2><p>Prices are per kg, delivered, by tier. Reserve and Premium include shipping. Verified standard adds shipping per kg. Local is collected in Papua.</p></section>
       </div>`);
   }
@@ -826,7 +871,7 @@
             <tr>
               <td>${esc(o.number)}<br><span class="muted" style="font-size:13px">${date(o.createdAt)}</span></td>
               <td>${esc(o.customer.name)}${o.customer.company ? '<br><span class="muted">' + esc(o.customer.company) + '</span>' : ''}<br><span class="muted" style="font-size:13px">${esc(o.customer.email)} · ${esc(o.customer.phone)} · ${esc(o.customer.city)}</span><br><span class="muted" style="font-size:13px">${o.lines.map((l) => esc(l.lotCode) + ' ' + kg(l.kg)).join(', ')}</span></td>
-              <td><span class="pill">${esc(o.status)}</span>${o.payment.reference ? `<br><span class="muted" style="font-size:13px">Ref: ${esc(o.payment.reference)}</span>` : ''}</td>
+              <td><span class="pill">${esc(o.status)}</span>${o.payment.reference ? `<br><span class="muted" style="font-size:13px">Ref: ${esc(o.payment.reference)}</span>` : ''}${(o.problems || []).length ? `<br><span class="pill warn">Problem reported</span><br><span class="muted" style="font-size:13px">${o.problems.map((p) => esc(p.message)).join(' · ')}</span>` : ''}</td>
               <td class="num">${rp(o.total)}</td>
               <td>
                 <form data-order="${esc(o.id)}" class="btn-row" style="flex-wrap:nowrap">

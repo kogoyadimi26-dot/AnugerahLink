@@ -202,6 +202,9 @@ test('feedback opens only after delivery, once per order, and reaches farmers on
   domain.updateOrderStatus(db, order.id, { status: 'paid', paymentReference: 'R1' }, NOW);
   domain.updateOrderStatus(db, order.id, { status: 'shipped' }, NOW);
   domain.updateOrderStatus(db, order.id, { status: 'delivered' }, NOW);
+  assert.throws(() => domain.createFeedback(db, order, body, NOW), (e) => e.status === 409, 'feedback waits for receipt');
+  domain.confirmReceipt(order, NOW);
+  assert.equal(order.status, 'completed');
   const [fb] = domain.createFeedback(db, order, body, NOW);
   assert.throws(() => domain.createFeedback(db, order, body, NOW), (e) => e.status === 409);
 
@@ -218,7 +221,7 @@ test('feedback must name a lot on the order', () => {
   const db = freshDb();
   const lot = db.lots.find((l) => l.code === 'AL-2611-001');
   const order = domain.createOrder(db, { customer, lines: [{ lotCode: lot.code, kg: 30 }] }, NOW);
-  Object.assign(order, { status: 'delivered' });
+  Object.assign(order, { status: 'completed' });
   assert.throws(() => domain.createFeedback(db, order, { items: [{ lotCode: 'AL-2611-002', reorder: 'no' }] }, NOW), (e) => e.status === 400);
 });
 
@@ -231,4 +234,46 @@ test('summary uses the listed-stock mix when stock exists', () => {
   const sum = Object.values(s.mixUsed).reduce((a, b) => a + b, 0);
   assert.ok(Math.abs(sum - 1) < 1e-9);
   assert.ok(s.economics.grossMarginPerKgBought !== undefined);
+});
+
+// ---------- receipt and claims ----------
+
+test('the buyer confirms receipt only after delivery, and it completes the order', () => {
+  const db = freshDb();
+  const lot = db.lots.find((l) => l.code === 'AL-2611-001');
+  const order = domain.createOrder(db, { customer, lines: [{ lotCode: lot.code, kg: 30 }] }, NOW);
+  assert.throws(() => domain.confirmReceipt(order, NOW), (e) => e.status === 409);
+  domain.updateOrderStatus(db, order.id, { status: 'confirmed' }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'paid', paymentReference: 'R2' }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'shipped' }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'delivered' }, NOW);
+  assert.equal(domain.publicOrder(order).canConfirmReceipt, true);
+  domain.confirmReceipt(order, NOW);
+  assert.equal(order.status, 'completed');
+  assert.equal(domain.publicOrder(order).feedbackOpen, true);
+});
+
+test('a problem can be reported within the claim window and does not change the status', () => {
+  const db = freshDb();
+  const lot = db.lots.find((l) => l.code === 'AL-2611-001');
+  const order = domain.createOrder(db, { customer, lines: [{ lotCode: lot.code, kg: 30 }] }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'confirmed' }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'paid', paymentReference: 'R3' }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'shipped' }, NOW);
+  domain.updateOrderStatus(db, order.id, { status: 'delivered' }, NOW);
+  const inWindow = new Date(Date.parse(NOW) + 10 * 3600000).toISOString();
+  domain.reportProblem(order, { message: '2 bags were wet on arrival' }, inWindow);
+  assert.equal(order.status, 'delivered');
+  assert.equal(order.problems.length, 1);
+  const late = new Date(Date.parse(NOW) + 60 * 3600000).toISOString();
+  assert.throws(() => domain.reportProblem(order, { message: 'Late complaint here' }, late), (e) => e.code === 'claim_window_closed');
+});
+
+test('a problem report needs a real description', () => {
+  const db = freshDb();
+  const lot = db.lots.find((l) => l.code === 'AL-2611-001');
+  const order = domain.createOrder(db, { customer, lines: [{ lotCode: lot.code, kg: 30 }] }, NOW);
+  Object.assign(order, { status: 'delivered' });
+  order.timeline.push({ status: 'delivered', at: NOW, note: '' });
+  assert.throws(() => domain.reportProblem(order, { message: 'bad' }, NOW), (e) => Boolean(e.fields && e.fields.message));
 });

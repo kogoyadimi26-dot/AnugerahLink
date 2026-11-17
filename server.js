@@ -116,6 +116,7 @@ function publicConfig() {
       shippingPerKgExtra: t.shippingBy === 'buyer' ? config.shippingPerKg : 0,
     }])),
     payment: { method: config.payment.method, bank: config.payment },
+    policy: config.policy,
   };
 }
 
@@ -161,6 +162,20 @@ function buildRoutes(ctx) {
       return domain.createFeedback(db, o, body, now());
     });
     return { status: 201, body: { received: created.length } };
+  });
+
+  route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/confirm-receipt$/, ([number], body) => {
+    const order = domain.findOrderForBuyer(store.read(), number, body.email);
+    if (!order) throw new ApiError(404, 'not_found', 'No order matches that number and email.');
+    const updated = store.update((db) => domain.confirmReceipt(db.orders.find((x) => x.id === order.id), now()));
+    return { status: 200, body: { order: domain.publicOrder(updated) } };
+  });
+  route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/problem$/, ([number], body) => {
+    const order = domain.findOrderForBuyer(store.read(), number, body.email);
+    if (!order) throw new ApiError(404, 'not_found', 'No order matches that number and email.');
+    store.update((db) => domain.reportProblem(db.orders.find((x) => x.id === order.id), body, now()));
+    const updated = store.read().orders.find((x) => x.id === order.id);
+    return { status: 201, body: { order: domain.publicOrder(updated) } };
   });
 
   // ---- Admin ----

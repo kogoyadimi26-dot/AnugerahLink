@@ -41,6 +41,10 @@ Phase 1 has one admin role with a shared access token. Field agents and graders 
 4. Data store: JSON file, atomic writes. Seeded with the v2 regions and sample lots so the app runs on first start.
 5. Tests for pricing, validation, stock reservation, order status flow, feedback filtering and the passport hash.
 
+**Deliberately out of scope:**
+- Vouchers, promotion codes, flash sales and coupon stacking. Prices are fixed by tier, so every buyer pays the same price for the same lot.
+- Consumer (household) buyers. The storefront sells to business buyers only: cafes, roasters and businesses.
+
 **Out (later phases, v2 section 7):**
 - Buyer accounts, saved addresses, repeat-order shortcuts (Version 2)
 - Export buyer pages, EUDR geolocation download (Version 3)
@@ -127,7 +131,9 @@ Stored in `data/db.json`. Each collection is an array with string ids.
   - `status`: `received` → `graded` → `listed` → `sold_out` (or `withdrawn`)
 - **orders**: `{ id, number, status, customer, lines[], subtotal, shipping, total, payment, timeline[], createdAt, updatedAt }`
   - `lines[]`: `{ lotId, lotCode, tier, kg, pricePerKg, shippingPerKg, lineTotal }`
-  - `status`: `requested` → `confirmed` → `paid` → `shipped` → `delivered`, or `cancelled`
+  - `status`: `requested` → `confirmed` → `paid` → `shipped` → `delivered` → `completed`, or `cancelled`
+  - `delivered` is set by the team. `completed` is set when the buyer confirms receipt, or by the team after the claim window if the buyer does not respond.
+  - `problems[]`: buyer reports `{ message, createdAt, status }`. Accepted only within the claim window (48 hours from delivery, see `config/business.js` `policy`).
 - **feedback**: `{ id, orderId, lotId, groupId, taste, qualityIssues, reorder, tag, createdAt }`
 - **purchases**: stored on lots (one lot per intake in phase 1)
 

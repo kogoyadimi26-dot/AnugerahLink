@@ -29,6 +29,14 @@ Note: "Closs" did not match any platform in search. Confirm the name, and we wil
 7. **Track record on the group, not the buyer.** Public group page shows the number of lots and the average cup score across graded lots. No buyer reviews are shown publicly in phase 1. (Alibaba seller metrics, adapted for a farmer-group-first model.)
 8. **Mobile first and low-bandwidth.** No external scripts, fonts or images, because buyers in the highlands and Papua often have slow connections. (Lessons from the GSMA agri e-commerce design work on smallholder literacy and connectivity.)
 
+## 2a. Research follow-up (Shopee, agritech, Papua coffee)
+
+- **Shopee:** buyer protection holds payment until the buyer confirms receipt. Our build adds this as an explicit receipt step: the order completes only after the buyer confirms. Users complained about refunds without returns and small late-delivery compensation, so our claims and returns policy is written out and marked as a draft until owner approval. Voucher stacking is deliberately left out. Shopee's app-store praise is largely promotional. Sources: [Shopee help centre](https://help.shopee.sg/portal/4/article/83374-[Vouchers]-How-do-I-ensure-that-Free-Shipping-is-applied-for-my-order), [Malaysia review](https://malaysia4u.com/review/shopee), [Ninjavan tips](https://my-packs.ninjavan.co/blogs/blog/shopee-tips-tricks-shoppers).
+- **Ninjacart (India):** moved from B2C grocery delivery to B2B after supply-chain problems. Supports our B2B focus. Source: [YourStory, 2022](https://yourstory.com/2022/09/agritech-startup-ninjacart-pivoted-b2c-b2b-solve-inefficiencies/amp).
+- **Twiga Foods (Kenya):** farmers are onboarded after a farm visit and booked with purchase orders that record harvest date, close to our intake-then-grade flow. Cut about a third of permanent staff in 2023, so keep fixed costs lean. Source: [eTrade for All](https://etradeforall.org/node/9377).
+- **DeHaat (India):** full-stack farm services. We stay out of inputs in phase 1. Source: [Decentro overview](https://decentro.tech/blog/agritech-startups/).
+- **Papua coffee online:** no Indonesian marketplace for Papua coffee with lot-level traceability was found. Closest: [PT Sumatra Jawa Soil](https://freshdi.com/supplier/PT-Sumatra-Jawa-Soil) (Papua exporter, claims direct sourcing) and [specialtycoffee.id](https://specialtycoffee.id/products) (Indonesian green beans, no Papua lot data). Maesasa Coffee (Papua New Guinea) is the closest model: direct smallholder buying, sold to roasters, bank transfer checkout.
+
 ## 3. Patterns we deliberately do not adopt
 
 - Open seller listings with no vetting (Alibaba, TradeBridge).
