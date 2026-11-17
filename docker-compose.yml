@@ -1,0 +1,46 @@
+# Jalankan: cp .env.example .env (isi nilainya), lalu: docker compose up -d
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATA_FILE: /app/data/app.db
+    volumes:
+      - ./data:/app/data
+    expose:
+      - "3000"
+
+  # HTTPS otomatis (Let's Encrypt). Domain harus sudah mengarah ke server ini.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Cadangan harian. Menyimpan 30 hari terakhir (BACKUP_KEEP_DAYS).
+  backup:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_FILE: /app/data/app.db
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+    command: ["sh", "-c", "while true; do node scripts/backup.js; sleep 86400; done"]
+
+volumes:
+  caddy_data:
+  caddy_config:

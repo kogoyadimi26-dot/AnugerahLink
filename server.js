@@ -558,6 +558,16 @@ function createApp({ dataFile, owner, demo = false }) {
     const url = new URL(req.url, 'http://localhost');
     const pathname = url.pathname;
     if (DEV && pathname === '/__dev/reload') return serveDevReload(req, res);
+    if (pathname === '/healthz' && req.method === 'GET') {
+      try {
+        store.read();
+        res.writeHead(200, baseHeaders({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }));
+        return res.end(JSON.stringify({ status: 'ok', time: new Date().toISOString() }));
+      } catch {
+        res.writeHead(503, baseHeaders({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }));
+        return res.end(JSON.stringify({ status: 'error' }));
+      }
+    }
     if (pathname === '/api/payments/webhook' && req.method === 'POST') {
       return handlePaymentWebhook(req, res, store);
     }
