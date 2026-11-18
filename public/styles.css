@@ -509,4 +509,7 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .dash-details { margin-top: 16px; padding: 14px 20px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
 .dash-details summary { cursor: pointer; font-weight: 600; color: var(--heading); }
 .dash-details table { margin-top: 10px; }
+.dash-table td, .dash-table th { white-space: nowrap; }
+.dash-recent table { min-width: 560px; }
+@media (max-width: 600px) { .dash-recent table { min-width: 0; } .dash-recent th:nth-child(2), .dash-recent td:nth-child(2) { display: none; } .dash-recent td, .dash-recent th { padding-left: 6px; padding-right: 6px; } }
 .nowrap { white-space: nowrap; }

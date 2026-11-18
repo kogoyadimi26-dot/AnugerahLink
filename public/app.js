@@ -1190,7 +1190,7 @@ const ICONS = {
       ? `<section class="card dash-panel"><h2 class="dash-h">Perlu tindakan</h2><div class="dash-actions">${d.actions.map((a) => `<a class="dash-action ${a.severity}" href="${a.href}"><strong class="num">${a.count}</strong><span>${esc(a.label)}</span></a>`).join('')}</div></section>`
       : '';
     const recent = d.recentOrders.length
-      ? `<div class="dash-table"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${d.recentOrders.map((o) => `<tr><td>${esc(o.number)}</td><td>${esc(o.customer)}</td><td><span class="dash-status">${esc(o.statusLabel)}</span></td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`
+      ? `<div class="dash-table dash-recent"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${d.recentOrders.map((o) => `<tr><td>${esc(o.number)}</td><td>${esc(o.customer)}</td><td><span class="dash-status">${esc(o.statusLabel)}</span></td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`
       : '<p class="dash-note">Belum ada pesanan.</p>';
     const lateCard = late.length
       ? `<section class="card dash-panel"><h2 class="dash-h">Pesanan terlambat <span class="dash-badge danger">${late.length}</span></h2>
