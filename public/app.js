@@ -2108,6 +2108,7 @@ const ICONS = {
 
   async function viewAdminSettings() {
     const c = await api('/api/admin/config', { admin: true });
+    const ab = await api('/api/admin/about', { admin: true });
     setMain(adminShell('settings', `
       <h2 class="ix-1">Aturan bisnis yang dipakai</h2>
       <div class="table-wrap"><table><tbody>
@@ -2124,11 +2125,15 @@ const ICONS = {
         ${Object.entries(c.tiers).map(([k, t]) => `<tr><td><span class="${tierClass(k)}">${esc(t.label)}</span></td><td class="num">${rp(t.pricePerKg)}</td><td>${esc(t.shippingBy === 'anugerah' ? 'Termasuk (ditanggung AnugerahLink)' : t.shippingBy === 'buyer' ? 'Pembeli membayar ' + rp(t.shippingPerKgExtra) + '/kg' : 'Diambil di Papua')}</td></tr>`).join('')}
       </tbody></table></div>
       ${priceEditorHtml(c.tiers)}
+      <h2 class="ix-1">Halaman Tentang</h2>
+      <p class="muted">Ubah teks halaman Tentang. Pakai Tambah, Naik, Turun, atau Hapus untuk mengatur isinya, lalu simpan.</p>
+      <div class="card" id="about-editor">${aboutEditorHtml(ab.about)}</div>
       ${contentEditorHtml(c.content || state.config.content)}
       ${themeEditorHtml(c.theme || state.config.theme)}`));
     wireSignOut();
     wireThemeEditor();
     wirePriceEditor();
+    wireAboutEditor(ab.defaults);
     wireContentEditor();
   }
 
@@ -2253,6 +2258,145 @@ const ICONS = {
         showFormError(form, err);
       } finally { busy(btn, false); }
     });
+  }
+
+  // Halaman Tentang: editor untuk staf. Tambah, ubah, hapus, dan atur urutan bagian tanpa kode.
+  const ABOUT_ICON_OPTIONS = [['check', 'Centang'], ['coin', 'Koin'], ['passport', 'Paspor']];
+  const ABOUT_LIST_NAMES = { history: 'paragraf sejarah', pillars: 'kartu keunggulan', news: 'berita' };
+  function aboutItemHtml(list, i, n, inner) {
+    return `<div class="about-item">
+      ${inner}
+      <div class="about-item-actions">
+        <button class="btn secondary small" type="button" data-move="up" data-list="${list}" data-i="${i}" ${i === 0 ? 'disabled' : ''}>Naik</button>
+        <button class="btn secondary small" type="button" data-move="down" data-list="${list}" data-i="${i}" ${i === n - 1 ? 'disabled' : ''}>Turun</button>
+        <button class="btn danger small" type="button" data-remove="${list}" data-i="${i}">Hapus</button>
+      </div>
+    </div>`;
+  }
+  function aboutEditorHtml(a) {
+    return `
+      <form class="about-form" id="about-form" novalidate>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <fieldset class="about-part"><legend>Judul</legend>
+          <div class="field"><label for="ab-eyebrow">Label kecil</label><input id="ab-eyebrow" name="eyebrow" maxlength="60" value="${esc(a.eyebrow)}"></div>
+          <div class="field"><label for="ab-title">Judul halaman</label><input id="ab-title" name="title" maxlength="120" value="${esc(a.title)}"></div>
+          <div class="field"><label for="ab-lead">Kalimat pembuka (opsional)</label><textarea id="ab-lead" name="lead" maxlength="300">${esc(a.lead || '')}</textarea></div>
+        </fieldset>
+        <fieldset class="about-part"><legend>Misi kami</legend>
+          <div class="field"><label for="ab-mission">Misi</label><textarea id="ab-mission" name="mission" maxlength="600">${esc(a.mission)}</textarea></div>
+        </fieldset>
+        <fieldset class="about-part"><legend>Klaim kualitas</legend>
+          <div class="field"><label for="ab-claim-title">Judul</label><input id="ab-claim-title" name="claimTitle" maxlength="120" value="${esc(a.claim.title)}"></div>
+          <div class="field"><label for="ab-claim-text">Isi</label><textarea id="ab-claim-text" name="claimText" maxlength="600">${esc(a.claim.text)}</textarea></div>
+        </fieldset>
+        <fieldset class="about-part"><legend>Paragraf sejarah</legend>
+          <div class="about-list" data-list="history">
+            ${a.history.map((p, i) => aboutItemHtml('history', i, a.history.length, `<label class="sr" for="ab-h-${i}">Paragraf ${i + 1}</label><textarea id="ab-h-${i}" name="history" maxlength="1200">${esc(p)}</textarea>`)).join('')}
+          </div>
+          <div><button class="btn secondary small" type="button" data-add="history">+ Tambah paragraf</button></div>
+        </fieldset>
+        <fieldset class="about-part"><legend>Kartu keunggulan</legend>
+          <div class="about-list" data-list="pillars">
+            ${a.pillars.map((p, i) => aboutItemHtml('pillars', i, a.pillars.length, `<div class="field"><label>Ikon</label><select name="icon">${ABOUT_ICON_OPTIONS.map(([v, l]) => `<option value="${v}" ${p.icon === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+              <div class="field"><label>Judul kartu</label><input name="title" maxlength="80" value="${esc(p.title)}"></div>
+              <div class="field"><label>Penjelasan</label><textarea name="text" maxlength="400">${esc(p.text)}</textarea></div>`)).join('')}
+          </div>
+          <div><button class="btn secondary small" type="button" data-add="pillars">+ Tambah kartu</button></div>
+        </fieldset>
+        <fieldset class="about-part"><legend>Berita</legend>
+          <div class="about-list" data-list="news">
+            ${a.news.map((n, i) => aboutItemHtml('news', i, a.news.length, `<div class="field"><label>Tanggal</label><input name="date" maxlength="40" value="${esc(n.date)}" placeholder="mis. 18 November 2026"></div>
+              <div class="field"><label>Judul berita</label><input name="title" maxlength="160" value="${esc(n.title)}"></div>
+              <div class="field"><label>Isi (pisahkan paragraf dengan baris kosong)</label><textarea name="body" maxlength="12000">${esc(n.body.join('\n\n'))}</textarea></div>`)).join('')}
+          </div>
+          <div><button class="btn secondary small" type="button" data-add="news">+ Tambah berita</button></div>
+        </fieldset>
+        <div class="btn-row">
+          <button class="btn" type="submit" data-save>Simpan halaman Tentang</button>
+          <button class="btn secondary" type="button" data-reset-about>Kembalikan teks standar</button>
+        </div>
+      </form>`;
+  }
+  // Membaca isian formulir kembali menjadi data halaman.
+  function readAboutForm(form) {
+    const v = (name) => form.querySelector(`[name="${name}"]`).value;
+    const items = (list) => [...form.querySelectorAll(`[data-list="${list}"] .about-item`)];
+    return {
+      eyebrow: v('eyebrow'), title: v('title'), lead: v('lead'), mission: v('mission'),
+      claim: { title: v('claimTitle'), text: v('claimText') },
+      history: items('history').map((el) => el.querySelector('textarea').value),
+      pillars: items('pillars').map((el) => ({
+        icon: el.querySelector('select').value,
+        title: el.querySelector('input[name="title"]').value,
+        text: el.querySelector('textarea').value,
+      })),
+      news: items('news').map((el) => ({
+        date: el.querySelector('input[name="date"]').value,
+        title: el.querySelector('input[name="title"]').value,
+        body: el.querySelector('textarea').value.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+      })),
+    };
+  }
+  // Pengirim formulir dipasang ulang setiap kali formulir digambar ulang; klik ditangani sekali di kotak pembungkus.
+  function bindAboutSubmit() {
+    const form = document.getElementById('about-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      const box = form.querySelector('[data-form-error]');
+      if (box) box.hidden = true;
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        await api('/api/admin/about', { method: 'PUT', body: readAboutForm(form), admin: true });
+        state.config = await api('/api/config');
+        toast('Halaman Tentang disimpan. Pengunjung melihat perubahannya saat membuka halaman.');
+        viewAdminSettings();
+      } catch (err) {
+        showFormError(form, err);
+      } finally { busy(btn, false); }
+    });
+  }
+  function wireAboutEditor(defaults) {
+    const box = document.getElementById('about-editor');
+    if (!box) return;
+    box.addEventListener('click', async (e) => {
+      const addBtn = e.target.closest('[data-add]');
+      const rmBtn = e.target.closest('[data-remove]');
+      const mvBtn = e.target.closest('[data-move]');
+      const resetBtn = e.target.closest('[data-reset-about]');
+      if (!addBtn && !rmBtn && !mvBtn && !resetBtn) return;
+      const form = document.getElementById('about-form');
+      if (resetBtn) {
+        if (!confirm('Kembalikan halaman Tentang ke teks standar? Perubahan yang belum disimpan akan hilang.')) return;
+        try {
+          await api('/api/admin/about', { method: 'PUT', body: defaults, admin: true });
+          toast('Halaman Tentang dikembalikan ke teks standar.');
+          viewAdminSettings();
+        } catch (err) { toast(err.message || 'Belum bisa dikembalikan.'); }
+        return;
+      }
+      const draft = readAboutForm(form);
+      if (addBtn) {
+        const k = addBtn.dataset.add;
+        if (k === 'history') draft.history.push('');
+        if (k === 'pillars') draft.pillars.push({ icon: 'check', title: '', text: '' });
+        if (k === 'news') draft.news.push({ date: '', title: '', body: [] });
+      } else if (rmBtn) {
+        const k = rmBtn.dataset.remove;
+        if (!confirm(`Hapus ${ABOUT_LIST_NAMES[k]} ini?`)) return;
+        draft[k].splice(Number(rmBtn.dataset.i), 1);
+      } else if (mvBtn) {
+        const k = mvBtn.dataset.list; const i = Number(mvBtn.dataset.i);
+        const j = mvBtn.dataset.move === 'up' ? i - 1 : i + 1;
+        if (j < 0 || j >= draft[k].length) return;
+        [draft[k][i], draft[k][j]] = [draft[k][j], draft[k][i]];
+      }
+      box.innerHTML = aboutEditorHtml(draft);
+      bindAboutSubmit();
+    });
+    bindAboutSubmit();
   }
 
   function contentEditorHtml(content) {

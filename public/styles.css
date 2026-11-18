@@ -855,3 +855,12 @@ tr.is-selected { background: var(--green-soft) !important; }
 .quick-google { display: flex; justify-content: center; width: 100%; }
 .quick-google[hidden] { display: none; }
 .quick-link-form { display: grid; gap: 8px; }
+
+/* Editor halaman Tentang: bagian yang jelas, daftar yang bisa ditambah, diatur, dan dihapus. */
+.about-form { display: grid; gap: 18px; }
+.about-part { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 16px; margin: 0; display: grid; gap: 10px; }
+.about-part legend { font-weight: 700; padding: 0 6px; }
+.about-list { display: grid; gap: 12px; }
+.about-item { border: 1px dashed var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 8px; background: var(--surface); }
+.about-item-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.about-item-actions .small { min-height: 34px; padding: 4px 12px; }

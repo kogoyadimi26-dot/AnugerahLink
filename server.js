@@ -14,6 +14,7 @@ const buyers = require('./lib/buyers');
 const proposals = require('./lib/proposals');
 const documents = require('./lib/documents');
 const quicklogin = require('./lib/quicklogin');
+const about = require('./lib/about');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
 const legal = require('./config/legal');
@@ -182,7 +183,7 @@ function publicConfig(demoOn, settings) {
     }])),
     payment: { method: config.payment.method, bank: config.payment },
     policy: config.policy,
-    about: config.about,
+    about: about.aboutFor(settings),
     values: config.values,
     gradeBands: config.gradeBands,
     demoAccounts: demoOn ? DEMO_USERS.map((u) => ({ name: u.name, email: u.email, role: u.role, roleLabel: auth.ROLES[u.role].label, password: u.password })) : [],
@@ -578,6 +579,13 @@ function buildRoutes(ctx) {
 
   // Teks situs (beranda dan footer).
   route('GET', /^\/api\/admin\/content$/, () => ({ status: 200, body: { content: content.contentFor(store.read().settings), defaults: content.defaults }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'settings' });
+  // Halaman Tentang: admin membaca dan menyimpan teks yang tampil di halaman Tentang.
+  route('GET', /^\/api\/admin\/about$/, () => ({ status: 200, body: { about: about.aboutFor(store.read().settings), defaults: config.about, limits: about.ABOUT_LIMITS }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'settings' });
+  route('PUT', /^\/api\/admin\/about$/, (_p, body) => {
+    const out = about.validateAbout(body);
+    store.update((db) => { db.settings = { ...(db.settings || {}), about: out }; });
+    return { status: 200, body: { about: about.aboutFor(store.read().settings) }, auditDetail: 'Halaman Tentang diperbarui.' };
+  }, { perm: 'settings' });
   route('PUT', /^\/api\/admin\/content$/, (_p, body) => {
     const out = content.validateContent(body);
     store.update((db) => { db.settings = { ...(db.settings || {}), content: out }; });
