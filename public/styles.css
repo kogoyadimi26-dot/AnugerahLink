@@ -724,3 +724,32 @@ tr.is-selected { background: var(--green-soft) !important; }
 .harvest-badge { font-size: 12px; background: var(--gold-soft); color: var(--gold-ink); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 @media (max-width: 760px) { .hero-live { grid-template-columns: 1fr; gap: 24px; } .hero-carousel { justify-self: stretch; max-width: none; } .hero-slide img, .hero-slide-fallback { height: 170px; } }
 @media (prefers-reduced-motion: reduce) { .tier-stock-card.is-changed { animation: none; } }
+
+/* Kartu lot ala katalog: foto persegi, harga per kg jelas, stok nyata, dan ajakan beli. */
+.lot-tile { display: flex; flex-direction: column; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); transition: transform .2s ease, box-shadow .2s ease; }
+.lot-tile:hover { transform: translateY(-3px); box-shadow: 0 16px 32px rgb(0 40 16 / 0.12); }
+.lot-tile-media { position: relative; display: block; aspect-ratio: 1 / 1; background: #f4f2ec; overflow: hidden; }
+.lot-tile-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lot-tile-fallback { height: 100%; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 18px; }
+.lot-tile-tier { position: absolute; left: 10px; top: 10px; }
+.lot-tile-flag { position: absolute; right: 10px; top: 10px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.12); }
+.lot-tile-flag.is-low { color: #7a4f00; background: #fff3d6; }
+.lot-tile-flag.is-sold { color: #555; background: #ececec; }
+.lot-tile-body { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 16px; flex: 1; }
+.lot-tile-kicker { margin: 0; font-size: 12px; color: var(--ink-muted); letter-spacing: .02em; text-transform: uppercase; }
+.lot-tile h3 { margin: 0; font-size: 17px; line-height: 1.3; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lot-tile h3 a { color: var(--heading); text-decoration: none; }
+.lot-tile h3 a:hover { text-decoration: underline; }
+.lot-tile-meta { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.lot-tile-price { margin: 6px 0 0; font-size: 22px; font-weight: 800; color: var(--heading); }
+.lot-tile-price .lot-unit { font-size: 13px; font-weight: 500; }
+.lot-tile-min { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.lot-tile-stock { margin: 2px 0 0; font-size: 13px; font-weight: 700; color: var(--green); display: flex; align-items: center; gap: 6px; }
+.lot-tile-stock::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.lot-tile-stock.is-low { color: #7a4f00; }
+.lot-tile-cta { margin-top: auto; width: 100%; justify-content: center; text-align: center; }
+.lot-tile-cta[aria-disabled="true"] { opacity: .6; cursor: not-allowed; }
+.lot-tile-links { display: flex; justify-content: space-between; font-size: 13px; }
+.lot-tile-links a { color: var(--green); }
+
+.lot-tile-media, .lot-tile-media:hover { text-decoration: none; }
