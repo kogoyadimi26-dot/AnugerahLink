@@ -15,7 +15,7 @@
     <div class="topbar">
       <div class="wrap topbar-row">
         <a class="wordmark-text" href="#/" aria-label="Beranda AnugerahLink">Anugerah<span>Link</span></a>
-        <a class="locate" href="#/about"><span class="locate-k">Asal kopi</span><span class="locate-v">Papua, Indonesia</span></a>
+        <a class="locate" href="#/tentang"><span class="locate-k">Asal kopi</span><span class="locate-v">Papua, Indonesia</span></a>
         <form class="searchbox" id="search-form" role="search" aria-label="Cari lot">
           <label class="sr" for="search-cat">Kategori</label>
           <select id="search-cat" name="cat">
@@ -29,8 +29,8 @@
         </form>
         <div class="topbar-right">
           <a class="acct" href="#/akun"><span class="acct-k">Halo, masuk</span><span class="acct-v">Akun &amp; daftar</span></a>
-          <a class="acct acct-pesanan" href="#/track"><span class="acct-k">Pesanan saya</span><span class="acct-v">Lacak Pesanan</span></a>
-          <a class="cartlink" href="#/cart" id="cart-link" aria-label="Keranjang">
+          <a class="acct acct-pesanan" href="#/lacak"><span class="acct-k">Pesanan saya</span><span class="acct-v">Lacak Pesanan</span></a>
+          <a class="cartlink" href="#/keranjang" id="cart-link" aria-label="Keranjang">
             <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="9.5" cy="19.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="19.5" r="1.5" fill="currentColor"/></svg>
             <span class="badge" id="cart-count" hidden>0</span>
             <span class="cart-label">Keranjang</span>
@@ -42,8 +42,8 @@
     <div class="menubar">
       <div class="wrap">
         <nav class="nav" aria-label="Menu utama">
-          <a href="#/catalogue" class="menu-all">Produk</a>
-          <a href="#/about">Tentang</a>
+          <a href="#/produk" class="menu-all">Produk</a>
+          <a href="#/tentang">Tentang</a>
           <a href="#/kebijakan-privasi">Kebijakan privasi</a>
           <a href="#/syarat">Syarat</a>
         </nav>
@@ -53,10 +53,10 @@
   <div class="subbar">
     <div class="wrap">
       <nav aria-label="Pintasan katalog">
-        <a href="#/catalogue?sort=cup_desc">Skor cupping tertinggi</a>
-        <a href="#/catalogue?sort=freshest">Panen terbaru</a>
-        <a href="#/catalogue?sort=price_asc">Harga terendah</a>
-        <a href="#/catalogue?inStock=0">Termasuk yang habis</a>
+        <a href="#/produk?sort=cup_desc">Skor cupping tertinggi</a>
+        <a href="#/produk?sort=freshest">Panen terbaru</a>
+        <a href="#/produk?sort=price_asc">Harga terendah</a>
+        <a href="#/produk?inStock=0">Termasuk yang habis</a>
       </nav>
     </div>
   </div>
@@ -68,14 +68,14 @@
     <div class="wrap footer-grid">
       <nav class="footer-col" aria-label="Kenali AnugerahLink">
         <h2 class="footer-title">Kenali kami</h2>
-        <a href="#/about">Tentang kami</a>
-        <a href="#/about">Nilai kami</a>
-        <a href="#/about">Cara kerja kami</a>
+        <a href="#/tentang">Tentang kami</a>
+        <a href="#/tentang">Nilai kami</a>
+        <a href="#/tentang">Cara kerja kami</a>
       </nav>
       <nav class="footer-col" aria-label="Belanja">
         <h2 class="footer-title">Belanja</h2>
-        <a href="#/catalogue">Produk</a>
-        <a href="#/cart">Keranjang</a>
+        <a href="#/produk">Produk</a>
+        <a href="#/keranjang">Keranjang</a>
         <a href="#/masuk">Buat akun atau masuk</a>
         <a href="#/akun">Akun saya</a>
       </nav>
@@ -86,7 +86,7 @@
       </div>
       <nav class="footer-col" aria-label="Bantuan">
         <h2 class="footer-title">Bantuan</h2>
-        <a href="#/track">Lacak pesanan</a>
+        <a href="#/lacak">Lacak pesanan</a>
         <a href="#/pengembalian">Klaim dan pengembalian</a>
         <a href="#/kebijakan-privasi">Kebijakan privasi</a>
         <a href="#/syarat">Syarat penggunaan</a>
