@@ -866,6 +866,7 @@ const ICONS = {
         ${a.lead ? `<p class="lead">${esc(a.lead)}</p>` : ''}
         <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a></div>
       </section>
+      ${a.claim ? `<section class="about-claim" aria-labelledby="about-claim"><h2 id="about-claim">${esc(a.claim.title)}</h2><p>${esc(a.claim.text)}</p></section>` : ''}
       ${a.mission ? `<section class="about-mission" aria-labelledby="about-mission"><h2 id="about-mission">Misi kami</h2><p>${esc(a.mission)}</p></section>` : ''}
       ${(a.history || []).length ? `<section class="about-history" aria-labelledby="about-history"><h2 id="about-history">Tentang AnugerahLink</h2>${a.history.map((t) => `<p>${esc(t)}</p>`).join('')}</section>` : ''}
       <section class="values-block" aria-labelledby="about-values">
