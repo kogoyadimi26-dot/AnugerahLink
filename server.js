@@ -17,6 +17,8 @@ const legal = require('./config/legal');
 const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
+const courier = require('./lib/courier');
+const dashboard = require('./lib/dashboard');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
 const auth = require('./lib/auth');
@@ -172,6 +174,20 @@ function buildRoutes(ctx) {
     if (!lot) throw new ApiError(404, 'not_found', 'Paspor lot tidak ditemukan.');
     return { status: 200, body: { passport: domain.passportView(store.read(), lot) } };
   });
+  // Pemeriksaan publik: apakah hash yang diberikan cocok dengan catatan yang diterbitkan, dan apakah data masih sama.
+  route('GET', /^\/api\/verify$/, (_p, _b, query) => {
+    const code = String(query.code || '').trim().toUpperCase();
+    const hash = String(query.hash || '').trim().toLowerCase();
+    const db = store.read();
+    const lot = db.lots.find((l) => l.code === code && ['listed', 'withdrawn'].includes(l.status));
+    if (!lot || !lot.passportHash) throw new ApiError(404, 'not_found', 'Lot dengan kode tersebut belum punya catatan yang diterbitkan.');
+    const view = domain.passportView(db, lot);
+    let result;
+    if (view.recomputedHash !== lot.passportHash) result = 'data_berubah';
+    else if (hash !== lot.passportHash) result = 'tidak_cocok';
+    else result = 'cocok';
+    return { status: 200, body: { code: lot.code, result, publishedAt: lot.publishedAt }, headers: { 'Cache-Control': 'no-store' } };
+  });
   route('POST', /^\/api\/cart\/quote$/, (_p, body) => {
     const result = domain.quote(store.read(), body.lines);
     return { status: 200, body: result };
@@ -180,12 +196,14 @@ function buildRoutes(ctx) {
     if (body.consent !== true) {
       throw new ApiError(400, 'invalid_input', 'Setujui kebijakan privasi sebelum membuat pesanan.', { consent: 'Setujui kebijakan privasi untuk memesan.' });
     }
+    // Pesanan hanya dari akun pembeli. Memilih lot dan mengisi keranjang tetap tanpa akun.
     const buyer = buyerFrom(req);
-    if (buyer && String((body.customer || {}).email || '').trim().toLowerCase() !== buyer.email) {
+    if (!buyer) throw new ApiError(401, 'auth_required', 'Buat akun atau masuk untuk memesan.');
+    if (String((body.customer || {}).email || '').trim().toLowerCase() !== buyer.email) {
       throw new ApiError(400, 'invalid_input', 'Pakai email akun Anda untuk pesanan ini.', { email: 'Pakai email akun Anda.' });
     }
     const order = store.update((db) => {
-      const created = domain.createOrder(db, body, now(), buyer ? buyer.id : null);
+      const created = domain.createOrder(db, body, now(), buyer.id);
       created.consent = { version: legal.version, givenAt: now() };
       return created;
     });
@@ -378,6 +396,11 @@ function buildRoutes(ctx) {
   route('GET', /^\/api\/auth\/me$/, (_p, _b, _q, req) => ({ status: 200, body: { user: auth.publicUser(requirePerm(req, store, null)) }, headers: { 'Cache-Control': 'no-store' } }));
 
   // ---- Admin ----
+  route('GET', /^\/api\/admin\/dashboard$/, (_p, _b, query) => {
+    const r = Number(query.range === undefined ? 30 : query.range);
+    const range = dashboard.RANGES.includes(r) ? r : 30;
+    return { status: 200, body: dashboard.buildDashboard(store.read(), { range, now: new Date().toISOString() }), headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'reports' });
   route('GET', /^\/api\/admin\/summary$/, () => ({ status: 200, body: domain.summary(store.read()), headers: { 'Cache-Control': 'no-store' } }), { perm: 'reports' });
   route('GET', /^\/api\/admin\/config$/, () => ({
     status: 200,
@@ -478,6 +501,7 @@ function buildRoutes(ctx) {
     });
     return { status: 200, body: { ok: true }, auditDetail: `Tautan atur ulang dikirim ke ${sentTo} oleh staf.` };
   }, { perm: 'users' });
+  route('GET', /^\/api\/admin\/late-orders$/, () => ({ status: 200, body: { orders: courier.lateOrders(store.read(), new Date().toISOString()) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('GET', /^\/api\/admin\/users$/, () => ({ status: 200, body: { users: store.read().users.map(auth.publicUser) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'users' });
   route('POST', /^\/api\/admin\/users$/, (_p, body) => ({ status: 201, body: { user: auth.publicUser(store.update((db) => auth.createUser(db, body, now()))) } }), { perm: 'users' });
   route('PATCH', /^\/api\/admin\/users\/([\w-]+)$/, ([id], body, _q, req) => ({ status: 200, body: { user: auth.publicUser(store.update((db) => auth.updateUser(db, id, body, requirePerm(req, store, 'users').id, now()))) } }), { perm: 'users' });
@@ -543,6 +567,33 @@ function handlePaymentWebhook(req, res, store) {
       send(res, 200, { ok: true, duplicate: result.duplicate });
     } catch (err) {
       sendError(res, err instanceof ApiError ? err : new ApiError(400, 'invalid_json', 'Pesan tidak valid.'));
+    }
+  });
+}
+
+// Webhook kurir: pesan ditandatangani HMAC-SHA256 dengan SHIPPING_WEBHOOK_SECRET (header X-Signature).
+function handleShippingWebhook(req, res, store) {
+  const secret = process.env.SHIPPING_WEBHOOK_SECRET;
+  if (!secret) return sendError(res, new ApiError(503, 'not_configured', 'Pelacakan kurir belum dikonfigurasi.'));
+  const chunks = [];
+  let size = 0;
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > 64 * 1024) { req.destroy(); return; }
+    chunks.push(c);
+  });
+  req.on('end', () => {
+    try {
+      const raw = Buffer.concat(chunks);
+      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret)) {
+        throw new ApiError(401, 'bad_signature', 'Tanda tangan tidak valid.');
+      }
+      let body;
+      try { body = JSON.parse(raw.toString('utf8')); } catch { throw new ApiError(400, 'invalid_json', 'Pesan tidak valid.'); }
+      const result = store.update((db) => courier.handleCourierEvent(db, body, new Date().toISOString()));
+      send(res, 200, { ok: true, duplicate: result.duplicate });
+    } catch (err) {
+      sendError(res, err instanceof ApiError ? err : new ApiError(400, 'invalid_input', 'Pesan tidak valid.'));
     }
   });
 }
@@ -621,6 +672,9 @@ function createApp({ dataFile, owner, demo = false }) {
     }
     if (pathname === '/api/payments/webhook' && req.method === 'POST') {
       return handlePaymentWebhook(req, res, store);
+    }
+    if (pathname === '/api/shipping/webhook' && req.method === 'POST') {
+      return handleShippingWebhook(req, res, store);
     }
     // Faktur PDF: tamu memakai nomor pesanan dan email (seperti melacak); pembeli memakai akunnya.
     const invoiceGuest = pathname.match(/^\/api\/orders\/(ALO-\d{4}-\d{3})\/invoice$/);
@@ -729,6 +783,10 @@ if (require.main === module) {
   if (DEV) { startDevWatch(); console.log('[dev] live reload is on: the browser refreshes when public/ changes'); }
   // Pengirim pesan berkala. Tanpa penyedia yang diatur, pesan tetap menunggu.
   setInterval(() => {
+    const at = new Date().toISOString();
+    if (store.read().orders.some((o) => !o.lateNotifiedAt && o.status === 'shipped')) {
+      store.update((db) => notify.notifyLateOrders(db, at));
+    }
     notify.dispatchOutbox(store).catch((err) => console.error('[notify] gagal mengirim:', err.message));
   }, 60000).unref();
   server.listen(port, () => console.log(`AnugerahLink running at http://localhost:${port}`));
