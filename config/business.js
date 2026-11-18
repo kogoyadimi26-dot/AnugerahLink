@@ -116,22 +116,17 @@ module.exports = {
   // icon: coin | passport | check
   about: {
     eyebrow: 'Tentang kami',
-    title: 'Kopi Papua yang bisa ditelusuri',
-    lead: 'AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan traceability yang menunjukkan asalnya.',
-    // Misi: satu kalimat yang menjelaskan model bisnis.
+    title: 'Tentang AnugerahLink',
+    lead: '',
+    // Misi, sejarah, dan nilai kami ditampilkan dari blok di bawah.
     mission: 'Membuka akses pasar bagi kopi dan hasil bumi Papua dari pedalaman: membayar petani secara tunai dan adil, menilai serta menelusuri setiap lot, dan menghubungkannya langsung dengan pembeli, agar kekayaan alam Papua dikenal dan dihargai lebih luas.',
-    // Sejarah singkat, hanya dari rencana usaha (November 2026). Tambahkan tonggak nyata bila sudah ada.
     history: [
       'AnugerahLink didirikan pada 17 November 2026. Namanya mencerminkan keyakinan kami bahwa kekayaan alam Papua adalah pemberian yang berharga, yang selama ini masih tersembunyi di pedalaman.',
       'Masyarakat Papua memiliki hasil bumi yang berharga, tetapi di daerah terpencil mereka sering tidak bisa menjualnya ke pasar. Jalan yang sulit, transportasi yang mahal, infrastruktur yang terbatas, dan keterbatasan sumber daya manusia untuk mengelola hasil bumi dengan baik membuat banyak orang sulit menjangkau pembeli yang mau membayar dengan layak.',
       'AnugerahLink hadir untuk menjembatani itu. Kami membeli langsung dari kelompok tani, menilai dan menelusuri setiap lot, lalu menghubungkannya dengan roaster dan kafe. Langkah pertama kami adalah pilot 90 hari dengan 200 sampai 500 kg kopi dari Wamena dan Tiom.',
       'Tujuan kami sederhana: agar kopi dan hasil bumi Papua dikenal di dunia, petaninya memperoleh penghasilan yang layak, dan pembeli dapat mempercayai mutu serta asal-usulnya.',
     ],
-    pillars: [
-      { icon: 'coin', title: 'Petani dibayar tunai', text: 'Harga diumumkan di kebun dan dibayar saat pengambilan. Petani tidak perlu menunggu.' },
-      { icon: 'check', title: 'Dinilai sebelum dijual', text: 'Setiap lot ditimbang, disortir dan dicupping sebelum masuk katalog.' },
-      { icon: 'passport', title: 'Traceability setiap lot', text: 'Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.' },
-    ],
+    pillars: [],
   },
 
   // Claims and returns. Status 'draft' means the owner has not approved these terms yet.
