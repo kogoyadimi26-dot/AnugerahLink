@@ -721,7 +721,7 @@ tr.is-selected { background: var(--green-soft) !important; }
 /* Kartu lot ala katalog: foto persegi, harga per kg jelas, stok nyata, dan ajakan beli. */
 .lot-tile { display: flex; flex-direction: column; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); transition: transform .2s ease, box-shadow .2s ease; }
 .lot-tile:hover { transform: translateY(-3px); box-shadow: 0 16px 32px rgb(0 40 16 / 0.12); }
-.lot-tile-media { position: relative; display: block; aspect-ratio: 1 / 1; background: #f4f2ec; overflow: hidden; }
+.lot-tile-media { position: relative; display: block; aspect-ratio: 3 / 2; background: #f4f2ec; overflow: hidden; }
 .lot-tile-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lot-tile-fallback { height: 100%; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 18px; }
 .lot-tile-tier { position: absolute; left: 10px; top: 10px; }
@@ -814,12 +814,12 @@ tr.is-selected { background: var(--green-soft) !important; }
 .lot-tile { transition: transform .22s ease, box-shadow .22s ease; }
 .lot-tile:hover { transform: translateY(-4px); box-shadow: 0 18px 36px rgb(0 40 16 / 0.14); }
 .lot-tile-score { position: absolute; right: 12px; bottom: 12px; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 999px; background: #fff; color: var(--green); display: grid; place-items: center; font-weight: 800; font-size: 17px; box-shadow: 0 4px 14px rgb(0 0 0 / 0.18); }
-.lot-tile-body { gap: 8px; padding: 16px 18px 18px; }
+.lot-tile-body { gap: 5px; padding: 13px 16px 15px; }
 .lot-tile-kicker { letter-spacing: .06em; font-size: 11px; }
 .lot-tile h3 { font-size: 18px; }
-.lot-tile-price { margin-top: 8px; font-size: 24px; }
+.lot-tile-price { margin-top: 4px; font-size: 22px; }
 .lot-tile-stock { font-size: 14px; }
-.lot-tile-cta { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; padding: 13px 18px; border-radius: 999px; background: var(--green); color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; transition: background-color .2s ease, transform .2s ease; }
+.lot-tile-cta { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; padding: 11px 18px; border-radius: 999px; background: var(--green); color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; transition: background-color .2s ease, transform .2s ease; }
 .lot-tile-cta::after { content: "→"; transition: transform .2s ease; }
 .lot-tile-cta:hover { background: var(--green-2); color: #fff; }
 .lot-tile-cta:hover::after { transform: translateX(3px); }
