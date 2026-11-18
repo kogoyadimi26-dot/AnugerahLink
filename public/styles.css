@@ -796,7 +796,7 @@ tr.is-selected { background: var(--green-soft) !important; }
 .theme-icon[data-theme="dark"] .icon-moon { display: block; }
 
 /* Foto utama lot: seluruh gambar terlihat (tidak terpotong), di atas latar netral. */
-.lot-hero-photo { display: block; width: 100%; height: auto; max-height: 620px; object-fit: contain; background: #f4f2ec; border-radius: var(--radius-lg); margin-bottom: 12px; }
+.lot-hero-photo { display: block; width: auto; max-width: 100%; height: auto; max-height: 380px; object-fit: contain; background: #f4f2ec; border-radius: var(--radius-lg); margin: 0 0 12px; }
 
 /* Panel beli di halaman lot: stok, jumlah, lalu dua tombol besar dan jelas. */
 .buy-box { display: grid; gap: 14px; max-width: 420px; }
