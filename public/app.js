@@ -1073,68 +1073,128 @@ const ICONS = {
 
   // ---------- tim (admin) ----------
 
-  // Label menu dan tab: kunci dari server (config.labels). Halaman yang belum punya kunci tetap memakai teks aslinya.
-  const L = (key) => (state.config && state.config.labels && state.config.labels[key]) || key;
-  function applyLabels() {
-    document.querySelectorAll('[data-label]').forEach((el) => { el.textContent = L(el.dataset.label); });
+  // Label menu dan tab: teks dari server sesuai bahasa aktif. Halaman yang belum punya kunci memakai kuncinya.
+  function labelText(key, maps) {
+    const m = maps || { id: state.config && state.config.labels, en: state.config && state.config.labelsEn };
+    const lang = currentLang === 'en' ? 'en' : 'id';
+    return (m[lang] && m[lang][key]) || key;
+  }
+  const L = (key) => labelText(key);
+  // maps (opsional) dipakai untuk pratinjau dari isian formulir; tanpa itu, memakai label yang sudah terbit.
+  function applyLabels(maps) {
+    document.querySelectorAll('[data-label]').forEach((el) => { el.textContent = labelText(el.dataset.label, maps); });
   }
   function labelsEditorHtml(lb) {
+    const pub = lb.published;
     const groups = {};
     for (const [k, d] of Object.entries(lb.defaults)) (groups[d.where] ||= []).push(k);
+    const draftNote = lb.draft
+      ? `<p class="notice"><strong>Ada draf yang belum terbit</strong> (disimpan ${esc(new Date(lb.draft.savedAt).toLocaleString('id-ID'))}). Pengunjung belum melihat perubahan ini.</p>`
+      : '';
     const history = (lb.history || []).map((h, i) => `
       <li class="label-hist">
         <div><span class="muted">${esc(new Date(h.at).toLocaleString('id-ID'))}</span>
-          <ul class="label-changes">${h.changes.map((c) => `<li><code>${esc(c.key)}</code>: “${esc(c.from)}” → “${esc(c.to)}”</li>`).join('')}</ul></div>
+          <ul class="label-changes">${h.changes.map((c) => `<li><span class="pill">${c.lang === 'en' ? 'EN' : 'ID'}</span> <code>${esc(c.key)}</code>: “${esc(c.from)}” → “${esc(c.to)}”</li>`).join('')}</ul></div>
         <button class="btn secondary small" type="button" data-restore="${i}">Pulihkan sebelum perubahan ini</button>
       </li>`).join('');
     return `
       <h2>Label menu dan tab</h2>
-      <p class="muted">Teks menu utama, pintasan produk, dan menu panel tim. Setiap penyimpanan dicatat dan bisa dipulihkan.</p>
+      <p class="muted">Teks menu utama, pintasan produk, dan menu panel tim, dalam Bahasa Indonesia dan English. Simpan draf, lalu terbitkan agar berlaku untuk pengunjung.</p>
+      ${draftNote}
       <form class="card" id="labels-form" novalidate>
         <div data-form-error class="notice bad" hidden></div>
         ${Object.entries(groups).map(([where, keys]) => `
           <fieldset class="about-part"><legend>${esc(where)}</legend>
-            ${keys.map((k) => `<div class="field"><label for="lb-${esc(k)}">Standar: ${esc(lb.defaults[k].text)}</label>
-              <input id="lb-${esc(k)}" name="${esc(k)}" maxlength="40" value="${esc(lb.labels[k])}"></div>`).join('')}
+            <div class="label-head muted"><span>Kunci</span><span>Bahasa Indonesia</span><span>English</span></div>
+            ${keys.map((k) => `<div class="label-row">
+              <code class="label-key">${esc(k)}</code>
+              <div class="field"><label class="sr" for="lb-id-${esc(k)}">Indonesia: ${esc(k)}</label><input id="lb-id-${esc(k)}" name="id.${esc(k)}" maxlength="40" value="${esc(pub.id[k])}"></div>
+              <div class="field"><label class="sr" for="lb-en-${esc(k)}">English: ${esc(k)}</label><input id="lb-en-${esc(k)}" name="en.${esc(k)}" maxlength="40" value="${esc(pub.en[k])}"></div>
+            </div>`).join('')}
           </fieldset>`).join('')}
         <div class="btn-row">
-          <button class="btn" type="submit" data-save>Simpan label</button>
-          <button class="btn secondary" type="button" data-reset-labels>Kembalikan standar</button>
+          <button class="btn secondary" type="submit" data-save-draft>Simpan draf</button>
+          <button class="btn secondary" type="button" data-preview>Pratinjau di halaman ini</button>
+          <button class="btn" type="button" data-publish>Terbitkan</button>
+          ${lb.draft ? '<button class="btn danger" type="button" data-discard>Buang draf</button>' : ''}
+          <button class="btn secondary" type="button" data-reset-labels>Isi dengan standar</button>
         </div>
       </form>
-      ${history ? `<details class="card"><summary>Riwayat perubahan label</summary><ol class="label-history">${history}</ol></details>` : ''}`;
+      ${history ? `<details class="card"><summary>Riwayat penerbitan label</summary><ol class="label-history">${history}</ol></details>` : ''}`;
   }
-  async function saveLabels(body, { confirmText } = {}) {
-    if (confirmText && !confirm(confirmText)) return false;
-    await api('/api/admin/labels', { method: 'PUT', body, admin: true });
+  // Membaca isian: nama "id.<kunci>" atau "en.<kunci>".
+  function readLabelForm(form) {
+    const out = { id: {}, en: {} };
+    for (const el of form.elements) {
+      if (!el.name || !el.name.includes('.')) continue;
+      const dot = el.name.indexOf('.');
+      out[el.name.slice(0, dot)][el.name.slice(dot + 1)] = el.value;
+    }
+    return out;
+  }
+  async function refreshLabelsConfig() {
     state.config = await api('/api/config');
     applyLabels();
-    return true;
   }
   function wireLabelsEditor(lb) {
     const form = document.getElementById('labels-form');
     if (!form) return;
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = form.querySelector('[data-save]');
+      const btn = form.querySelector('[data-save-draft]');
       busy(btn, true, 'Menyimpan…');
       try {
-        const body = Object.fromEntries([...form.elements].filter((el) => el.name).map((el) => [el.name, el.value]));
-        if (await saveLabels(body)) { toast('Label disimpan.'); viewAdminSettings(); }
+        await api('/api/admin/labels/draft', { method: 'PUT', body: readLabelForm(form), admin: true });
+        toast('Draf label disimpan. Tekan Terbitkan agar berlaku.');
+        viewAdminSettings();
       } catch (err) { showFormError(form, err); } finally { busy(btn, false); }
     });
-    form.querySelector('[data-reset-labels]').addEventListener('click', async () => {
+    form.querySelector('[data-preview]').addEventListener('click', () => {
+      applyLabels(readLabelForm(form));
+      toast('Pratinjau aktif di halaman ini saja. Muat ulang untuk kembali.');
+    });
+    // Terbitkan menyimpan isian formulir sebagai draf lebih dulu, lalu menerbitkannya.
+    const publish = async (confirmText) => {
+      if (confirmText && !confirm(confirmText)) return;
       try {
-        const body = Object.fromEntries(Object.entries(lb.defaults).map(([k, d]) => [k, d.text]));
-        if (await saveLabels(body, { confirmText: 'Kembalikan semua label ke standar?' })) { toast('Label dikembalikan ke standar.'); viewAdminSettings(); }
-      } catch (err) { toast(err.message || 'Belum bisa dikembalikan.'); }
+        await api('/api/admin/labels/draft', { method: 'PUT', body: readLabelForm(form), admin: true });
+        await api('/api/admin/labels/publish', { method: 'POST', admin: true });
+        await refreshLabelsConfig();
+        toast('Label diterbitkan.');
+        viewAdminSettings();
+      } catch (err) { toast(err.message || 'Belum bisa diterbitkan.'); }
+    };
+    form.querySelector('[data-publish]').addEventListener('click', () => publish());
+    const discard = form.querySelector('[data-discard]');
+    if (discard) discard.addEventListener('click', async () => {
+      if (!confirm('Buang draf label? Perubahan yang belum terbit akan hilang.')) return;
+      try {
+        await api('/api/admin/labels/draft/discard', { method: 'POST', admin: true });
+        toast('Draf dibuang.');
+        viewAdminSettings();
+      } catch (err) { toast(err.message || 'Belum bisa dibuang.'); }
+    });
+    form.querySelector('[data-reset-labels]').addEventListener('click', async () => {
+      if (!confirm('Isi draf dengan teks standar? Belum berlaku sebelum diterbitkan.')) return;
+      try {
+        const d = Object.fromEntries(Object.entries(lb.defaults).map(([k, v]) => [k, v.text]));
+        const en = Object.fromEntries(Object.entries(lb.defaults).map(([k, v]) => [k, v.en]));
+        await api('/api/admin/labels/draft', { method: 'PUT', body: { id: d, en }, admin: true });
+        toast('Draf diisi dengan standar. Tekan Terbitkan agar berlaku.');
+        viewAdminSettings();
+      } catch (err) { toast(err.message || 'Belum bisa diisi.'); }
     });
     document.querySelectorAll('[data-restore]').forEach((btn) => btn.addEventListener('click', async () => {
+      if (!confirm('Pulihkan label ke nilai sebelum perubahan ini, lalu terbitkan?')) return;
       const entry = lb.history[Number(btn.dataset.restore)];
-      const body = { ...lb.labels };
-      for (const c of entry.changes) body[c.key] = c.from;
+      const body = { id: { ...lb.published.id }, en: { ...lb.published.en } };
+      for (const c of entry.changes) body[c.lang][c.key] = c.from;
       try {
-        if (await saveLabels(body, { confirmText: 'Pulihkan label ke nilai sebelum perubahan ini?' })) { toast('Label dipulihkan.'); viewAdminSettings(); }
+        await api('/api/admin/labels/draft', { method: 'PUT', body, admin: true });
+        await api('/api/admin/labels/publish', { method: 'POST', admin: true });
+        await refreshLabelsConfig();
+        toast('Label dipulihkan dan diterbitkan.');
+        viewAdminSettings();
       } catch (err) { toast(err.message || 'Belum bisa dipulihkan.'); }
     }));
   }
@@ -1152,7 +1212,7 @@ const ICONS = {
             <span class="muted">${u ? esc(u.roleLabel || u.role) : ''}</span>
           </div>
           <nav class="admin-nav" aria-label="Menu panel tim">
-            ${links.map(([k, key]) => `<a href="#/admin/${adminPath(k)}" ${active === k ? 'aria-current="page"' : ''}>${esc(L(key))}</a>`).join('')}
+            ${links.map(([k, key]) => `<a href="#/admin/${adminPath(k)}" data-label="${key}" ${active === k ? 'aria-current="page"' : ''}>${esc(L(key))}</a>`).join('')}
           </nav>
           <button class="btn secondary small admin-out" id="admin-out" type="button">Keluar</button>
         </aside>
@@ -2718,6 +2778,7 @@ const ICONS = {
   function setLang(code) {
     currentLang = code === 'en' ? 'en' : 'id';
     try { localStorage.setItem('al-lang', currentLang); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
+    applyLabels();
     translateChrome();
   }
   try { currentLang = localStorage.getItem('al-lang') === 'en' ? 'en' : 'id'; } catch { currentLang = 'id'; }

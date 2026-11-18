@@ -32,57 +32,63 @@ async function call(method, p, { body, token } = {}) {
   return { status: res.status, json: await res.json().catch(() => ({})) };
 }
 
-// Semua label dengan teks standarnya; dipakai sebagai dasar tiap uji.
-function standard() {
-  return Object.fromEntries(Object.entries(defaults).map(([k, d]) => [k, d.text]));
-}
+// Kedua bahasa dengan teks standar; dipakai sebagai dasar tiap uji.
+function standard() { return labels.defaultSet(); }
 
-test('label standar lolos validasi dan dirapikan dari spasi berlebih', () => {
+test('teks standar kedua bahasa lolos validasi dan dirapikan dari spasi berlebih', () => {
   const input = standard();
-  input['nav.produk'] = '   Katalog   Kopi  ';
-  const out = labels.validateLabels(input);
-  assert.equal(out['nav.produk'], 'Katalog Kopi');
-  assert.equal(Object.keys(out).length, Object.keys(defaults).length);
+  input.id['nav.produk'] = '   Katalog   Kopi  ';
+  const out = labels.validateLabelSet(input);
+  assert.equal(out.id['nav.produk'], 'Katalog Kopi');
+  assert.equal(out.en['nav.produk'], 'Products');
+  assert.equal(Object.keys(out.en).length, Object.keys(defaults).length);
 });
 
-test('kunci yang tidak dikenal ditolak', () => {
-  const input = { ...standard(), 'nav.liar': 'Apa saja' };
+test('kunci yang tidak dikenal ditolak dan galatnya menyebut bahasanya', () => {
+  const input = standard();
+  input.en['nav.liar'] = 'Anything';
   try {
-    labels.validateLabels(input);
+    labels.validateLabelSet(input);
     assert.fail('seharusnya ditolak');
   } catch (err) {
     assert.equal(err.status, 400);
-    assert.equal(err.fields['nav.liar'], 'Label ini tidak dikenal.');
+    assert.equal(err.fields['en.nav.liar'], 'Label ini tidak dikenal.');
   }
 });
 
-test('label kosong, terlalu panjang, dan berisi < atau > ditolak', () => {
+test('label kosong, terlalu panjang, dan berisi < atau > ditolak di kedua bahasa', () => {
   const input = standard();
-  input['nav.produk'] = '  ';
-  input['nav.tentang'] = 'x'.repeat(41);
-  input['nav.syarat'] = 'Syarat <b>';
+  input.id['nav.produk'] = '  ';
+  input.en['nav.tentang'] = 'x'.repeat(41);
+  input.id['nav.syarat'] = 'Syarat <b>';
   try {
-    labels.validateLabels(input);
+    labels.validateLabelSet(input);
     assert.fail('seharusnya ditolak');
   } catch (err) {
-    assert.equal(err.fields['nav.produk'], 'Label tidak boleh kosong.');
-    assert.match(err.fields['nav.tentang'], /Maksimal 40/);
-    assert.match(err.fields['nav.syarat'], /tanpa tanda/);
+    assert.equal(err.fields['id.nav.produk'], 'Label tidak boleh kosong.');
+    assert.match(err.fields['en.nav.tentang'], /Maksimal 40/);
+    assert.match(err.fields['id.nav.syarat'], /tanpa tanda/);
   }
 });
 
-test('labelsFor memakai teks standar untuk label yang belum diubah', () => {
-  const page = labels.labelsFor({ labels: { 'nav.produk': 'Belanja' } });
-  assert.equal(page['nav.produk'], 'Belanja');
-  assert.equal(page['nav.tentang'], defaults['nav.tentang'].text);
-  assert.equal(labels.labelsFor(undefined)['nav.syarat'], 'Syarat');
+test('publishedFor memakai teks standar untuk label yang belum diterbitkan', () => {
+  const page = labels.publishedFor({ labels: { 'nav.produk': 'Belanja' } });
+  assert.equal(page.id['nav.produk'], 'Belanja');
+  assert.equal(page.en['nav.produk'], 'Products');
+  assert.equal(page.id['nav.tentang'], 'Tentang');
+  assert.equal(labels.publishedFor(undefined).id['nav.syarat'], 'Syarat');
 });
 
-test('changesOf hanya mencatat label yang benar-benar berubah', () => {
+test('changesOf mencatat bahasa dan hanya yang benar-benar berubah', () => {
   const before = standard();
-  const after = { ...before, 'nav.produk': 'Belanja' };
-  assert.deepEqual(labels.changesOf(before, after), [{ key: 'nav.produk', from: 'Produk', to: 'Belanja' }]);
-  assert.deepEqual(labels.changesOf(before, before), []);
+  const after = standard();
+  after.id['nav.produk'] = 'Belanja';
+  after.en['admin.lots'] = 'Stock';
+  assert.deepEqual(labels.changesOf(before, after), [
+    { lang: 'id', key: 'nav.produk', from: 'Produk', to: 'Belanja' },
+    { lang: 'en', key: 'admin.lots', from: 'Lots', to: 'Stock' },
+  ]);
+  assert.deepEqual(labels.changesOf(before, standard()), []);
 });
 
 test('riwayat dibatasi jumlahnya dan yang terbaru di depan', () => {
@@ -92,32 +98,61 @@ test('riwayat dibatasi jumlahnya dan yang terbaru di depan', () => {
   assert.equal(h[0].n, labels.HISTORY_MAX + 4);
 });
 
-test('GET dan PUT label hanya untuk yang berhak', async () => {
+test('semua rute label hanya untuk yang berhak', async () => {
   assert.equal((await call('GET', '/api/admin/labels')).status, 401);
-  assert.equal((await call('PUT', '/api/admin/labels', { body: standard() })).status, 401);
+  assert.equal((await call('PUT', '/api/admin/labels/draft', { body: standard() })).status, 401);
+  assert.equal((await call('POST', '/api/admin/labels/publish')).status, 401);
 });
 
-test('admin mengubah label: tampil di halaman publik dan tercatat di riwayat', async () => {
-  const bad = await call('PUT', '/api/admin/labels', { token: TOKEN, body: { ...standard(), 'nav.produk': '<b>x</b>' } });
-  assert.equal(bad.status, 400);
+test('draf belum terlihat pengunjung; terbit mengubah halaman publik dan tercatat dalam dua bahasa', async () => {
+  const bad = standard();
+  bad.en['nav.produk'] = '<b>x</b>';
+  const rejected = await call('PUT', '/api/admin/labels/draft', { token: TOKEN, body: bad });
+  assert.equal(rejected.status, 400);
+  assert.ok(rejected.json.error.fields['en.nav.produk']);
 
-  const body = { ...standard(), 'nav.produk': 'Belanja' };
-  const saved = await call('PUT', '/api/admin/labels', { token: TOKEN, body });
-  assert.equal(saved.status, 200);
-  assert.equal(saved.json.labels['nav.produk'], 'Belanja');
+  const draft = standard();
+  draft.id['nav.produk'] = 'Belanja';
+  draft.en['nav.produk'] = 'Shop';
+  assert.equal((await call('PUT', '/api/admin/labels/draft', { token: TOKEN, body: draft })).status, 200);
+
+  let read = await call('GET', '/api/admin/labels', { token: TOKEN });
+  assert.equal(read.json.draft.id['nav.produk'], 'Belanja');
+  assert.equal(read.json.published.id['nav.produk'], 'Produk');
+  assert.equal((await call('GET', '/api/config')).json.labels['nav.produk'], 'Produk', 'draf belum terlihat pengunjung');
+
+  const published = await call('POST', '/api/admin/labels/publish', { token: TOKEN });
+  assert.equal(published.status, 200);
+  assert.equal(published.json.published.id['nav.produk'], 'Belanja');
 
   const cfg = await call('GET', '/api/config');
   assert.equal(cfg.json.labels['nav.produk'], 'Belanja');
+  assert.equal(cfg.json.labelsEn['nav.produk'], 'Shop');
 
-  const read = await call('GET', '/api/admin/labels', { token: TOKEN });
+  read = await call('GET', '/api/admin/labels', { token: TOKEN });
+  assert.equal(read.json.draft, null);
   assert.equal(read.json.history.length, 1);
-  assert.deepEqual(read.json.history[0].changes, [{ key: 'nav.produk', from: 'Produk', to: 'Belanja' }]);
-  assert.ok(read.json.defaults['nav.produk'], 'teks standar ikut dikirim untuk tombol kembalikan');
+  const changes = read.json.history[0].changes;
+  assert.ok(changes.some((c) => c.lang === 'id' && c.key === 'nav.produk' && c.from === 'Produk' && c.to === 'Belanja'));
+  assert.ok(changes.some((c) => c.lang === 'en' && c.key === 'nav.produk' && c.from === 'Products' && c.to === 'Shop'));
 });
 
-test('simpan tanpa perubahan tidak menambah riwayat', async () => {
-  const body = { ...standard(), 'nav.produk': 'Belanja' };
-  await call('PUT', '/api/admin/labels', { token: TOKEN, body });
+test('terbitkan tanpa draf ditolak; draf yang sama dengan yang terbit tidak menambah riwayat', async () => {
+  assert.equal((await call('POST', '/api/admin/labels/publish', { token: TOKEN })).status, 409);
+
+  const same = { id: (await call('GET', '/api/config')).json.labels, en: (await call('GET', '/api/config')).json.labelsEn };
+  await call('PUT', '/api/admin/labels/draft', { token: TOKEN, body: same });
+  assert.equal((await call('POST', '/api/admin/labels/publish', { token: TOKEN })).status, 200);
   const read = await call('GET', '/api/admin/labels', { token: TOKEN });
   assert.equal(read.json.history.length, 1);
+});
+
+test('buang draf menghapusnya tanpa mengubah label yang terbit', async () => {
+  const draft = standard();
+  draft.id['nav.tentang'] = 'Profil';
+  await call('PUT', '/api/admin/labels/draft', { token: TOKEN, body: draft });
+  assert.equal((await call('POST', '/api/admin/labels/draft/discard', { token: TOKEN })).status, 200);
+  const read = await call('GET', '/api/admin/labels', { token: TOKEN });
+  assert.equal(read.json.draft, null);
+  assert.equal(read.json.published.id['nav.tentang'], 'Tentang');
 });
