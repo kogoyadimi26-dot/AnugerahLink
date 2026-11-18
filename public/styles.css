@@ -579,3 +579,5 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .tier-stock-card strong { font-size: 18px; color: var(--heading); }
 .tier-stock-total { background: var(--green-soft); }
 .tier-stock-total span { font-size: 13px; color: var(--ink-muted); }
+.prop-action-form { display: grid; gap: 8px; margin-top: 10px; }
+.prop-action-form[hidden] { display: none; }
