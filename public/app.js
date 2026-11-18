@@ -448,7 +448,7 @@
     const startKg = inCart ? inCart.kg : lot.minOrderKg;
     const maxKg = Math.max(lot.minOrderKg, Math.min(lot.availableKg, lot.maxOrderKg || lot.availableKg));
     setMain(`
-      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/produk">Katalog</a> / ${esc(lot.code)}</nav>
+      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/produk">Produk</a> / ${esc(lot.code)}</nav>
       <div class="lot-detail">
         <article class="card">
           <div class="btn-row ix-9"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
@@ -524,14 +524,14 @@
     try {
       data = await api('/api/passport/' + encodeURIComponent(code));
     } catch (err) {
-      setMain(`<h1>Traceability tidak ditemukan</h1><p class="muted">${esc(err.message)}</p><p><a href="#/produk">Kembali ke katalog</a></p>`);
+      setMain(`<h1>Traceability tidak ditemukan</h1><p class="muted">${esc(err.message)}</p><p><a href="#/produk">Kembali ke produk</a></p>`);
       return;
     }
     const p = data.passport;
     const r = p.record;
     const match = p.recordMatchesHash;
     setMain(`
-      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/produk">Katalog</a> / Traceability</nav>
+      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/produk">Produk</a> / Traceability</nav>
       <h1 class="ix-16">Traceability lot: ${esc(r.code)}</h1>
       <div class="grid ix-3">
         <section class="card" aria-labelledby="origin">
@@ -572,13 +572,13 @@
       </div>
       <div class="btn-row ix-18">
         ${p.availableKg > 0 && p.status === 'listed' ? `<a class="btn" href="${lotHref(r.code)}">Beli lot ini</a>` : ''}
-        <a class="btn secondary" href="#/produk">Kembali ke katalog</a>
+        <a class="btn secondary" href="#/produk">Kembali ke produk</a>
       </div>`);
   }
 
   async function viewCart() {
     if (state.cart.length === 0) {
-      setMain(`<h1>Keranjang Anda</h1><div class="card"><p><strong>Keranjang Anda masih kosong.</strong></p><p class="muted">Pilih kopi dari katalog. Setiap lot sudah dinilai dan ada traceability-nya.</p><p><a class="btn" href="#/produk">Lihat katalog</a></p></div>`);
+      setMain(`<h1>Keranjang Anda</h1><div class="card"><p><strong>Keranjang Anda masih kosong.</strong></p><p class="muted">Pilih kopi dari produk. Setiap lot sudah dinilai dan ada traceability-nya.</p><p><a class="btn" href="#/produk">Lihat produk</a></p></div>`);
       return;
     }
     let quote;
@@ -811,7 +811,7 @@
             <td class="num">${rp(o.total)}</td>
             <td><a class="btn secondary small" href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a></td>
           </tr>`).join('')}</tbody></table></div>`
-          : '<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat akan muncul di sini.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>'}`;
+          : '<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat akan muncul di sini.</p><p><a class="btn" href="#/catalogue">Lihat produk</a></p></div>'}`;
     }
     const email = me ? me.email : (session('al-email') || '');
     setMain(`
@@ -1006,7 +1006,7 @@
           method: 'POST',
           body: { email: f.email, notes: f.notes, items: [{ lotCode: f.lotCode.trim(), taste: f.taste, issues: f.issues, reorder: f.reorder }] },
         });
-        setMain(`<h1>Terima kasih</h1><p class="notice ok">Umpan balik Anda sudah diterima.</p><p><a href="#/produk">Kembali ke katalog</a></p>`);
+        setMain(`<h1>Terima kasih</h1><p class="notice ok">Umpan balik Anda sudah diterima.</p><p><a href="#/produk">Kembali ke produk</a></p>`);
       } catch (err) {
         busy(btn, false);
         showFormError(form, err);
@@ -1660,7 +1660,7 @@ const ICONS = {
               <td class="num">${l.sellableKg ? kg(l.sellableKg) : '—'}</td>
               <td class="num">${kg(l.availableKg)}</td>
               <td><div class="btn-row">
-                ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Nilai</a>` : `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Ubah katalog</a>`}
+                ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Nilai</a>` : `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Ubah produk</a>`}
                 ${l.status === 'graded' && canDo('verify') ? `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>` : ''}
                 ${l.status === 'verified' && canDo('publish') ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>` : ''}
                 ${l.status === 'listed' && canDo('publish') ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
@@ -2217,7 +2217,7 @@ const ICONS = {
     });
   }
 
-  // ---------- harga, teks situs, dan katalog lot ----------
+  // ---------- harga, teks situs, dan produk lot ----------
   const KATEGORI_HARGA = ['reserve', 'premium', 'verified', 'local'];
   const TEKS_SITUS = [['homeTitle', 'Judul beranda'], ['homeLead', 'Kalimat pembuka beranda'], ['footerTagline', 'Tagline di footer']];
 
@@ -2295,15 +2295,15 @@ const ICONS = {
     });
   }
 
-  // Tampilan katalog lot. Pembeli hanya melihat judul, cerita, dan foto sampul; foto pemeriksaan tetap privat.
+  // Tampilan produk lot. Pembeli hanya melihat judul, cerita, dan foto sampul; foto pemeriksaan tetap privat.
   function listingEditorHtml(lot) {
     const can = canDo('publish');
     const dis = can ? '' : 'disabled';
     const photos = (lot.photos || []).filter((p) => p.kind === 'listing');
     return `
-      <h2>Tampilan di katalog</h2>
+      <h2>Tampilan di produk</h2>
       <p class="muted">Judul, cerita, dan foto yang dilihat pembeli. Foto pemeriksaan tidak pernah ditampilkan ke pembeli.</p>
-      ${can ? '' : '<p class="notice">Hanya admin yang bisa mengubah tampilan katalog. Anda hanya bisa melihatnya.</p>'}
+      ${can ? '' : '<p class="notice">Hanya admin yang bisa mengubah tampilan produk. Anda hanya bisa melihatnya.</p>'}
       <form id="listing" class="card" novalidate>
         <div class="notice bad" data-form-error hidden role="alert"></div>
         <div class="field"><label for="l-head">Judul (kosongkan untuk judul otomatis)</label>
@@ -2311,11 +2311,11 @@ const ICONS = {
         <div class="field"><label for="l-story">Cerita untuk pembeli</label>
           <textarea id="l-story" name="story" maxlength="1000" ${dis}>${esc(lot.story || '')}</textarea>
           <p class="help">Maksimal 1000 karakter. Tulis fakta dari kebun: asal, panen, dan cara proses.</p></div>
-        <div class="field"><span class="label">Foto katalog</span>
+        <div class="field"><span class="label">Foto produk</span>
           <div class="btn-row ix-27">
-            ${photos.map((p) => `<figure class="ix-26"><img data-listing="${esc(p.id)}" alt="Foto katalog" class="ix-25">
+            ${photos.map((p) => `<figure class="ix-26"><img data-listing="${esc(p.id)}" alt="Foto produk" class="ix-25">
               <figcaption class="ix-24"><label><input type="radio" name="cover" value="${esc(p.id)}" ${lot.coverPhotoId === p.id ? 'checked' : ''} ${dis}> Sampul</label>
-              ${can ? `<button type="button" class="btn danger small ix-24" data-del="${esc(p.id)}">Hapus</button>` : ''}</figcaption></figure>`).join('') || '<p class="muted">Belum ada foto katalog.</p>'}
+              ${can ? `<button type="button" class="btn danger small ix-24" data-del="${esc(p.id)}">Hapus</button>` : ''}</figcaption></figure>`).join('') || '<p class="muted">Belum ada foto produk.</p>'}
           </div>
           ${can ? '<input type="file" id="l-file" accept="image/jpeg,image/png" class="ix-23">' : ''}
           <p class="help">JPG atau PNG, maksimal 2 MB. Pilih satu foto sebagai sampul.</p></div>
@@ -2339,12 +2339,12 @@ const ICONS = {
       try {
         const dataUrl = await readAsDataUrl(file);
         await api(`/api/admin/lots/${encodeURIComponent(lot.id)}/photos`, { method: 'POST', admin: true, body: { kind: 'listing', dataUrl } });
-        toast('Foto katalog ditambahkan.');
+        toast('Foto produk ditambahkan.');
         viewAdminGrade(lot.id);
       } catch (err) { toast(err.message || 'Foto belum bisa diunggah.'); }
     });
     form.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
-      if (!confirm('Hapus foto ini dari katalog?')) return;
+      if (!confirm('Hapus foto ini dari produk?')) return;
       try {
         await api(`/api/admin/photos/${encodeURIComponent(b.dataset.del)}`, { method: 'DELETE', admin: true });
         viewAdminGrade(lot.id);
@@ -2358,7 +2358,7 @@ const ICONS = {
       busy(btn, true, 'Menyimpan…');
       try {
         await api(`/api/admin/lots/${encodeURIComponent(lot.id)}/listing`, { method: 'PATCH', admin: true, body: { headline: form.elements.headline.value, story: form.elements.story.value, coverPhotoId: cover ? cover.value : '' } });
-        toast('Tampilan katalog disimpan.');
+        toast('Tampilan produk disimpan.');
         viewAdminGrade(lot.id);
       } catch (err) { showFormError(form, err); } finally { busy(btn, false); }
     });
@@ -2411,7 +2411,7 @@ const ICONS = {
     translateChrome();
   }
 
-  // Bahasa antarmuka. Saat ini hanya bagian tetap di header, menu, katalog, dan footer yang diterjemahkan.
+  // Bahasa antarmuka. Saat ini hanya bagian tetap di header, menu, produk, dan footer yang diterjemahkan.
   // Isi halaman lain (lot, pesanan, formulir) tetap dalam bahasa Indonesia.
   const LANG_EN = {
     'Asal kopi': 'Coffee origin',
@@ -2706,7 +2706,7 @@ const ICONS = {
       <h2>Pesanan saya</h2>
       ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
         ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a> · <button type="button" class="btn secondary small" data-invoice="${esc(o.number)}">Faktur PDF</button></td></tr>`).join('')}
-        </tbody></table></div>` : `<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat saat masuk akan muncul di sini.</p><p><a class="btn" href="#/produk">Lihat katalog</a></p></div>`}
+        </tbody></table></div>` : `<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat saat masuk akan muncul di sini.</p><p><a class="btn" href="#/produk">Lihat produk</a></p></div>`}
       <h2>Proposal saya</h2>
       ${proposals.length ? `<div class="prop-list">${proposals.map((p) => `<article class="card prop-card">
         <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.statusLabel || p.status)}</span></div>
@@ -2934,7 +2934,7 @@ const ICONS = {
     }
   }
 
-  // Kotak cari di header: kopi mencari di katalog; kategori lain membuka halamannya.
+  // Kotak cari di header: kopi mencari di produk; kategori lain membuka halamannya.
   function wireSearch() {
     const form = document.getElementById('search-form');
     if (!form) return;
@@ -3041,7 +3041,7 @@ const ICONS = {
   // Tandai halaman aktif di navigasi.
   function markNav() {
     const raw = location.hash || '#/';
-    // Kategori dan Tentang termasuk dalam Katalog, jadi tautan Katalog tetap aktif.
+    // Kategori dan Tentang termasuk dalam Produk, jadi tautan Produk tetap aktif.
     const h = /^#\/tentang/.test(raw) ? '#/produk' : raw;
     document.querySelectorAll('.nav a').forEach((a) => {
       const href = a.getAttribute('href') || '';

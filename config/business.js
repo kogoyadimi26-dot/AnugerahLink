@@ -137,7 +137,7 @@ module.exports = {
     ],
     // Layanan kami (ditampilkan di bawah nilai). icon: coin | passport | check
     pillars: [
-      { icon: 'check', title: 'Uji laboratorium', text: 'Setiap lot diuji mutunya di laboratorium sebelum masuk katalog, termasuk kadar air dan cacat biji.' },
+      { icon: 'check', title: 'Uji laboratorium', text: 'Setiap lot diuji mutunya di laboratorium sebelum masuk produk, termasuk kadar air dan cacat biji.' },
       { icon: 'check', title: 'Cupping dan grading', text: 'Penilai terlatih melakukan cupping dan memberi grade sesuai standar nasional, lalu mencatat skornya.' },
       { icon: 'passport', title: 'Traceability setiap lot', text: 'Asal kebun, kelompok tani, grade, dan skor cupping dapat ditelusuri dengan kode verifikasi.' },
     ],
