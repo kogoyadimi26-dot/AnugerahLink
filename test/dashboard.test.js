@@ -100,3 +100,24 @@ test('tren: harian untuk 7 dan 30 hari, mingguan untuk 90 hari, bulanan untuk se
   assert.equal(d.kpis.revenue, 0);
   assert.equal(d.kpis.revenueChangePct, null);
 });
+
+test('tren mingguan: 12 minggu terakhir dan bagian penjualan per tingkat', () => {
+  const db = {
+    lots,
+    orders: [
+      order('A', 1, 1000, 'paid', [{ lotCode: 'L1', tier: 'premium', kg: 30 }]),
+      order('B', 10, 500, 'completed', [{ lotCode: 'L2', tier: 'reserve', kg: 10 }]),
+      order('C', 100, 700, 'completed', [{ lotCode: 'L1', tier: 'premium', kg: 60 }]), // di luar 12 minggu
+    ],
+  };
+  const d = buildDashboard(db, { range: 30, now: NOW });
+  assert.equal(d.weekly.length, 12);
+  assert.equal(d.weekly.reduce((a, w) => a + w.revenue, 0), 1500);
+  assert.equal(d.weekly.reduce((a, w) => a + w.orders, 0), 2);
+  const premium = d.mix.find((m) => m.tier === 'premium');
+  const reserve = d.mix.find((m) => m.tier === 'reserve');
+  assert.equal(premium.kg, 30);
+  assert.equal(reserve.kg, 10);
+  assert.equal(premium.pct, 75);
+  assert.equal(reserve.pct, 25);
+});
