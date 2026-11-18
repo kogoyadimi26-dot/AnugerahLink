@@ -450,7 +450,7 @@
         <article class="card">
           <div class="btn-row ix-9"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
           <h1 class="ix-16">${esc(lot.title)}</h1>
-          ${lot.coverPhotoId ? `<img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(lot.coverPhotoId)}" alt="Foto ${esc(lot.title)}" class="ix-73">` : ''}
+          ${lot.coverPhotoId ? `<img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(lot.coverPhotoId)}" alt="Foto ${esc(lot.title)}" class="lot-hero-photo">` : ''}
           ${lot.story ? `<p class="lead ix-72">${esc(lot.story)}</p>` : ''}
           <p class="muted ix-71">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</p>
           <dl class="kv ix-13">

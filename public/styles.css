@@ -690,7 +690,6 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .ix-70{font-size:24px;font-weight:700 !important}
 .ix-71{margin-bottom:8px !important}
 .ix-72{white-space:pre-line !important}
-.ix-73{width:100%;max-height:360px;object-fit:cover;border-radius:var(--radius-lg);margin-bottom:12px !important}
 .ix-74{grid-template-columns:1fr;margin-top:12px !important}
 
 tr.is-selected { background: var(--green-soft) !important; }
@@ -795,3 +794,6 @@ tr.is-selected { background: var(--green-soft) !important; }
 .theme-icon .icon-moon { display: none; }
 .theme-icon[data-theme="dark"] .icon-sun { display: none; }
 .theme-icon[data-theme="dark"] .icon-moon { display: block; }
+
+/* Foto utama lot: seluruh gambar terlihat (tidak terpotong), di atas latar netral. */
+.lot-hero-photo { display: block; width: 100%; height: auto; max-height: 620px; object-fit: contain; background: #f4f2ec; border-radius: var(--radius-lg); margin-bottom: 12px; }
