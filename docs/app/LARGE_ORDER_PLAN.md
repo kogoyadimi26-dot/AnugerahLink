@@ -1,6 +1,6 @@
 # Large order (2 ton and above): design and plan
 
-Status: draft. All decisions recorded in section 11. No code yet. Build starts when the plan PR is merged.
+Status: built in part. Proposal flow, owner approval over Rp100 juta, agreed-terms PDF and shipment documents are in code. Decisions are in section 11.
 Date: 18 November 2026
 
 ## 1. Problem

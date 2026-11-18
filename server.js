@@ -12,6 +12,7 @@ const { productionProblems } = require('./lib/prodcheck');
 const content = require('./lib/content');
 const buyers = require('./lib/buyers');
 const proposals = require('./lib/proposals');
+const documents = require('./lib/documents');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
 const legal = require('./config/legal');
@@ -614,7 +615,9 @@ function buildRoutes(ctx) {
     });
     return { status: 200, body: { proposals: list }, headers: { 'Cache-Control': 'no-store' } };
   }, { perm: 'proposals' });
-  route('POST', /^\/api\/admin\/proposals\/([\w-]+)\/action$/, ([id], body) => {
+  route('POST', /^\/api\/admin\/proposals\/([\w-]+)\/action$/, ([id], body, _q, req) => {
+    // Persetujuan penawaran di atas ambang hanya untuk pemilik (izin proposals_approve).
+    if (body.action === 'owner_approve') requirePerm(req, store, 'proposals_approve');
     const p = store.update((db) => proposals.staffAction(db, id, body.action, body, now()));
     return { status: 200, body: { proposal: proposals.publicProposal(p) } };
   }, { perm: 'proposals' });
@@ -803,7 +806,7 @@ function createApp({ dataFile, owner, demo = false }) {
         if (invoiceGuest) {
           order = domain.findOrderForBuyer(db, invoiceGuest[1], url.searchParams.get('email'));
         } else {
-          const b = buyers.buyerFromToken(db, bearer(req), new Date().toISOString());
+          const b = buyers.buyerFromToken(db, sessionToken(req, 'buyer'), new Date().toISOString());
           if (!b) throw new ApiError(401, 'unauthorized', 'Silakan masuk ke akun Anda.');
           order = db.orders.find((o) => o.number === invoiceBuyer[1] && o.buyerId === b.id);
         }
@@ -811,6 +814,46 @@ function createApp({ dataFile, owner, demo = false }) {
         const pdf = invoice.invoicePdf(order, new Date().toISOString());
         res.writeHead(200, baseHeaders({ 'Content-Type': 'application/pdf', 'Content-Length': pdf.length, 'Content-Disposition': `attachment; filename="faktur-${order.number}.pdf"`, 'Cache-Control': 'private, no-store' }));
         return res.end(pdf);
+      } catch (err) {
+        return sendError(res, err);
+      }
+    }
+    // Dokumen PDF pesanan besar. Perjanjian: pembeli pemilik proposal, atau staf. Dokumen pengiriman: staf saja.
+    const SHIPPABLE = ['preparing', 'balance_pending', 'balance_paid', 'shipped', 'completed'];
+    const agreementBuyer = pathname.match(/^\/api\/buyer\/proposals\/([\w-]+)\/agreement$/);
+    const agreementAdmin = pathname.match(/^\/api\/admin\/proposals\/([\w-]+)\/(agreement|shipment-docs)$/);
+    if ((agreementBuyer || agreementAdmin) && req.method === 'GET') {
+      try {
+        const db = store.read();
+        let p;
+        if (agreementBuyer) {
+          const b = buyers.buyerFromToken(db, sessionToken(req, 'buyer'), new Date().toISOString());
+          if (!b) throw new ApiError(401, 'unauthorized', 'Silakan masuk ke akun Anda.');
+          p = (db.proposals || []).find((x) => x.id === agreementBuyer[1] && x.buyerId === b.id);
+        } else {
+          requirePerm(req, store, 'proposals');
+          p = (db.proposals || []).find((x) => x.id === agreementAdmin[1]);
+        }
+        if (!p) throw new ApiError(404, 'not_found', 'Proposal tidak ditemukan.');
+        const now = new Date().toISOString();
+        let doc;
+        let filename;
+        if (agreementAdmin && agreementAdmin[2] === 'shipment-docs') {
+          if (!SHIPPABLE.includes(p.status)) throw new ApiError(409, 'not_preparing', 'Dokumen pengiriman tersedia setelah pesanan masuk tahap persiapan.');
+          const lots = p.lines.map((l) => {
+            const lot = db.lots.find((x) => x.code === l.lotCode);
+            return { lotCode: l.lotCode, kg: l.kg, view: lot ? domain.publicLot(db, lot) : null };
+          });
+          doc = documents.shipmentDocsPdf(p, lots, now);
+          filename = `dokumen-pengiriman-${p.reference}.pdf`;
+        } else {
+          const offer = proposals.agreedOfferOf(p);
+          if (!offer) throw new ApiError(409, 'not_agreed', 'Perjanjian belum dibuat. Penawaran harus disetujui kedua pihak lebih dulu.');
+          doc = documents.agreementPdf(p, offer, p.agreedOffer.at);
+          filename = `perjanjian-${p.reference}.pdf`;
+        }
+        res.writeHead(200, baseHeaders({ 'Content-Type': 'application/pdf', 'Content-Length': doc.pdf.length, 'Content-Disposition': `attachment; filename="${filename}"`, 'Cache-Control': 'private, no-store', 'X-Document-SHA256': doc.sha256 }));
+        return res.end(doc.pdf);
       } catch (err) {
         return sendError(res, err);
       }

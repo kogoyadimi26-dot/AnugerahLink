@@ -20,6 +20,13 @@ function baseDb() {
   };
 }
 
+// Penawaran di atas ambang persetujuan pemilik (Rp100 juta) juga disetujui di sini, supaya tes alur utama tetap jalan.
+function offerApproved(db, id, payload, now) {
+  proposals.staffAction(db, id, 'make_offer', payload, now);
+  const p = db.proposals.find((x) => x.id === id);
+  if (p.status === 'in_review') proposals.staffAction(db, id, 'owner_approve', {}, now);
+}
+
 const goodForm = {
   company: 'PT Kopi Uji', npwp: '01.234.567.8-901.000', licence: 'NIB-123', contactName: 'Budi Uji',
   phone: '081234567890', email: 'budi@kafe.test', address: 'Jl. Uji 1, Bandung', city: 'Bandung',
@@ -69,7 +76,7 @@ test('happy path: submit, review, offer, accept, deposit, prepare, balance, ship
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 2000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 2000 }] }, NOW);
   assert.equal(p.status, 'offered');
   assert.equal(p.offers[0].total, 2000 * 250000);
   proposals.buyerAction(db, p.id, buyer, 'accept', {}, NOW);
@@ -86,14 +93,14 @@ test('happy path: submit, review, offer, accept, deposit, prepare, balance, ship
   proposals.staffAction(db, p.id, 'dispatch', { courier: 'JNE', waybill: 'JNE1' }, NOW);
   proposals.staffAction(db, p.id, 'complete', {}, NOW);
   assert.equal(p.status, 'completed');
-  assert.equal(p.timeline.length, 12);
+  assert.equal(p.timeline.length, 13, "termasuk persetujuan pemilik");
 });
 
 test('dispatch is blocked until the balance is paid', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   proposals.buyerAction(db, p.id, buyer, 'accept', {}, NOW);
   proposals.staffAction(db, p.id, 'request_deposit', {}, NOW);
   assert.throws(() => proposals.staffAction(db, p.id, 'dispatch', {}, NOW), (e) => e.code === 'invalid_transition');
@@ -103,7 +110,7 @@ test('offer cannot ask for more kg than the lot has free', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  assert.throws(() => proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L2', kg: 1000 }] }, NOW), (e) => e.code === 'insufficient_stock');
+  assert.throws(() => offerApproved(db, p.id, { lines: [{ lotCode: 'L2', kg: 1000 }] }, NOW), (e) => e.code === 'insufficient_stock');
 });
 
 test('offer must use listed lots', () => {
@@ -111,17 +118,17 @@ test('offer must use listed lots', () => {
   db.lots[0].status = 'graded';
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  assert.throws(() => proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW), (e) => e.code === 'lot_not_listed');
+  assert.throws(() => offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW), (e) => e.code === 'lot_not_listed');
 });
 
 test('a counter moves to negotiating and staff can send a new offer', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   proposals.buyerAction(db, p.id, buyer, 'counter', { note: 'Bisa 900 kg?' }, NOW);
   assert.equal(p.status, 'negotiating');
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 900 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 900 }] }, NOW);
   assert.equal(p.offers.length, 2);
   assert.equal(p.status, 'offered');
 });
@@ -130,7 +137,7 @@ test('an expired offer cannot be accepted and is marked expired', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   const nineDays = '2026-11-27T03:00:00.000Z';
   assert.deepEqual(proposals.expireDue(db, nineDays), [p.id]);
   assert.equal(p.status, 'expired');
@@ -140,7 +147,7 @@ test('deposit not paid in time releases the reservation', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   proposals.buyerAction(db, p.id, buyer, 'accept', {}, NOW);
   proposals.staffAction(db, p.id, 'request_deposit', {}, NOW);
   proposals.staffAction(db, p.id, 'mark_deposit_paid', {}, NOW);
@@ -149,7 +156,7 @@ test('deposit not paid in time releases the reservation', () => {
   const db2 = baseDb();
   const q = submitted(db2);
   proposals.staffAction(db2, q.id, 'start_review', {}, NOW);
-  proposals.staffAction(db2, q.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db2, q.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   proposals.buyerAction(db2, q.id, buyer, 'accept', {}, NOW);
   proposals.staffAction(db2, q.id, 'request_deposit', {}, NOW);
   assert.deepEqual(proposals.expireDue(db2, '2026-11-25T03:00:00.000Z'), [q.id]);
@@ -161,7 +168,7 @@ test('agreed terms are fixed by a hash per version', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   const h1 = p.offers[0].hash;
   assert.match(h1, /^[0-9a-f]{64}$/);
   proposals.buyerAction(db, p.id, buyer, 'accept', {}, NOW);
@@ -172,7 +179,7 @@ test('buyer cannot accept after the offer expired', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   assert.throws(() => proposals.buyerAction(db, p.id, buyer, 'accept', {}, '2026-11-27T03:00:00.000Z'), (e) => e.code === 'offer_expired');
 });
 
@@ -204,7 +211,7 @@ test('cancelling after the deposit is paid releases the reserved lots', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   proposals.buyerAction(db, p.id, buyer, 'accept', {}, NOW);
   proposals.staffAction(db, p.id, 'request_deposit', {}, NOW);
   proposals.staffAction(db, p.id, 'mark_deposit_paid', {}, NOW);
@@ -227,7 +234,7 @@ test('each step queues an email and a WhatsApp message to the buyer', () => {
   assert.equal(submittedMsgs.map((m) => m.channel).sort().join(','), 'email,whatsapp');
   assert.ok(submittedMsgs.every((m) => m.event === 'proposal_submitted'));
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   const offerMsg = db.outbox.find((m) => m.event === 'proposal_offered' && m.channel === 'email');
   assert.match(offerMsg.body, /Penawaran v1/);
   assert.match(offerMsg.body, /Rp250\.000\.000/);
@@ -250,7 +257,7 @@ test('expiry sweep expires an offer and queues the expired message', () => {
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  offerApproved(db, p.id, { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
   proposals.expireDue(db, '2026-11-27T03:00:00.000Z');
   assert.equal(p.status, 'expired');
   assert.ok(db.outbox.some((m) => m.event === 'proposal_expired'));
@@ -260,7 +267,7 @@ test('offer by quantity picks lots of the tier from stock, largest free first', 
   const db = baseDb();
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { kg: 1500, tier: 'premium' }, NOW);
+  offerApproved(db, p.id, { kg: 1500, tier: 'premium' }, NOW);
   assert.deepEqual(p.lines.map((l) => [l.lotCode, l.kg]), [['L1', 1500]]);
   assert.equal(p.offers[0].total, 1500 * 250000);
 });
@@ -270,9 +277,9 @@ test('offer by quantity splits across lots and reports a shortfall when stock is
   db.lots.push({ code: 'L4', tier: 'premium', status: 'listed', sellableKg: 500, reservedKg: 0, soldKg: 0 });
   const p = submitted(db);
   proposals.staffAction(db, p.id, 'start_review', {}, NOW);
-  proposals.staffAction(db, p.id, 'make_offer', { kg: 3200, tier: 'premium' }, NOW);
+  offerApproved(db, p.id, { kg: 3200, tier: 'premium' }, NOW);
   assert.deepEqual(p.lines.map((l) => [l.lotCode, l.kg]), [['L1', 3000], ['L4', 200]]);
   const q = submitted(db);
   proposals.staffAction(db, q.id, 'start_review', {}, NOW);
-  assert.throws(() => proposals.staffAction(db, q.id, 'make_offer', { kg: 9000, tier: 'premium' }, NOW), (e) => e.code === 'insufficient_stock' && /kurang 5500 kg/.test(e.message));
+  assert.throws(() => offerApproved(db, q.id, { kg: 9000, tier: 'premium' }, NOW), (e) => e.code === 'insufficient_stock' && /kurang 5500 kg/.test(e.message));
 });

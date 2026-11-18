@@ -36,6 +36,8 @@ module.exports = {
   maxOrderKg: 999,
   // Pesanan dari angka ini ke atas memakai proposal (lihat docs/app/LARGE_ORDER_PLAN.md), bukan checkout online.
   largeOrderMinKg: 1000,
+  // Penawaran pesanan besar di atas nilai ini (Rp) harus disetujui pemilik sebelum dikirim ke pembeli.
+  ownerApprovalIdr: 100000000,
   stepKg: 1,
   lowStockKg: 60,
 
