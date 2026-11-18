@@ -617,3 +617,8 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
   .catalog-side .filters select { width: 100%; min-height: 40px; font-size: 14px; }
   .catalog-side .filters label.check { min-height: 0; font-size: 13px; }
 }
+
+/* Lot cards: compact action buttons, large-order link on its own full-width row */
+.lot-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lot-actions .btn { white-space: nowrap; text-align: center; justify-content: center; }
+.lot-actions a[href*="#/proposal"] { grid-column: 1 / -1; }
