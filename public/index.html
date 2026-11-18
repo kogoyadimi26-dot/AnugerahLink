@@ -28,8 +28,64 @@
           </button>
         </form>
         <div class="topbar-right">
-          <a class="acct" href="#/akun"><span class="acct-k">Halo, masuk</span><span class="acct-v">Akun &amp; daftar</span></a>
-          <a class="acct acct-pesanan" href="#/lacak"><span class="acct-k">Pesanan saya</span><span class="acct-v">Lacak Pesanan</span></a>
+          <details class="menu menu-lang">
+            <summary class="menu-trigger" aria-label="Bahasa dan mata uang">
+              <span class="menu-k">Bahasa &amp; mata uang</span>
+              <span class="menu-v">ID · IDR</span>
+            </summary>
+            <div class="menu-panel" role="region" aria-label="Pilih bahasa dan mata uang">
+              <p class="menu-title">Pilih bahasa</p>
+              <ul class="lang-list">
+                <li><span class="is-current" aria-current="true">Bahasa Indonesia</span></li>
+                <li><span class="lang-soon">English<em>segera hadir</em></span></li>
+                <li><span class="lang-soon">español<em>segera hadir</em></span></li>
+                <li><span class="lang-soon">Deutsch<em>segera hadir</em></span></li>
+                <li><span class="lang-soon">português<em>segera hadir</em></span></li>
+                <li><span class="lang-soon">中文 (简体)<em>segera hadir</em></span></li>
+                <li><span class="lang-soon">العربية<em>segera hadir</em></span></li>
+                <li><span class="lang-soon">한국어<em>segera hadir</em></span></li>
+              </ul>
+              <p class="menu-title">Mata uang</p>
+              <ul class="lang-list">
+                <li><span class="is-current" aria-current="true">IDR · Rupiah</span></li>
+                <li><span class="lang-soon">USD · Dolar AS<em>segera hadir</em></span></li>
+              </ul>
+            </div>
+          </details>
+          <details class="menu menu-account" id="account-menu">
+            <summary class="menu-trigger">
+              <span class="menu-k" id="acct-k">Halo, masuk</span>
+              <span class="menu-v">Akun &amp; daftar</span>
+            </summary>
+            <div class="menu-panel menu-panel-account">
+              <div id="acct-guest">
+                <a class="btn menu-signin" href="#/akun">Masuk</a>
+                <p class="menu-note">Pelanggan baru? <a href="#/akun">Daftar di sini</a></p>
+              </div>
+              <div class="menu-cols">
+                <div>
+                  <p class="menu-title">Akun Anda</p>
+                  <ul>
+                    <li><a href="#/akun">Akun saya</a></li>
+                    <li><a href="#/akun">Alamat tersimpan</a></li>
+                    <li><a href="#/akun">Unduh data saya</a></li>
+                  </ul>
+                </div>
+                <div>
+                  <p class="menu-title">Pesanan</p>
+                  <ul>
+                    <li><a href="#/lacak">Pesanan saya</a></li>
+                    <li><a href="#/lacak">Lacak pesanan</a></li>
+                    <li><a href="#/proposal">Pesanan besar</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </details>
+          <a class="menu-trigger menu-orders acct-pesanan" href="#/lacak">
+            <span class="menu-k">Pesanan</span>
+            <span class="menu-v">&amp; Lacak</span>
+          </a>
           <a class="cartlink" href="#/keranjang" id="cart-link" aria-label="Keranjang">
             <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M3 4h2l2.4 10.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="9.5" cy="19.5" r="1.5" fill="currentColor"/><circle cx="17.5" cy="19.5" r="1.5" fill="currentColor"/></svg>
             <span class="badge" id="cart-count" hidden>0</span>

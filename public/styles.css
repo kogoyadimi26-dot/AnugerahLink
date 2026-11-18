@@ -748,5 +748,35 @@ tr.is-selected { background: var(--green-soft) !important; }
 
 .lot-tile-media, .lot-tile-media:hover { text-decoration: none; }
 
+/* Menu header: bahasa dan mata uang, akun, dan pesanan. */
+.menu { position: relative; }
+.menu > summary { list-style: none; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu-trigger { display: flex; flex-direction: column; color: var(--footer-ink); text-decoration: none; padding: 6px 10px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; min-width: 0; }
+.menu-trigger:hover, .menu[open] > summary { border-color: rgba(255,255,255,.45); }
+.menu-trigger .menu-k { font-size: 12px; opacity: .85; }
+.menu-trigger .menu-v { font-weight: 700; font-size: 15px; white-space: nowrap; }
+.menu-orders { border-color: rgba(255,255,255,.35); }
+.menu-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; width: 300px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 40px rgb(0 0 0 / 0.22); padding: 16px; }
+.menu-panel-account { width: 340px; }
+.menu-title { margin: 10px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+.menu-title:first-child { margin-top: 0; }
+.lang-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.lang-list span { display: block; padding: 7px 10px; border-radius: 8px; font-size: 14px; color: var(--ink); }
+.lang-list .is-current { background: var(--green-soft); color: var(--green); font-weight: 700; }
+.lang-list .lang-soon { color: var(--ink-muted); }
+.lang-list em { display: block; font-style: normal; font-size: 11px; color: var(--ink-muted); }
+.menu-signin { display: flex; width: 100%; justify-content: center; margin-bottom: 8px; }
+.menu-note { margin: 0 0 14px; font-size: 13px; color: var(--ink-muted); }
+.menu-note a, .menu-cols a { color: var(--green); }
+.menu-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.menu-cols ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.menu-cols a { text-decoration: none; }
+.menu-cols a:hover { text-decoration: underline; }
+@media (max-width: 760px) {
+  .menu-lang { display: none; }
+  .menu-panel, .menu-panel-account { position: fixed; left: 12px; right: 12px; top: 124px; width: auto; }
+}
+
 /* Tautan menu utama tidak bergaris bawah, di tema terang maupun gelap. */
 .nav a, .nav a:hover, .nav a:focus-visible { text-decoration: none; }
