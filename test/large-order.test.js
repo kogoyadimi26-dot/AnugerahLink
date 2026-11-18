@@ -189,3 +189,88 @@ test('agreement and shipment document routes need sign-in, and owner approval ne
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('a staff user cannot approve offers over HTTP; the owner can', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const http = require('node:http');
+  const { createApp } = require('../server');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-staf-'));
+  const OWNER = { email: 'pemilik-staf@test.local', password: 'kata-sandi-pemilik-1' };
+  const STAFF = { name: 'Staf Uji', email: 'staf-uji@test.local', role: 'staff', password: 'kata-sandi-staf-123' };
+  const app = createApp({ dataFile: path.join(tmp, 'app.db'), owner: { name: 'Pemilik', ...OWNER } });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const send = (method, p, headers = {}, body) => new Promise((resolve, reject) => {
+    const u = new URL(base + p);
+    const h = { ...headers };
+    if (body !== undefined) h['Content-Type'] = 'application/json';
+    const req = http.request({ host: u.hostname, port: u.port, path: u.pathname, method, headers: h }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => resolve({ status: res.statusCode, data, json: (() => { try { return JSON.parse(data); } catch { return {}; } })() }));
+    });
+    req.on('error', reject);
+    if (body !== undefined) req.write(JSON.stringify(body));
+    req.end();
+  });
+  try {
+    const ownerToken = (await send('POST', '/api/auth/login', {}, OWNER)).json.token;
+    const owner = { Authorization: `Bearer ${ownerToken}` };
+    const created = await send('POST', '/api/admin/users', owner, STAFF);
+    assert.equal(created.status, 201, created.data);
+    const staffToken = (await send('POST', '/api/auth/login', {}, { email: STAFF.email, password: STAFF.password })).json.token;
+    assert.ok(staffToken, 'staff can sign in');
+    const staff = { Authorization: `Bearer ${staffToken}` };
+
+    // Peran staf boleh mengelola proposal, tetapi persetujuan pemilik ditolak sebelum proposal dicari.
+    const asStaff = await send('POST', '/api/admin/proposals/tidak-ada/action', staff, { action: 'owner_approve' });
+    assert.equal(asStaff.status, 403, 'staff cannot approve');
+    const asOwner = await send('POST', '/api/admin/proposals/tidak-ada/action', owner, { action: 'owner_approve' });
+    assert.equal(asOwner.status, 404, 'owner passes the approval check; proposal is not found');
+  } finally {
+    await new Promise((r) => app.server.close(r));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('the buyer invoice route accepts the session cookie alone, not only a Bearer header', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const http = require('node:http');
+  const { createApp } = require('../server');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-faktur-'));
+  const OWNER = { email: 'pemilik-faktur@test.local', password: 'kata-sandi-pemilik-2' };
+  const BUYER = { name: 'Rina Faktur', email: 'rina-faktur@test.local', password: 'kata-sandi-faktur-1', phone: '081234567890', company: 'Kafe Faktur', buyerType: 'specialty_cafe', consent: true };
+  const app = createApp({ dataFile: path.join(tmp, 'app.db'), owner: { name: 'Pemilik', ...OWNER } });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  const send = (method, p, headers = {}, body) => new Promise((resolve, reject) => {
+    const u = new URL(base + p);
+    const h = { ...headers };
+    if (body !== undefined) h['Content-Type'] = 'application/json';
+    const req = http.request({ host: u.hostname, port: u.port, path: u.pathname, method, headers: h }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, json: (() => { try { return JSON.parse(data); } catch { return {}; } })() }));
+    });
+    req.on('error', reject);
+    if (body !== undefined) req.write(JSON.stringify(body));
+    req.end();
+  });
+  try {
+    assert.equal((await send('POST', '/api/buyer/signup', {}, BUYER)).status, 202);
+    const login = await send('POST', '/api/buyer/login', {}, { email: BUYER.email, password: BUYER.password });
+    assert.equal(login.status, 200);
+    const cookie = [].concat(login.headers['set-cookie']).find((c) => c.startsWith('al_buyer=')).split(';')[0];
+    const path404 = '/api/buyer/orders/ALO-2611-999/invoice';
+    assert.equal((await send('GET', path404)).status, 401, 'no session is refused');
+    assert.equal((await send('GET', path404, { Cookie: cookie })).status, 404, 'cookie passes auth; order is not found');
+    assert.equal((await send('GET', path404, { Authorization: `Bearer ${login.json.token}` })).status, 404, 'Bearer still works');
+  } finally {
+    await new Promise((r) => app.server.close(r));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
