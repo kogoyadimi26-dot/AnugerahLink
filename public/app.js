@@ -3085,8 +3085,8 @@ const ICONS = {
   // Tandai halaman aktif di navigasi.
   function markNav() {
     const raw = location.hash || '#/';
-    // Kategori dan Tentang termasuk dalam Produk, jadi tautan Produk tetap aktif.
-    const h = /^#\/tentang/.test(raw) ? '#/produk' : raw;
+    // Halaman lot, keranjang, dan pembayaran berada di bawah Produk; Tentang punya tautannya sendiri.
+    const h = /^#\/(lot|keranjang|bayar)/.test(raw) ? '#/produk' : raw;
     document.querySelectorAll('.nav a').forEach((a) => {
       const href = a.getAttribute('href') || '';
       if (href && h.startsWith(href)) a.setAttribute('aria-current', 'page');
