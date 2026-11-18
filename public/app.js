@@ -458,7 +458,7 @@
           <tr class="total-row"><td>Total</td><td class="num">${rp(quote.totals.total)}</td></tr>
         </tbody></table>
         <p class="muted ix-29">Pembayaran dengan transfer bank.</p>
-        <div class="btn-row"><a class="btn" href="#/bayar" ${quote.stockIssues && quote.stockIssues.length ? 'aria-disabled="true"' : ''}>Lanjut ke pembayaran</a><a class="btn secondary" href="#/produk">Lanjut belanja</a></div>
+        <div class="btn-row"><a class="btn" href="#/bayar" ${quote.stockIssues && quote.stockIssues.length ? 'aria-disabled="true"' : ''}>${buyerToken() ? 'Lanjut ke pembayaran' : 'Daftar atau masuk untuk memesan'}</a><a class="btn secondary" href="#/produk">Lanjut belanja</a></div>
       </div>`);
     main.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
       state.cart = state.cart.filter((l) => l.lotCode !== b.dataset.remove);
