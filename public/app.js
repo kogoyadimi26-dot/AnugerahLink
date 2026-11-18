@@ -1653,8 +1653,34 @@ const ICONS = {
       ${p.offers && p.offers.length ? `<p class="muted" style="margin:6px 0 0;font-size:14px">Penawaran terakhir: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
       ${p.deposit ? `<p class="muted" style="margin:6px 0 0;font-size:14px">DP ${rp(p.deposit.amount)}${p.deposit.paidAt ? ' (sudah dibayar)' : ''}</p>` : ''}
       ${p.status === 'offered' ? `<div class="btn-row" style="margin-top:10px"><button class="btn small" type="button" data-prop-respond="accept" data-id="${esc(p.id)}">Terima</button><button class="btn secondary small" type="button" data-prop-respond="counter" data-id="${esc(p.id)}">Ajukan perubahan</button><button class="btn secondary small" type="button" data-prop-respond="decline" data-id="${esc(p.id)}">Tolak</button></div>` : ''}
+      ${propDetail(p)}
       <p class="error" data-prop-error hidden></p>
     </article>`;
+  }
+  // Detail penawaran untuk pembeli: lot, harga, total, masa berlaku, DP, dan kode kesepakatan.
+  function propDetail(p) {
+    const offers = p.offers || [];
+    if (!offers.length) return '';
+    const latest = offers[offers.length - 1];
+    const lines = (latest.lines || []).map((l) => `<tr><td>${esc(l.lotCode)}</td><td class="prop-tier-col">${esc(tierLabel(l.tier))}</td><td class="num">${kg(l.kg)}</td><td class="num">${rp(l.pricePerKg)}</td><td class="num">${rp(l.amount)}</td></tr>`).join('');
+    const deliveryLabel = latest.deliveryTerms === 'collect_jayapura' ? 'Ambil di Jayapura' : 'Diantar ke alamat tujuan';
+    const agreed = p.agreedOffer ? `<p class="muted" style="margin:6px 0 0;font-size:13px">Disepakati: penawaran v${p.agreedOffer.version}, kode ${esc(String(p.agreedOffer.hash).slice(0, 16))}…</p>` : '';
+    const history = offers.length > 1 ? `<p class="muted" style="margin:6px 0 0;font-size:13px">Versi sebelumnya: ${offers.slice(0, -1).map((o) => 'v' + o.version + ' (' + esc(o.status) + ')').join(', ')}</p>` : '';
+    return `<details class="prop-detail" open>
+      <summary>Detail penawaran v${latest.version}</summary>
+      <div class="table-wrap" style="margin-top:8px"><table>
+        <thead><tr><th>Lot</th><th class="prop-tier-col">Tingkat</th><th class="num">Jumlah</th><th class="num">Harga/kg</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${lines}</tbody>
+      </table></div>
+      <p style="margin:10px 0 0;font-weight:700;color:var(--heading)">Total: ${rp(latest.total)}</p>
+      <ul class="muted" style="margin:10px 0 0;padding-left:18px;font-size:14px;display:grid;gap:4px">
+        <li>Syarat pengiriman: ${esc(deliveryLabel)}</li>
+        <li>Berlaku sampai: ${tanggal(latest.validUntil)}</li>
+        <li>DP ${esc(String((p.deposit && p.deposit.pct) || 30))}%${p.deposit ? ': ' + rp(p.deposit.amount) : ' (dihitung saat disepakati)'}</li>
+        <li>Status penawaran: ${esc(latest.status)}</li>
+      </ul>
+      ${agreed}${history}
+    </details>`;
   }
   async function viewProposal(query = {}) {
     if (!buyerToken()) return viewBuyerAuth();

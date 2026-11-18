@@ -581,3 +581,10 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .tier-stock-total span { font-size: 13px; color: var(--ink-muted); }
 .prop-action-form { display: grid; gap: 8px; margin-top: 10px; }
 .prop-action-form[hidden] { display: none; }
+.prop-detail { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.prop-detail summary { cursor: pointer; font-weight: 600; color: var(--heading); }
+.prop-card { min-width: 0; }
+.prop-detail { min-width: 0; }
+.prop-detail .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 600px) { .prop-tier-col { display: none; } }
+.prop-detail td, .prop-detail th { white-space: nowrap; }
