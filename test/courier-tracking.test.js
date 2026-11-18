@@ -51,7 +51,11 @@ async function shippedOrder(email, waybill) {
 async function courierPost(body, { sign = SECRET } = {}) {
   const raw = Buffer.from(JSON.stringify(body));
   const headers = { 'Content-Type': 'application/json' };
-  if (sign) headers['X-Signature'] = payments.signWebhook(raw, sign);
+  if (sign) {
+    const ts = Math.floor(Date.now() / 1000);
+    headers['X-Timestamp'] = String(ts);
+    headers['X-Signature'] = payments.signWebhook(raw, sign, ts);
+  }
   const res = await fetch(base + '/api/shipping/webhook', { method: 'POST', headers, body: raw });
   return { status: res.status, json: await res.json().catch(() => ({})) };
 }
