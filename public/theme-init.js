@@ -3,6 +3,8 @@
 (function () {
   'use strict';
   var root = document.documentElement;
+  // Tampilan selalu terang, di perangkat apa pun. Pengaturan tema gelap tidak dipakai lagi.
+  root.setAttribute('data-theme', 'light');
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var cfg = null;
 
