@@ -2841,36 +2841,6 @@ const ICONS = {
     try { localStorage.setItem('al-theme-cfg', JSON.stringify(t)); localStorage.removeItem('al-theme-css'); } catch { /* abaikan */ }
   }
 
-  // Pilihan tema per pengunjung: Sistem (ikut perangkat), Terang, atau Gelap. Disimpan di browser ini saja.
-  const THEME_MODES = { system: 'Sistem', light: 'Terang', dark: 'Gelap' };
-  function currentThemeMode() {
-    try { const m = localStorage.getItem('al-theme'); return THEME_MODES[m] ? m : 'system'; } catch { return 'system'; }
-  }
-  function setThemeMode(mode) {
-    if (mode === 'system') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', mode);
-    try { localStorage.setItem('al-theme', mode); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
-    window.applyThemeVars();
-    paintThemeToggle();
-  }
-  function paintThemeToggle() {
-    const btn = document.getElementById('theme-toggle');
-    if (!btn) return;
-    const mode = currentThemeMode();
-    btn.textContent = 'Tema: ' + THEME_MODES[mode];
-    btn.setAttribute('aria-label', 'Ganti tema. Sekarang: ' + THEME_MODES[mode]);
-  }
-  function wireThemeToggle() {
-    const btn = document.getElementById('theme-toggle');
-    if (!btn) return;
-    const order = ['system', 'light', 'dark'];
-    btn.addEventListener('click', () => {
-      const next = order[(order.indexOf(currentThemeMode()) + 1) % order.length];
-      setThemeMode(next);
-    });
-    paintThemeToggle();
-  }
-
   // Tombol kembali ke atas di footer.
   function wireBackToTop() {
     const b = document.getElementById('back-to-top');
@@ -2890,7 +2860,6 @@ const ICONS = {
   }
 
   async function boot() {
-    wireThemeToggle();
     wireSearch();
     wireBackToTop();
     try {
