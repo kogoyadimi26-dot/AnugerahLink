@@ -185,24 +185,6 @@
       </article>`;
   }
 
-  function policySection() {
-    const pol = state.config.policy;
-    return `
-      <section class="policy" aria-labelledby="policy-title">
-        <div class="policy-head">
-          <h2 id="policy-title">Klaim dan pengembalian</h2>
-          ${pol.status !== 'approved' ? '<span class="pill warn">Draf</span>' : ''}
-        </div>
-        <ol class="policy-list">
-          ${pol.sections.map((x, i) => `
-            <li><details ${i === 0 ? 'open' : ''}>
-              <summary>${esc(x.title)}</summary>
-              <p>${esc(x.text)}</p>
-            </details></li>`).join('')}
-        </ol>
-      </section>`;
-  }
-
   async function viewHome() {
     setMain(`<p class="muted">Memuat lot…</p>`);
     const { lots } = await api('/api/lots?sort=cup_desc');
@@ -231,18 +213,7 @@
             </article>`).join('')}
         </div>
       </section>
-      <section aria-labelledby="values">
-        <h2 id="values">Nilai kami</h2>
-        <div class="pillars">
-          ${(state.config.values || []).map((x) => `
-            <article class="pillar">
-              <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
-              <h3>${esc(x.title)}</h3>
-              <p>${esc(x.text)}</p>
-            </article>`).join('')}
-        </div>
-      </section>
-      ${policySection()}`);
+`);
   }
 
   // Stok tersedia per tingkat, dihitung dari semua lot tayang (tidak ikut saringan).
