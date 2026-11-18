@@ -462,22 +462,21 @@
             <dt>Stok</dt><dd>${lot.soldOut ? '<span class="pill bad">Habis terjual</span>' : kg(lot.availableKg) + (lot.lowStock ? ' <span class="pill warn">Stok menipis</span>' : '')}</dd>
           </dl>
           <p class="price num ix-70">${rp(lot.pricePerKg)} <span class="muted ix-69">per kg</span></p>
-          <p class="muted ix-29">Minimum ${lot.minOrderKg} kg.</p>
           ${lot.soldOut ? '' : `
-          <form id="add-form" class="ix-18">
-            <div class="field"><label for="kg">Jumlah (kg)</label>
+          <form id="add-form" class="buy-box">
+            <p class="buy-stock">Tersedia</p>
+            <div class="buy-qty">
+              <span id="kg-label">Jumlah (kg)</span>
               <div class="stepper">
                 <button type="button" class="btn secondary" data-step="-${lot.stepKg}" aria-label="Kurangi">−</button>
-                <input id="kg" name="kg" type="number" inputmode="numeric" min="${lot.minOrderKg}" max="${maxKg}" step="${lot.stepKg}" value="${startKg}">
+                <input id="kg" name="kg" type="number" inputmode="numeric" min="${lot.minOrderKg}" max="${maxKg}" step="${lot.stepKg}" value="${startKg}" aria-labelledby="kg-label">
                 <button type="button" class="btn secondary" data-step="${lot.stepKg}" aria-label="Tambah">+</button>
               </div>
-              <p class="help">Kelipatan ${lot.stepKg} kg · maks. ${kg(maxKg)} per pesanan</p>
               <p class="error" id="kg-error" hidden></p>
             </div>
-            <div class="btn-row">
-              <button class="btn" type="submit">${inCart ? 'Perbarui keranjang' : 'Tambah ke keranjang'}</button>
-              <a class="btn secondary" href="${passportHref(lot.code)}">Lihat traceability</a>
-            </div>
+            <button class="buy-add" type="submit" data-intent="cart">${inCart ? 'Perbarui keranjang' : 'Tambah ke keranjang'}</button>
+            <button class="buy-now" type="submit" data-intent="buy">Beli sekarang</button>
+            <a class="buy-link" href="${passportHref(lot.code)}">Lihat traceability</a>
           </form>`}
         </article>
       </div>`);
@@ -501,8 +500,8 @@
       state.cart = state.cart.filter((l) => l.lotCode !== lot.code);
       state.cart.push({ lotCode: lot.code, kg: n });
       saveCart();
-      toast(`${lot.code}: ${n} kg masuk keranjang`);
-      location.hash = '#/keranjang';
+      const buyNow = e.submitter && e.submitter.dataset.intent === 'buy';
+      location.hash = buyNow ? '#/bayar' : '#/keranjang';
     });
   }
 
