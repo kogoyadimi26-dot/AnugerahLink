@@ -1222,25 +1222,46 @@ const ICONS = {
     if (pct === null) return '';
     return `<span class="dash-chip ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
   }
-  function dashBarChart(series, metric) {
-    const W = 640, H = 240, P = 26, TOP = 14;
-    const key = metric;
+  const TIER_COLOR = { reserve: '#7a4a1f', premium: '#1e6b3f', verified: '#5b9a74', local: '#c9962b' };
+  function dashLineChart(series, metric) {
+    const W = 640, H = 240, P = 28, TOP = 16;
     const fmt = metric === 'revenue' ? (v) => rp(v) : (v) => `${v} pesanan`;
-    const max = Math.max(1, ...series.map((x) => x[key]));
-    const bw = (W - 2 * P) / Math.max(1, series.length);
-    const step = Math.max(1, Math.ceil(series.length / 7));
-    const grid = [0.25, 0.5, 0.75, 1].map((f) => { const y = H - P - f * (H - P - TOP); return `<line x1="${P}" x2="${W - P}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" class="dash-grid"/>`; }).join('');
-    const bars = series.map((x, i) => {
-      const h = Math.max(x[key] > 0 ? 3 : 0, (x[key] / max) * (H - P - TOP));
-      const bx = P + i * bw + bw * 0.18;
-      const w = bw * 0.64;
-      return `<rect class="dash-bar" data-i="${i}" x="${bx.toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="5"/>`;
-    }).join('');
-    const labels = series.map((x, i) => (i % step === 0 ? `<text x="${(P + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="dash-axis">${esc(dashLabel(x.key))}</text>` : '')).join('');
-    const data = JSON.stringify(series.map((x) => ({ l: dashLabel(x.key), v: fmt(x[key]) })));
+    const vals = series.map((x) => x[metric]);
+    const max = Math.max(1, ...vals);
+    const n = series.length;
+    const x = (i) => (n === 1 ? W / 2 : P + (i * (W - 2 * P)) / (n - 1));
+    const y = (v) => H - P - (v / max) * (H - P - TOP);
+    const grid = [0.25, 0.5, 0.75, 1].map((f) => { const gy = y(max * f); return `<line x1="${P}" x2="${W - P}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" class="dash-grid"/>`; }).join('');
+    const pts = series.map((v, i) => `${x(i).toFixed(1)},${y(v[metric]).toFixed(1)}`);
+    const line = `<polyline class="dash-line-path" points="${pts.join(' ')}" fill="none"/>`;
+    const area = n > 1 ? `<polygon class="dash-area" points="${x(0).toFixed(1)},${H - P} ${pts.join(' ')} ${x(n - 1).toFixed(1)},${H - P}"/>` : '';
+    const dots = series.map((v, i) => `<circle class="dash-point" data-i="${i}" cx="${x(i).toFixed(1)}" cy="${y(v[metric]).toFixed(1)}" r="5" tabindex="0"/>`).join('');
+    const step = Math.max(1, Math.ceil(n / 7));
+    const labels = series.map((v, i) => (i % step === 0 || i === n - 1 ? `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="dash-axis">${esc(dashLabel(v.key))}</text>` : '')).join('');
+    const data = JSON.stringify(series.map((v) => ({ l: 'Minggu ' + dashLabel(v.key), v: fmt(v[metric]) })));
     return `<div class="dash-chart-wrap" data-series='${esc(data)}'>
-      <svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="Grafik ${metric === 'revenue' ? 'pendapatan' : 'pesanan'} per periode">${grid}${bars}${labels}</svg>
+      <svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="Grafik tren penjualan mingguan">${grid}${area}${line}${dots}${labels}</svg>
       <div class="dash-tip" hidden></div></div>`;
+  }
+  function dashDonut(mix) {
+    const total = mix.reduce((a, m) => a + m.kg, 0);
+    const C = 2 * Math.PI * 44;
+    let acc = 0;
+    const arcs = total > 0 ? mix.filter((m) => m.kg > 0).map((m) => {
+      const len = (m.kg / total) * C;
+      const el = `<circle r="44" cx="60" cy="60" fill="none" stroke="${TIER_COLOR[m.tier] || '#999'}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+      acc += len;
+      return el;
+    }).join('') : '';
+    const legend = mix.map((m) => `<li><span class="dash-swatch" style="background:${TIER_COLOR[m.tier] || '#999'}"></span><span class="dash-leg-name">${esc(m.label)}</span><span class="dash-leg-kg num">${kg(m.kg)}</span><strong class="num dash-leg-pct">${m.pct}%</strong></li>`).join('');
+    return `<div class="dash-donut-wrap">
+      <svg viewBox="0 0 120 120" class="dash-donut" role="img" aria-label="Persentase kg terjual per tingkat">
+        <g transform="rotate(-90 60 60)"><circle r="44" cx="60" cy="60" fill="none" stroke="var(--green-soft)" stroke-width="16"/>${arcs}</g>
+        <text x="60" y="58" text-anchor="middle" class="dash-donut-total">${total > 0 ? kg(total) : '0 kg'}</text>
+        <text x="60" y="74" text-anchor="middle" class="dash-donut-sub">terjual</text>
+      </svg>
+      <ul class="dash-legend">${legend}</ul>
+    </div>${total > 0 ? '' : '<p class="dash-note">Belum ada penjualan dalam periode ini.</p>'}`;
   }
   function renderDashboard(d, s, late, range) {
     const k = d.kpis;
@@ -1285,23 +1306,27 @@ const ICONS = {
         ${kpi('Stok tayang', kg(k.stockKg), '', k.weeksCover !== null ? `±${k.weeksCover} minggu` : '')}
       </section>
       ${insights}
-      <div class="dash-grid2">
+      <div class="dash-grid2 dash-grid-top">
         <section class="card dash-panel">
-          <div class="dash-panel-head"><h2 class="dash-h">Tren</h2>${seg}</div>
-          ${d.series.length ? dashBarChart(d.series, metric) : '<p class="dash-note">Belum ada data.</p>'}
+          <div class="dash-panel-head"><div><h2 class="dash-h">Tren mingguan</h2><p class="dash-note">12 minggu terakhir</p></div>${seg}</div>
+          ${d.weekly.length ? dashLineChart(d.weekly, metric) : '<p class="dash-note">Belum ada data.</p>'}
         </section>
+        <section class="card dash-panel">
+          <h2 class="dash-h">Penjualan per tingkat</h2>
+          ${dashDonut(d.mix)}
+        </section>
+      </div>
+      <div class="dash-grid2 dash-grid-stock">
         <section class="card dash-panel">
           <h2 class="dash-h">Corong pesanan</h2>
           <div class="dash-stages">${funnel}</div>
         </section>
-      </div>
-      <div class="dash-grid2${actionsCard ? ' dash-grid-stock' : ''}">
         <section class="card dash-panel">
           <h2 class="dash-h">Stok per tingkat</h2>
           <div class="dash-stock">${stock}</div>
         </section>
-        ${actionsCard}
       </div>
+      ${actionsCard ? `<div class="dash-row">${actionsCard}</div>` : ''}
       <section class="card dash-panel" style="margin-top:16px">
         <h2 class="dash-h">Pesanan terbaru</h2>
         ${recent}
@@ -1332,11 +1357,10 @@ const ICONS = {
         const box = wrap.getBoundingClientRect(); const r = rect.getBoundingClientRect();
         tip.style.left = `${Math.min(Math.max(0, r.left - box.left + r.width / 2), box.width)}px`;
       };
-      wrap.querySelectorAll('.dash-bar').forEach((rect) => {
+      wrap.querySelectorAll('.dash-point').forEach((rect) => {
         rect.addEventListener('mouseenter', () => show(rect));
         rect.addEventListener('focus', () => show(rect));
         rect.addEventListener('click', () => show(rect));
-        rect.setAttribute('tabindex', '0');
       });
       wrap.addEventListener('mouseleave', () => { tip.hidden = true; });
     });
