@@ -157,30 +157,38 @@
   function lotHref(code) { return '#/lot/' + encodeURIComponent(code); }
 
   // ---------- toko (pembeli) ----------
+  // Kartu lot ala katalog: foto persegi, harga per kg jelas, stok nyata, dan ajakan beli.
+  // Semua angka dan label berasal dari data lot. Tidak ada hitung mundur atau stok palsu.
   function lotCard(l) {
-    const soldOut = l.soldOut;
+    const soldOut = Boolean(l.soldOut);
+    const minTotal = (Number(l.minOrderKg) || 0) * (Number(l.pricePerKg) || 0);
+    const photo = l.coverPhotoId
+      ? `<img src="/api/lots/${encodeURIComponent(l.code)}/photos/${encodeURIComponent(l.coverPhotoId)}" alt="" loading="lazy">`
+      : `<span class="lot-tile-fallback">${esc(l.code)}</span>`;
+    const flag = soldOut ? '<span class="lot-tile-flag is-sold">Habis terjual</span>'
+      : (l.lowStock ? '<span class="lot-tile-flag is-low">Stok menipis</span>' : '');
+    const details = [l.process, l.grade].filter(Boolean).map((v) => esc(v)).join(' · ');
     return `
-      <article class="card lot-card" aria-labelledby="lot-${esc(l.code)}">
-        ${l.coverPhotoId ? `<img class="lot-cover" src="/api/lots/${encodeURIComponent(l.code)}/photos/${encodeURIComponent(l.coverPhotoId)}" alt="Foto ${esc(l.title)}" loading="lazy">` : ''}
-        <div class="lot-top">
-          <span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span>
-          <span class="code">${esc(l.code)}</span>
-        </div>
-        <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}">${esc(l.title)}</a></h3>
-        <ul class="lot-meta" aria-label="Detail lot">
-          <li>${esc(l.groupName)}</li>
-          <li>${esc(l.process)}</li>
-          <li>${esc(l.grade)}</li>
-        </ul>
-        <div class="lot-price"><span class="price num">${rp(l.pricePerKg)}</span><span class="lot-unit">per kg</span></div>
-        <div class="lot-stock">
-          ${soldOut ? '<span class="pill bad">Habis terjual</span>' : `<span class="pill">${kg(l.availableKg)} tersedia</span>`}
-          ${l.lowStock ? '<span class="pill warn">Stok menipis</span>' : ''}
-        </div>
-        <div class="lot-actions">
-          <a class="btn small" href="${lotHref(l.code)}">Lihat lot</a>
-          <a class="btn secondary small" href="${passportHref(l.code)}">Traceability</a>
-          <a class="btn secondary small" href="#/proposal?tier=${encodeURIComponent(l.tier)}">Pesanan besar</a>
+      <article class="card lot-tile${soldOut ? ' is-sold' : ''}" aria-labelledby="lot-${esc(l.code)}">
+        <a class="lot-tile-media" href="${lotHref(l.code)}" tabindex="-1" aria-hidden="true">
+          ${photo}
+          <span class="lot-tile-tier"><span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span></span>
+          ${flag}
+        </a>
+        <div class="lot-tile-body">
+          <p class="lot-tile-kicker">${esc(l.code)} · ${esc(l.regionName || '')}</p>
+          <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}">${esc(l.title)}</a></h3>
+          ${details ? `<p class="lot-tile-meta">${details}</p>` : ''}
+          <p class="lot-tile-price"><span class="num">${rp(l.pricePerKg)}</span><span class="lot-unit"> / kg</span></p>
+          <p class="lot-tile-min">Minimal ${kg(l.minOrderKg)} · total ${rp(minTotal)}</p>
+          <p class="lot-tile-stock${l.lowStock ? ' is-low' : ''}">${soldOut ? 'Habis terjual' : `${kg(l.availableKg)} tersedia`}</p>
+          ${soldOut
+            ? '<span class="btn secondary lot-tile-cta" aria-disabled="true">Habis terjual</span>'
+            : `<a class="btn lot-tile-cta" href="${lotHref(l.code)}">Beli sekarang</a>`}
+          <div class="lot-tile-links">
+            <a href="${passportHref(l.code)}">Traceability</a>
+            <a href="#/proposal?tier=${encodeURIComponent(l.tier)}">Pesanan besar</a>
+          </div>
         </div>
       </article>`;
   }
