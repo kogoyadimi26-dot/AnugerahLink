@@ -137,6 +137,20 @@ module.exports = {
       { icon: 'check', title: 'Cupping dan grading', text: 'Penilai terlatih melakukan cupping dan memberi grade sesuai standar nasional, lalu mencatat skornya.' },
       { icon: 'passport', title: 'Traceability setiap lot', text: 'Asal kebun, kelompok tani, grade, dan skor cupping dapat ditelusuri dengan kode verifikasi.' },
     ],
+    // Berita: ditampilkan di bawah layanan. Hanya memuat fakta dari rencana usaha; tambahkan kutipan pembeli hanya jika sudah ada sumbernya.
+    news: [
+      {
+        date: '18 November 2026',
+        title: 'Mengapa kopi Papua sulit dipercaya pembeli, dan bagaimana kami memperbaikinya',
+        body: [
+          'Kopi dataran tinggi Papua dijual dengan harga premium di Jawa, tetapi pembeli sering ragu membelinya. Menurut rencana usaha AnugerahLink, ada tiga alasan utama.',
+          '1. Mutu tidak konsisten. Banyak lot dijual tanpa penilaian grade dan skor cupping, sehingga pembeli tidak tahu apa yang akan mereka terima.',
+          '2. Asal-usul sulit dibuktikan. Kopi berpindah tangan melalui beberapa pengumpul, dan jejak dari kebun hilang di tengah jalan.',
+          '3. Pasokan kecil dan tidak stabil. Menurut rencana kami, produksi Jayawijaya pada 2020 sekitar 161 ton, dan satu pembeli besar hanya mendapat 20 ton dari seluruh Papua pada 2018.',
+          'AnugerahLink menjawab ketiga masalah ini dengan layanan yang bisa dibuktikan: setiap lot diuji di laboratorium, dicupping, dan dinilai grade-nya, lalu asal kebun dan kelompok tani dicatat dan dapat ditelusuri. Kami memulai dengan pilot 90 hari, 200 sampai 500 kg kopi dari Wamena dan Tiom, untuk menguji kualitas dan pasokan sebelum melayani pembeli dalam jumlah lebih besar.',
+        ],
+      },
+    ],
   },
 
   // Claims and returns. Status 'draft' means the owner has not approved these terms yet.
