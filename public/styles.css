@@ -261,23 +261,24 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .policy-list details p { margin: 0 0 16px; color: var(--ink-muted); }
 
 /* ---------- kantor belakang: sidebar di kiri (di HP menjadi baris yang bisa digeser) ---------- */
-.admin-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 28px; align-items: start; }
-.admin-side { position: sticky; top: 96px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow); }
-.admin-who { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--ink-muted); }
+.admin-layout { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 32px; align-items: start; }
+main.wrap:has(.admin-layout) { max-width: 1320px; }
+.admin-side { position: sticky; top: 96px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.admin-who { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); font-size: 13px; color: var(--ink-muted); }
 .admin-who strong { color: var(--ink); font-size: 15px; }
-.admin-nav { display: flex; flex-direction: column; gap: 2px; }
-.admin-nav a { display: block; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15px; transition: background-color var(--ease), color var(--ease); }
+.admin-nav { display: flex; flex-direction: column; gap: 4px; }
+.admin-nav a { display: block; padding: 11px 14px; border-radius: 12px; color: var(--ink); text-decoration: none; font-weight: 500; font-size: 15px; transition: background-color var(--ease), color var(--ease); }
 .admin-nav a:hover { background: var(--green-soft); color: var(--green-2); }
 .admin-nav a[aria-current="page"] { background: var(--brand); color: var(--on-primary); }
-.admin-out { margin-top: 12px; width: 100%; }
+.admin-out { width: 100%; }
 .admin-body { min-width: 0; }
 @media (max-width: 800px) {
   .admin-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .admin-side { position: static; padding: 12px; }
-  .admin-who { flex-direction: row; gap: 8px; align-items: baseline; border-bottom: 0; margin-bottom: 8px; padding-bottom: 0; }
+  .admin-side { position: static; gap: 10px; }
+  .admin-who { flex-direction: row; gap: 8px; align-items: baseline; padding: 10px 14px; }
   .admin-nav { flex-direction: row; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
   .admin-nav a { white-space: nowrap; }
-  .admin-out { width: auto; margin-top: 8px; }
+  .admin-out { width: auto; }
 }
 
 /* ---------- ponsel ---------- */
