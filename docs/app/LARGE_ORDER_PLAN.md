@@ -152,7 +152,7 @@ Owner answers are marked **Owner**. Where the owner left it open, the default fo
 | 8 | Lawyer review | **Not yet.** The offer and agreement wording must be reviewed by a lawyer before the first large order. | Owner question; answer is no |
 | 9 | Export | **Domestic only in phase 1.** Export needs export documents, phytosanitary certificate, and EUDR plot geolocation. Planned as a later phase. | Default |
 | 10 | SLA | 2 business days to review, 7 days for the offer, 5 days for the deposit. | Default |
-| 11 | Who approves offers | Staff prepare; owner approves any offer above Rp100 million or with credit. | Default |
+| 11 | Who approves offers | Staff prepare; owner approves any offer above Rp100 million. | Default |
 
 ### Threshold
 
