@@ -13,6 +13,7 @@ const content = require('./lib/content');
 const buyers = require('./lib/buyers');
 const proposals = require('./lib/proposals');
 const documents = require('./lib/documents');
+const quicklogin = require('./lib/quicklogin');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
 const legal = require('./config/legal');
@@ -363,6 +364,25 @@ function buildRoutes(ctx) {
     // Jawaban sama untuk email yang terdaftar maupun tidak.
     return { status: 200, body: { ok: true, message: 'Jika email terdaftar, tautan atur ulang sudah kami kirim.' }, headers: { 'Cache-Control': 'no-store' } };
   });
+  // Masuk cepat lewat email: tautan sekali pakai dikirim ke email pembeli.
+  route('POST', /^\/api\/buyer\/login-link$/, (_p, body, _q, req) => {
+    const ip = (req && req.socket && req.socket.remoteAddress) || 'tidak-diketahui';
+    const wait = resetLimiter.retryAfter('ip', ip);
+    if (wait > 0) throw new ApiError(429, 'too_many_attempts', `Terlalu banyak permintaan. Coba lagi dalam ${Math.ceil(wait / 60)} menit.`);
+    resetLimiter.recordFailure('ip', ip);
+    store.update((db) => {
+      const r = quicklogin.requestLoginLink(db, body.email, now());
+      if (r) notify.enqueueAccountEmail(db, 'login', r.email, accountLink('masuk', r.token), now());
+      return true;
+    });
+    // Jawaban sama untuk email yang terdaftar maupun tidak.
+    return { status: 200, body: { ok: true, message: 'Jika email terdaftar, tautan masuk sudah kami kirim.' }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/buyer\/login-link\/consume$/, (_p, body) => {
+    const out = store.update((db) => quicklogin.consumeLoginLink(db, body.token, now()));
+    return { status: 200, body: { buyer: buyers.publicBuyer(out.buyer) }, headers: { 'Cache-Control': 'no-store', 'Set-Cookie': sessionCookie('buyer', out.token, buyers.BUYER_SESSION_DAYS * 86400) } };
+  });
+  route('GET', /^\/api\/buyer\/google\/status$/, () => ({ status: 200, body: { enabled: quicklogin.googleEnabled() }, headers: { 'Cache-Control': 'no-store' } }));
   route('POST', /^\/api\/buyer\/password\/reset$/, (_p, body) => {
     store.update((db) => buyers.resetPassword(db, body.token, body.password, now()));
     return { status: 200, body: { ok: true }, headers: { 'Cache-Control': 'no-store' } };
@@ -856,6 +876,28 @@ function createApp({ dataFile, owner, demo = false }) {
         return res.end(doc.pdf);
       } catch (err) {
         return sendError(res, err);
+      }
+    }
+    // Masuk dengan Google: mulai (pengalihan ke Google) dan kembali dari Google (pengalihan ke situs).
+    if (pathname === '/api/buyer/google/start' && req.method === 'GET') {
+      if (!quicklogin.googleEnabled()) return sendError(res, new ApiError(404, 'not_found', 'Masuk dengan Google belum tersedia.'));
+      const state = crypto.randomBytes(16).toString('hex');
+      res.writeHead(302, baseHeaders({ Location: quicklogin.googleAuthUrl(state), 'Set-Cookie': `al_oauth_state=${state}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${COOKIE_SECURE ? '; Secure' : ''}`, 'Cache-Control': 'no-store' }));
+      return res.end();
+    }
+    if (pathname === '/api/buyer/google/callback' && req.method === 'GET') {
+      const home = `${process.env.PUBLIC_URL || ''}/#/akun`;
+      const back = (q) => { res.writeHead(302, baseHeaders({ Location: home + q, 'Cache-Control': 'no-store' })); return res.end(); };
+      try {
+        const state = url.searchParams.get('state') || '';
+        const expected = cookieValue(req, 'al_oauth_state') || '';
+        if (!state || state !== expected) throw new ApiError(400, 'invalid_state', 'Sesi masuk tidak valid.');
+        const identity = await quicklogin.googleIdentity(url.searchParams.get('code') || '');
+        const out = store.update((db) => quicklogin.signInWithGoogle(db, identity, new Date().toISOString()));
+        res.writeHead(302, baseHeaders({ Location: home, 'Cache-Control': 'no-store', 'Set-Cookie': [sessionCookie('buyer', out.token, buyers.BUYER_SESSION_DAYS * 86400), 'al_oauth_state=; Path=/; Max-Age=0'] }));
+        return res.end();
+      } catch {
+        return back('?masuk=google-gagal');
       }
     }
     const publicPhoto = pathname.match(/^\/api\/lots\/([\w-]+)\/photos\/([\w-]+)$/);

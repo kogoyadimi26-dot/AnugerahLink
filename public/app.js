@@ -2397,9 +2397,9 @@ const ICONS = {
     const label = document.getElementById('acct-k');
     const guest = document.getElementById('acct-guest');
     if (!label) return;
-    if (!buyerToken()) { label.textContent = 'Halo, masuk'; if (guest) guest.hidden = false; return; }
     try {
       const me = (await api('/api/buyer/me')).buyer;
+      setBuyerToken('1');
       label.textContent = `Halo, ${String(me.name || '').split(' ')[0]}`;
       translateChrome();
       if (guest) guest.hidden = true;
@@ -2534,6 +2534,25 @@ const ICONS = {
   document.addEventListener('click', (e) => {
     const btn = e.target.closest ? e.target.closest('#theme-toggle') : null;
     if (btn) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+
+  // Masuk cepat: kirim tautan masuk ke email. Jawabannya sama untuk email terdaftar maupun tidak.
+  document.addEventListener('submit', async (e) => {
+    if (!e.target || e.target.id !== 'link-form') return;
+    e.preventDefault();
+    const btn = e.target.querySelector('[data-save]');
+    const msg = document.getElementById('link-msg');
+    busy(btn, true, 'Mengirim…');
+    try {
+      const r = await api('/api/buyer/login-link', { method: 'POST', body: { email: document.getElementById('ql-email').value } });
+      msg.className = 'notice ok';
+      msg.textContent = r.message;
+    } catch (err) {
+      msg.className = 'notice bad';
+      msg.textContent = err.message;
+    }
+    msg.hidden = false;
+    busy(btn, false);
   });
 
   // Galeri foto lot: klik miniatur untuk mengganti foto utama.
@@ -2858,10 +2877,34 @@ const ICONS = {
     else location.hash = '#/akun';
   }
 
+  // Halaman tautan masuk dari email: menukar tautan sekali pakai menjadi sesi.
+  async function viewLoginLink(token) {
+    setMain(`<h1>Masuk</h1><p class="muted">Memeriksa tautan…</p>`);
+    try {
+      const r = await api('/api/buyer/login-link/consume', { method: 'POST', body: { token: token || '' } });
+      setBuyerToken('1');
+      toast(`Selamat datang, ${String(r.buyer.name || '').split(' ')[0]}.`);
+      location.hash = '#/akun';
+    } catch (err) {
+      setMain(`<h1>Masuk</h1><div class="notice bad" role="alert">${esc(err.message)}</div><p><a href="#/akun">Minta tautan baru</a></p>`);
+    }
+  }
+
   function viewBuyerAuth() {
     setMain(`
       <h1>Akun pembeli</h1>
       <p class="muted">Masuk untuk memesan, menyimpan alamat, dan melihat riwayat pesanan. Memilih lot dan mengisi keranjang tetap bebas tanpa akun.</p>
+      <section class="card quick-login" aria-labelledby="quick-title">
+        <h2 id="quick-title" class="ix-1">Masuk cepat</h2>
+        ${/google-gagal/.test(location.hash) ? '<div class="notice bad" role="alert">Masuk dengan Google gagal. Coba lagi.</div>' : ''}
+        <a class="btn secondary quick-google" href="/api/buyer/google/start" hidden>Masuk dengan Google</a>
+        <form id="link-form" class="quick-link-form" novalidate>
+          <div class="field"><label for="ql-email">Email</label><input id="ql-email" name="email" type="email" required autocomplete="email"></div>
+          <div class="btn-row"><button class="btn" type="submit" data-save>Kirim tautan masuk</button></div>
+          <div class="notice ok" id="link-msg" role="status" hidden></div>
+        </form>
+        <p class="muted">Tautan berlaku 15 menit dan hanya bisa dipakai sekali. Tidak perlu kata sandi.</p>
+      </section>
       <div class="grid ix-3">
         <form id="buyer-login" class="card" novalidate><h2 class="ix-1">Masuk</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
@@ -2989,6 +3032,7 @@ const ICONS = {
       if (head === 'tentang') return viewAbout();
       if (head === 'kategori') { location.hash = '#/produk' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
       if (head === 'periksa') return viewVerify(query);
+      if (head === 'akun' && a === 'masuk') return await viewLoginLink(query.token);
       if (head === 'akun' && a === 'verifikasi') return await viewVerifyEmail(query.token);
       if (head === 'akun' && a === 'lupa') return viewForgotPassword();
       if (head === 'akun' && a === 'reset') return viewResetPassword(query.token);
@@ -3075,6 +3119,7 @@ const ICONS = {
     translateChrome();
     paintThemeIcon();
     paintAccountMenu();
+    api('/api/buyer/google/status').then((r) => { if (r.enabled) document.querySelectorAll('.quick-google').forEach((el) => { el.hidden = false; }); }).catch(() => {});
     route();
   }
 
