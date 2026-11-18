@@ -564,10 +564,10 @@ function buildRoutes(ctx) {
     return { status: 200, body: { content: content.contentFor(store.read().settings) }, auditDetail: 'Teks situs diperbarui.' };
   }, { perm: 'settings' });
 
-  // Tampilan katalog lot: judul, cerita, dan foto sampul (hanya admin).
+  // Tampilan produk lot: judul, cerita, dan foto sampul (hanya admin).
   route('PATCH', /^\/api\/admin\/lots\/([\w-]+)\/listing$/, ([id], body) => {
     const lot = store.update((db) => domain.setListing(db, id, body, now()));
-    return { status: 200, body: { lot: { id: lot.id, code: lot.code, headline: lot.headline, story: lot.story, coverPhotoId: lot.coverPhotoId } }, auditDetail: `Katalog ${lot.code} diperbarui.` };
+    return { status: 200, body: { lot: { id: lot.id, code: lot.code, headline: lot.headline, story: lot.story, coverPhotoId: lot.coverPhotoId } }, auditDetail: `Produk ${lot.code} diperbarui.` };
   }, { perm: 'publish' });
   route('DELETE', /^\/api\/admin\/photos\/([\w-]+)$/, ([photoId]) => {
     const found = domain.findPhoto(store.read(), photoId);
@@ -575,7 +575,7 @@ function buildRoutes(ctx) {
     if (found.photo.kind !== 'listing') throw new ApiError(403, 'forbidden', 'Foto pemeriksaan tidak bisa dihapus dari sini.');
     const file = store.update((db) => domain.removePhoto(db, photoId));
     try { fs.unlinkSync(path.join(photoDir, file)); } catch { /* berkas sudah tidak ada */ }
-    return { status: 200, body: { ok: true }, auditDetail: `Foto katalog ${found.lot.code} dihapus.` };
+    return { status: 200, body: { ok: true }, auditDetail: `Foto produk ${found.lot.code} dihapus.` };
   }, { perm: 'publish' });
 
   route('POST', /^\/api\/admin\/lots\/([\w-]+)\/photos$/, ([id], body, _q, req) => {
