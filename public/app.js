@@ -1141,99 +1141,129 @@ const ICONS = {
     const [, m, dd] = key.split('-');
     return `${Number(dd)} ${MONTHS_SHORT[Number(m) - 1]}`;
   }
-  function dashBarChart(series, valueKey, fmt, name) {
-    const W = 640, H = 220, P = 28;
-    const max = Math.max(1, ...series.map((x) => x[valueKey]));
+  function dashPct(now, prev) { return prev > 0 ? Math.round(((now - prev) / prev) * 1000) / 10 : null; }
+  function dashChip(pct) {
+    if (pct === null) return '';
+    return `<span class="dash-chip ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+  }
+  function dashBarChart(series, metric) {
+    const W = 640, H = 240, P = 26, TOP = 14;
+    const key = metric;
+    const fmt = metric === 'revenue' ? (v) => rp(v) : (v) => `${v} pesanan`;
+    const max = Math.max(1, ...series.map((x) => x[key]));
     const bw = (W - 2 * P) / Math.max(1, series.length);
-    const step = Math.max(1, Math.ceil(series.length / 8));
+    const step = Math.max(1, Math.ceil(series.length / 7));
+    const grid = [0.25, 0.5, 0.75, 1].map((f) => { const y = H - P - f * (H - P - TOP); return `<line x1="${P}" x2="${W - P}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" class="dash-grid"/>`; }).join('');
     const bars = series.map((x, i) => {
-      const h = (x[valueKey] / max) * (H - 2 * P);
-      const bx = P + i * bw + bw * 0.15;
-      return `<rect x="${bx.toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${h.toFixed(1)}" rx="4" class="dash-bar"><title>${esc(dashLabel(x.key))}: ${esc(fmt(x[valueKey]))}</title></rect>`;
+      const h = Math.max(x[key] > 0 ? 3 : 0, (x[key] / max) * (H - P - TOP));
+      const bx = P + i * bw + bw * 0.18;
+      const w = bw * 0.64;
+      return `<rect class="dash-bar" data-i="${i}" x="${bx.toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="5"/>`;
     }).join('');
     const labels = series.map((x, i) => (i % step === 0 ? `<text x="${(P + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="dash-axis">${esc(dashLabel(x.key))}</text>` : '')).join('');
-    return `<svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="${esc(name)}"><line x1="${P}" x2="${W - P}" y1="${H - P}" y2="${H - P}" class="dash-grid"/>${bars}${labels}</svg>`;
+    const data = JSON.stringify(series.map((x) => ({ l: dashLabel(x.key), v: fmt(x[key]) })));
+    return `<div class="dash-chart-wrap" data-series='${esc(data)}'>
+      <svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="Grafik ${metric === 'revenue' ? 'pendapatan' : 'pesanan'} per periode">${grid}${bars}${labels}</svg>
+      <div class="dash-tip" hidden></div></div>`;
   }
   function renderDashboard(d, s, late, range) {
     const k = d.kpis;
-    const delta = (pct) => (pct === null
-      ? '<span class="dash-delta flat">Belum ada pembanding</span>'
-      : `<span class="dash-delta ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`);
-    const kpi = (label, value, extra) => `<div class="card dash-kpi"><p class="stat-label">${esc(label)}</p><p class="dash-value">${value}</p><div class="dash-meta">${extra}</div></div>`;
+    const metric = window.__dashMetric || 'revenue';
+    const ordersPct = dashPct(k.orders, k.prevOrders);
+    const kpi = (label, value, chip, sub) => `<div class="card dash-kpi"><p class="dash-label">${esc(label)}</p><p class="dash-value">${value}</p><div class="dash-foot">${chip}${sub ? `<span class="dash-sub">${sub}</span>` : ''}</div></div>`;
     const tabs = [7, 30, 90, 0].map((r) => `<a class="dash-range${r === range ? ' is-active' : ''}" href="#/admin/dasbor?range=${r}" ${r === range ? 'aria-current="page"' : ''}>${DASH_RANGE[r]}</a>`).join('');
+    const seg = `<div class="dash-seg" role="group" aria-label="Pilih ukuran grafik">
+      <button type="button" data-metric="revenue" class="${metric === 'revenue' ? 'is-on' : ''}">Pendapatan</button>
+      <button type="button" data-metric="orders" class="${metric === 'orders' ? 'is-on' : ''}">Pesanan</button></div>`;
     const insights = d.insights.length
-      ? d.insights.slice(0, 4).map((i) => `<div class="dash-insight ${i.severity}"><span class="dash-dot" aria-hidden="true"></span>${esc(i.text)}</div>`).join('')
-      : '<p class="muted">Tidak ada peringatan untuk periode ini.</p>';
+      ? `<section class="dash-insights">${d.insights.slice(0, 3).map((i) => `<div class="dash-insight ${i.severity}"><span class="dash-dot" aria-hidden="true"></span>${esc(i.text)}</div>`).join('')}</section>`
+      : '';
     const maxPipe = Math.max(1, ...d.pipeline.stages.map((p) => p.count));
-    const funnel = d.pipeline.stages.map((p) => `<div class="dash-funnel-row"><span class="dash-funnel-label">${esc(p.label)}</span><span class="dash-funnel-bar"><span style="width:${Math.round((p.count / maxPipe) * 100)}%"></span></span><span class="dash-funnel-count num">${p.count}</span><span class="dash-funnel-value muted num">${rp(p.value)}</span></div>`).join('')
-      + `<p class="muted" style="margin:10px 0 0;font-size:13px">Dibatalkan: ${d.pipeline.cancelled.count} pesanan (${rp(d.pipeline.cancelled.value)})</p>`;
-    const stockRows = d.stock.map((t) => `<div class="dash-stock-row">
+    const funnel = d.pipeline.stages.map((p) => `<div class="dash-stage"><span class="dash-stage-name">${esc(p.label)}</span><span class="dash-stage-bar"><span style="width:${Math.round((p.count / maxPipe) * 100)}%"></span></span><span class="dash-stage-n">${p.count}</span><span class="dash-stage-v">${rp(p.value)}</span></div>`).join('')
+      + (d.pipeline.cancelled.count ? `<p class="dash-note">Dibatalkan ${d.pipeline.cancelled.count} pesanan</p>` : '');
+    const stock = d.stock.map((t) => `<div class="dash-stock-row">
       <span class="${tierClass(t.tier)} nowrap">${esc(t.label)}</span>
-      <span class="num dash-stock-kg">${kg(t.available)}</span>
+      <span class="dash-stock-kg num">${kg(t.available)}</span>
       <div class="dash-stock-meta"><div class="dash-st"><span style="width:${Math.round((t.sellThrough || 0) * 100)}%"></span></div>
-        <span class="muted" style="font-size:13px">${t.sellThrough === null ? 'Belum ada stok' : Math.round(t.sellThrough * 100) + '% terjual'}${t.weeksCover === null ? '' : ' · cukup ±' + t.weeksCover + ' minggu'}</span></div>
-    </div>`).join('');
-    const actions = d.actions.length
-      ? d.actions.map((a) => `<a class="dash-action ${a.severity}" href="${a.href}"><strong class="num">${a.count}</strong> ${esc(a.label)}</a>`).join('')
-      : '<p class="muted">Tidak ada tindakan yang menunggu.</p>';
+        <span class="dash-note">${t.sellThrough === null ? 'Belum ada stok' : Math.round(t.sellThrough * 100) + '% terjual'}${t.weeksCover === null ? '' : ' · ±' + t.weeksCover + ' minggu'}</span></div></div>`).join('');
+    const actionsCard = d.actions.length
+      ? `<section class="card dash-panel"><h2 class="dash-h">Perlu tindakan</h2><div class="dash-actions">${d.actions.map((a) => `<a class="dash-action ${a.severity}" href="${a.href}"><strong class="num">${a.count}</strong><span>${esc(a.label)}</span></a>`).join('')}</div></section>`
+      : '';
     const recent = d.recentOrders.length
-      ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${d.recentOrders.map((o) => `<tr><td>${esc(o.number)}</td><td>${esc(o.customer)}</td><td><span class="pill">${esc(o.statusLabel)}</span></td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`
-      : '<p class="muted">Belum ada pesanan.</p>';
-    const lateTable = late.length
-      ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Kurir</th><th>Resi</th><th>Terlambat</th></tr></thead><tbody>${late.map((x) => `<tr><td>${esc(x.number)}</td><td>${esc(x.customerName)}</td><td>${esc(x.courier || '—')}</td><td class="num">${esc(x.waybill || '—')}</td><td><span class="pill bad">${esc(x.delayLabel)}</span></td></tr>`).join('')}</tbody></table></div>`
-      : '<p class="muted">Tidak ada pesanan yang terlambat.</p>';
+      ? `<div class="dash-table"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${d.recentOrders.map((o) => `<tr><td>${esc(o.number)}</td><td>${esc(o.customer)}</td><td><span class="dash-status">${esc(o.statusLabel)}</span></td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="dash-note">Belum ada pesanan.</p>';
+    const lateCard = late.length
+      ? `<section class="card dash-panel"><h2 class="dash-h">Pesanan terlambat <span class="dash-badge danger">${late.length}</span></h2>
+          <div class="dash-table"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Kurir</th><th>Terlambat</th></tr></thead><tbody>${late.map((x) => `<tr><td>${esc(x.number)}</td><td>${esc(x.customerName)}</td><td>${esc(x.courier || '—')}</td><td><span class="dash-status danger">${esc(x.delayLabel)}</span></td></tr>`).join('')}</tbody></table></div></section>`
+      : '';
     const e = s.economics;
     setMain(adminShell('dashboard', `
       <div class="dash-head">
-        <div class="dash-tabs" role="navigation" aria-label="Rentang waktu">${tabs}</div>
-        <span class="muted" style="font-size:13px">Diperbarui ${tanggal(d.generatedAt)} · otomatis setiap 60 detik</span>
+        <nav class="dash-tabs" aria-label="Rentang waktu">${tabs}</nav>
+        <span class="dash-stamp">Diperbarui ${tanggal(d.generatedAt)}</span>
       </div>
-      <div class="dash-kpis">
-        ${kpi('Pendapatan', rp(k.revenue), `${delta(k.revenueChangePct)} <span class="muted">dari ${rp(k.prevRevenue)}</span>`)}
-        ${kpi('Pesanan', k.orders, `<span class="muted">${k.prevOrders} pada periode sebelumnya</span>`)}
-        ${kpi('Kg terjual', kg(k.kgSold), `<span class="muted">Rata-rata pesanan ${rp(k.avgOrderValue)}</span>`)}
-        ${kpi('Stok tayang', kg(k.stockKg), `<span class="muted">${k.weeksCover !== null ? 'Cukup ±' + k.weeksCover + ' minggu pada laju periode ini' : 'Belum ada penjualan periode ini'}</span>`)}
-      </div>
-      <section class="dash-insights" aria-labelledby="ins">
-        <h2 id="ins" class="dash-h">Wawasan</h2>
-        ${insights}
+      <section class="dash-kpis">
+        ${kpi('Pendapatan', rp(k.revenue), dashChip(k.revenueChangePct), k.prevRevenue > 0 ? `dari ${rp(k.prevRevenue)}` : '')}
+        ${kpi('Pesanan', k.orders, dashChip(ordersPct), '')}
+        ${kpi('Kg terjual', kg(k.kgSold), '', k.avgOrderValue ? `Rata-rata ${rp(k.avgOrderValue)}` : '')}
+        ${kpi('Stok tayang', kg(k.stockKg), '', k.weeksCover !== null ? `±${k.weeksCover} minggu` : '')}
       </section>
+      ${insights}
       <div class="dash-grid2">
         <section class="card dash-panel">
-          <div class="dash-panel-head"><h2 class="dash-h">Tren pendapatan</h2><span class="muted" style="font-size:13px">${DASH_RANGE[range]}</span></div>
-          ${d.series.length ? dashBarChart(d.series, 'revenue', rp, 'Grafik pendapatan per periode') : '<p class="muted">Belum ada data.</p>'}
+          <div class="dash-panel-head"><h2 class="dash-h">Tren</h2>${seg}</div>
+          ${d.series.length ? dashBarChart(d.series, metric) : '<p class="dash-note">Belum ada data.</p>'}
         </section>
         <section class="card dash-panel">
           <h2 class="dash-h">Corong pesanan</h2>
-          ${funnel}
+          <div class="dash-stages">${funnel}</div>
         </section>
       </div>
-      <div class="dash-grid2 dash-grid-stock">
+      <div class="dash-grid2${actionsCard ? ' dash-grid-stock' : ''}">
         <section class="card dash-panel">
           <h2 class="dash-h">Stok per tingkat</h2>
-          <div class="dash-stock">${stockRows}</div>
+          <div class="dash-stock">${stock}</div>
         </section>
-        <section class="card dash-panel">
-          <h2 class="dash-h">Perlu tindakan</h2>
-          <div class="dash-actions">${actions}</div>
-        </section>
+        ${actionsCard}
       </div>
       <section class="card dash-panel" style="margin-top:16px">
         <h2 class="dash-h">Pesanan terbaru</h2>
         ${recent}
       </section>
-      <h2 style="margin-top:24px">Pesanan terlambat</h2>
-      ${lateTable}
-      <h2 style="margin-top:24px">Ekonomi per kg dibeli</h2>
-      <div class="table-wrap"><table>
-        <tbody>
+      ${lateCard ? `<div style="margin-top:16px">${lateCard}</div>` : ''}
+      <details class="dash-details">
+        <summary>Ekonomi per kg dibeli</summary>
+        <div class="dash-table"><table><tbody>
           <tr><td>Penjualan</td><td class="num">${rp(e.salesPerKgBought)}</td></tr>
           <tr><td>Dibayar ke petani</td><td class="num">${rp(e.buyPerKgBought)}</td></tr>
           <tr><td>Ongkir ditanggung AnugerahLink</td><td class="num">${rp(e.shippingPerKgBought)}</td></tr>
-          <tr><td>Biaya: contoh, klaim, pembayaran</td><td class="num">${rp(e.feesPerKgBought)}</td></tr>
+          <tr><td>Biaya contoh, klaim, pembayaran</td><td class="num">${rp(e.feesPerKgBought)}</td></tr>
           <tr><th>Margin kotor</th><th class="num">${rp(e.grossMarginPerKgBought)} (${e.grossMarginPctOfSales}%)</th></tr>
-        </tbody></table></div>`));
+        </tbody></table></div>
+      </details>`));
     wireSignOut();
+    main.querySelectorAll('[data-metric]').forEach((b) => b.addEventListener('click', () => {
+      window.__dashMetric = b.dataset.metric;
+      renderDashboard(d, s, late, range);
+    }));
+    main.querySelectorAll('.dash-chart-wrap').forEach((wrap) => {
+      const data = JSON.parse(wrap.dataset.series);
+      const tip = wrap.querySelector('.dash-tip');
+      const show = (rect) => {
+        const i = Number(rect.dataset.i);
+        tip.hidden = false;
+        tip.innerHTML = `<strong>${esc(data[i].l)}</strong><span>${esc(data[i].v)}</span>`;
+        const box = wrap.getBoundingClientRect(); const r = rect.getBoundingClientRect();
+        tip.style.left = `${Math.min(Math.max(0, r.left - box.left + r.width / 2), box.width)}px`;
+      };
+      wrap.querySelectorAll('.dash-bar').forEach((rect) => {
+        rect.addEventListener('mouseenter', () => show(rect));
+        rect.addEventListener('focus', () => show(rect));
+        rect.addEventListener('click', () => show(rect));
+        rect.setAttribute('tabindex', '0');
+      });
+      wrap.addEventListener('mouseleave', () => { tip.hidden = true; });
+    });
   }
 
   async function viewAdminDashboard(query = {}) {
