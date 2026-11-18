@@ -1783,7 +1783,7 @@ const ICONS = {
     const fields = PROP_FIELDS[action].map(([name, label, kind, req]) => kind === 'textarea'
       ? `<label>${esc(label)}<textarea name="${name}" rows="2" ${req ? 'required' : ''}></textarea></label>`
       : `<label>${esc(label)}<input name="${name}" ${req ? 'required' : ''}></label>`).join('');
-    return `<form class="prop-action-form" data-action="${action}" data-id="${esc(p.id)}" hidden style="display:grid;gap:8px;margin-top:10px">${fields}
+    return `<form class="prop-action-form" data-action="${action}" data-id="${esc(p.id)}" hidden>${fields}
       <div class="btn-row"><button class="btn small" type="submit">Simpan</button><button class="btn secondary small" type="button" data-prop-cancel>Batal</button></div>
       <p class="error" data-prop-error hidden></p></form>`;
   }
