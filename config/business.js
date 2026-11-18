@@ -109,7 +109,7 @@ module.exports = {
     { icon: 'shield', title: 'Integritas', text: 'Kami hanya menjual apa yang sudah kami periksa, nilai, dan dapat kami buktikan.' },
     { icon: 'sprout', title: 'Anugerah', text: 'Papua memiliki kekayaan alam yang masih tersembunyi. Kami menghargainya dengan membayar petani secara tunai dan adil, lalu menjaga mutunya sampai ke cangkir pembeli.' },
     { icon: 'hand', title: 'Menghubungkan', text: 'Kami membuka jalan dari kebun di pedalaman ke pasar di seluruh dunia, supaya hasil bumi Papua tidak lagi tertahan karena jauh dari pembeli.' },
-    { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot sesuai dengan grade, skor cupping, dan traceability-nya, sehingga petani dan pembeli dapat saling percaya.' },
+    { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot diuji di laboratorium dan dicupping, sesuai dengan grade dan skor yang tercatat, sehingga petani dan pembeli dapat saling percaya.' },
   ],
 
   // About page content. Edit the text here; the page updates from this file.
@@ -118,15 +118,25 @@ module.exports = {
     eyebrow: 'Tentang kami',
     title: 'Tentang AnugerahLink',
     lead: '',
+    // Klaim kualitas: ditampilkan setelah misi. Dirancang untuk memenuhi standar; pastikan sudah terverifikasi sebelum dipublikasikan.
+    claim: {
+      title: 'Mengapa pembeli bisa percaya',
+      text: 'Banyak pembeli ragu membeli kopi Papua karena proses kualitasnya belum jelas: lot tidak dinilai, mutu tidak konsisten, dan asal-usulnya sulit dibuktikan. AnugerahLink menjawab masalah ini dengan layanan yang bisa dibuktikan. Setiap lot diuji di laboratorium, dicupping, dan dinilai sesuai standar nasional dan internasional sebelum dijual. Kopi kami dirancang memenuhi standar grade A, specialty, dan reserve.',
+    },
     // Misi, sejarah, dan nilai kami ditampilkan dari blok di bawah.
-    mission: 'Membuka akses pasar bagi kopi dan hasil bumi Papua dari pedalaman: membayar petani secara tunai dan adil, menilai serta menelusuri setiap lot, dan menghubungkannya langsung dengan pembeli, agar kekayaan alam Papua dikenal dan dihargai lebih luas.',
+    mission: 'Membuka akses pasar bagi kopi dan hasil bumi Papua dari pedalaman: membayar petani secara tunai dan adil, menguji mutu setiap lot di laboratorium, dan menghubungkannya langsung dengan pembeli, agar kekayaan alam Papua dikenal dan dihargai lebih luas.',
     history: [
       'AnugerahLink didirikan pada 17 November 2026. Namanya mencerminkan keyakinan kami bahwa kekayaan alam Papua adalah pemberian yang berharga, yang selama ini masih tersembunyi di pedalaman.',
       'Masyarakat Papua memiliki hasil bumi yang berharga, tetapi di daerah terpencil mereka sering tidak bisa menjualnya ke pasar. Jalan yang sulit, transportasi yang mahal, infrastruktur yang terbatas, dan keterbatasan sumber daya manusia untuk mengelola hasil bumi dengan baik membuat banyak orang sulit menjangkau pembeli yang mau membayar dengan layak.',
       'AnugerahLink hadir untuk menjembatani itu. Kami membeli langsung dari kelompok tani, menilai dan menelusuri setiap lot, lalu menghubungkannya dengan roaster dan kafe. Langkah pertama kami adalah pilot 90 hari dengan 200 sampai 500 kg kopi dari Wamena dan Tiom.',
       'Tujuan kami sederhana: agar kopi dan hasil bumi Papua dikenal di dunia, petaninya memperoleh penghasilan yang layak, dan pembeli dapat mempercayai mutu serta asal-usulnya.',
     ],
-    pillars: [],
+    // Layanan kami (ditampilkan di bawah nilai). icon: coin | passport | check
+    pillars: [
+      { icon: 'check', title: 'Uji laboratorium', text: 'Setiap lot diuji mutunya di laboratorium sebelum masuk katalog, termasuk kadar air dan cacat biji.' },
+      { icon: 'check', title: 'Cupping dan grading', text: 'Penilai terlatih melakukan cupping dan memberi grade sesuai standar nasional, lalu mencatat skornya.' },
+      { icon: 'passport', title: 'Traceability setiap lot', text: 'Asal kebun, kelompok tani, grade, dan skor cupping dapat ditelusuri dengan kode verifikasi.' },
+    ],
   },
 
   // Claims and returns. Status 'draft' means the owner has not approved these terms yet.
