@@ -2327,7 +2327,7 @@ const ICONS = {
     if (!buyerToken()) return viewBuyerAuth();
     let me;
     try { me = (await api('/api/buyer/me')).buyer; } catch { setBuyerToken(''); return viewBuyerAuth(); }
-    const { orders } = await api('/api/buyer/orders');
+    const [{ orders }, { proposals }] = await Promise.all([api('/api/buyer/orders'), api('/api/buyer/proposals')]);
     setMain(`
       <div class="btn-row" style="justify-content:space-between;align-items:flex-end">
         <div><h1 style="margin-bottom:4px">Akun saya</h1><p class="muted" style="margin:0">Halo, ${esc(me.name)}. ${esc(me.email)}</p></div>
@@ -2338,6 +2338,12 @@ const ICONS = {
       ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
         ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a> · <button type="button" class="btn secondary small" data-invoice="${esc(o.number)}">Faktur PDF</button></td></tr>`).join('')}
         </tbody></table></div>` : `<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat saat masuk akan muncul di sini.</p><p><a class="btn" href="#/produk">Lihat katalog</a></p></div>`}
+      <h2>Proposal saya</h2>
+      ${proposals.length ? `<div class="prop-list">${proposals.map((p) => `<article class="card prop-card">
+        <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.statusLabel || p.status)}</span></div>
+        <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))}${p.offers && p.offers.length ? ' · Penawaran terakhir ' + rp(p.offers[p.offers.length - 1].total) : ''}</p>
+        <div class="btn-row" style="margin-top:8px"><a class="btn secondary small" href="#/proposal">Lihat proposal</a></div>
+      </article>`).join('')}</div>` : '<div class="card"><p class="muted" style="margin:0">Belum ada proposal pesanan besar. <a href="#/proposal">Ajukan pesanan 1 ton atau lebih</a>.</p></div>'}
       <h2>Alamat tersimpan</h2>
       <div class="grid">${me.addresses.map((a) => `
         <div class="card"><div class="btn-row" style="justify-content:space-between"><strong>${esc(a.label)}</strong>${a.isDefault ? '<span class="pill ok">Utama</span>' : ''}</div>
