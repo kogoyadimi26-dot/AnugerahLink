@@ -827,3 +827,14 @@ tr.is-selected { background: var(--green-soft) !important; }
 .lot-tile-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .lot-tile-links a { font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; }
 .lot-tile-links a:hover { border-color: var(--green); color: var(--green); }
+
+/* Halaman lot: foto di kiri, detail dan panel beli di kanan; di layar kecil tersusun ke bawah. */
+.lot-detail-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 36px; align-items: start; margin-top: 16px; }
+.lot-detail-media .lot-hero-photo { max-width: none; width: 100%; height: auto; max-height: 460px; margin: 0; background: #f4f2ec; }
+.lot-detail-info { display: grid; gap: 4px; }
+.lot-detail-info .price { margin-top: 12px; }
+.lot-detail-info .buy-box { margin-top: 16px; max-width: none; }
+@media (max-width: 760px) { .lot-detail-grid { grid-template-columns: 1fr; gap: 20px; } }
+
+.buy-link { text-decoration: none; }
+.buy-link:hover { text-decoration: underline; }
