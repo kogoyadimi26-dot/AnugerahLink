@@ -8,7 +8,7 @@
     "start": "node --no-warnings server.js",
     "dev": "DEV_RELOAD=1 node --no-warnings --watch server.js",
     "demo": "DEMO_ACCOUNTS=1 DEV_RELOAD=1 node --no-warnings --watch server.js",
-    "test": "node --no-warnings --test test/domain.test.js test/server.test.js test/phase1.test.js test/lot-content.test.js test/buyers.test.js test/shipping.test.js test/invoice.test.js test/privacy.test.js test/hosting.test.js test/search.test.js test/buyer-verify-reset.test.js",
+    "test": "node --no-warnings --test test/domain.test.js test/server.test.js test/phase1.test.js test/lot-content.test.js test/buyers.test.js test/shipping.test.js test/invoice.test.js test/privacy.test.js test/hosting.test.js test/search.test.js test/buyer-verify-reset.test.js test/delivery.test.js test/courier-tracking.test.js test/verify-passport.test.js test/dashboard.test.js",
     "backup": "node --no-warnings scripts/backup.js",
     "restore": "node --no-warnings scripts/restore.js"
   },

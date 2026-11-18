@@ -18,7 +18,16 @@ module.exports = {
   feesPerKg: 2000, // samples, claims, payment charges
 
   // Fixed costs (full team) used for break-even
-  fixedCostsPerYear: 400000000,
+  // Biaya tetap per tahun (Rp). Dasar: staf Rp471 juta (6 orang, tengah) + software Rp26 juta + sewa gudang Rp119 juta
+  // (150 m2, Rp60.000/m2/bulan, PPN 10%). Lihat docs/business/CAPEX_v1.md bagian 6-10. Bukan dari sumber; asumsi.
+  fixedCostsPerYear: 616000000,
+
+  // Estimasi tiba (asumsi perencanaan, perlu dikonfirmasi dengan kurir): dihitung dari tanggal dikirim.
+  // Batas akhir dipakai sebagai janji agar keterlambatan tidak dihitung terlalu cepat.
+  delivery: {
+    transitDaysMin: 2,
+    transitDaysMax: 4,
+  },
 
   // Ordering rules
   minOrderKg: 30,
@@ -65,7 +74,7 @@ module.exports = {
   ],
 
   // Penjelasan proses pengolahan untuk pembeli. "match" adalah nama yang sering dipakai
-  // produsen. Tambah atau ubah di sini; halaman lot dan paspor ikut berubah.
+  // produsen. Tambah atau ubah di sini; halaman lot dan traceability ikut berubah.
   processes: {
     washed: {
       label: 'Dicuci (fully washed)',
@@ -98,7 +107,7 @@ module.exports = {
   // icon: shield | sprout | hand | check
   values: [
     { icon: 'shield', title: 'Integritas', text: 'Kami hanya menjual kopi yang sudah kami periksa, nilai, dan dapat kami buktikan.' },
-    { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot sesuai dengan grade, skor cupping, dan paspornya, selalu.' },
+    { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot sesuai dengan grade, skor cupping, dan traceability-nya, selalu.' },
     { icon: 'sprout', title: 'Pemberdayaan', text: 'Kami melatih petani dan menetapkan harga secara transparan, agar mereka bisa menghasilkan kopi yang lebih baik dan memperoleh penghasilan lebih besar.' },
     { icon: 'hand', title: 'Membantu', text: 'Kami menghadirkan kopi Papua yang tersembunyi ke pasar, agar pembeli dapat merasakan kopinya dan petani mendapat pengakuan atasnya.' },
   ],
@@ -108,11 +117,11 @@ module.exports = {
   about: {
     eyebrow: 'Tentang kami',
     title: 'Kopi Papua yang bisa ditelusuri',
-    lead: 'AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan paspor yang menunjukkan asalnya.',
+    lead: 'AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan traceability yang menunjukkan asalnya.',
     pillars: [
       { icon: 'coin', title: 'Petani dibayar tunai', text: 'Harga diumumkan di kebun dan dibayar saat pengambilan. Petani tidak perlu menunggu.' },
       { icon: 'check', title: 'Dinilai sebelum dijual', text: 'Setiap lot ditimbang, disortir dan dicupping sebelum masuk katalog.' },
-      { icon: 'passport', title: 'Paspor setiap lot', text: 'Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.' },
+      { icon: 'passport', title: 'Traceability setiap lot', text: 'Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.' },
     ],
   },
 
