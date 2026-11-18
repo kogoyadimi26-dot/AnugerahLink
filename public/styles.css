@@ -490,3 +490,9 @@ input[type="color"] { padding: 4px; height: 44px; cursor: pointer; }
 .dash-stock-row:last-child { border-bottom: 0; }
 .dash-stock-kg { font-weight: 700; }
 .dash-stock-meta { grid-column: 1 / -1; }
+/* KPI kecil dan rapi */
+.dash-kpi { padding: 14px 16px; gap: 2px; border-radius: 18px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); box-shadow: 0 1px 2px rgba(0,40,16,.04), 0 6px 18px rgba(0,40,16,.05); }
+.dash-kpi .stat-label { font-size: 12.5px; font-weight: 500; min-height: 0; line-height: 1.3; }
+.dash-value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+.dash-meta { font-size: 12px; line-height: 1.4; padding-top: 2px; margin-top: 2px; }
+@media (min-width: 1100px) { .dash-value { font-size: clamp(19px, 1.5vw, 22px); } }
