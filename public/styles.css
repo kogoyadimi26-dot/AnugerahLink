@@ -557,3 +557,11 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .news-date { margin: 0 0 6px; font-size: 13px; color: var(--ink-muted); }
 .news-card h3 { font-size: 20px; margin: 0 0 12px; line-height: 1.3; color: var(--heading); }
 .news-card p { margin: 0 0 10px; line-height: 1.7; color: var(--ink); }
+
+/* Proposal pesanan besar */
+.prop-list { display: grid; gap: 12px; }
+.prop-card { padding: 16px 18px; display: grid; gap: 4px; }
+.prop-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.prop-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.prop-grid label { display: grid; gap: 4px; font-size: 14px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }

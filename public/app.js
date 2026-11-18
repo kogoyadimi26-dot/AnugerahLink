@@ -65,7 +65,7 @@
 
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
   function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
-  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'feedback', 'users', 'pembeli', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
+  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'proposal', 'feedback', 'users', 'pembeli', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
   function canDo(action) {
     const r = (currentUser() || {}).role;
     if (action === 'verify') return r === 'admin' || r === 'grader';
@@ -907,7 +907,7 @@ const ICONS = {
   // ---------- tim (admin) ----------
 
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['proposal', 'Proposal'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -1625,6 +1625,145 @@ const ICONS = {
     }));
   }
 
+  // ---- Proposal pesanan besar ----
+  const PROP_STATUS = { draft: 'Draf', submitted: 'Diajukan', in_review: 'Ditinjau', need_info: 'Perlu informasi', offered: 'Penawaran dikirim', negotiating: 'Negosiasi', agreed: 'Disepakati', deposit_pending: 'Menunggu DP', deposit_paid: 'DP diterima', preparing: 'Disiapkan', balance_pending: 'Menunggu pelunasan', balance_paid: 'Lunas', shipped: 'Dikirim', completed: 'Selesai', declined: 'Ditolak', expired: 'Kedaluwarsa', cancelled: 'Dibatalkan' };
+  const PROP_TIERS = [['reserve', 'Reserve'], ['premium', 'Premium'], ['verified', 'Standar Terverifikasi'], ['local', 'Lokal']];
+  const PROP_AGREE = ['accurate', 'verification', 'offerSubject', 'policy', 'privacy'];
+  function propCard(p) {
+    return `<article class="card prop-card">
+      <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
+      <p class="muted" style="margin:6px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')}</p>
+      ${p.offers && p.offers.length ? `<p class="muted" style="margin:6px 0 0;font-size:14px">Penawaran terakhir: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
+      ${p.deposit ? `<p class="muted" style="margin:6px 0 0;font-size:14px">DP ${rp(p.deposit.amount)}${p.deposit.paidAt ? ' (sudah dibayar)' : ''}</p>` : ''}
+      ${p.status === 'offered' ? `<div class="btn-row" style="margin-top:10px"><button class="btn small" type="button" data-prop-respond="accept" data-id="${esc(p.id)}">Terima</button><button class="btn secondary small" type="button" data-prop-respond="counter" data-id="${esc(p.id)}">Ajukan perubahan</button><button class="btn secondary small" type="button" data-prop-respond="decline" data-id="${esc(p.id)}">Tolak</button></div>` : ''}
+      <p class="error" data-prop-error hidden></p>
+    </article>`;
+  }
+  async function viewProposal() {
+    if (!buyerToken()) return viewBuyerAuth();
+    let list;
+    try { ({ proposals: list } = await api('/api/buyer/proposals')); } catch { setBuyerToken(''); return viewBuyerAuth(); }
+    const field = (name, label, extra = '') => `<label>${label}<input name="${name}" ${extra}></label>`;
+    setMain(`
+      <h1>Pesanan besar</h1>
+      <p class="muted">Untuk pesanan 1.000 kg ke atas. Isi proposal, kami tinjau dan verifikasi, lalu kami kirim penawaran tertulis untuk disetujui kedua pihak.</p>
+      <h2 style="margin-top:28px">Proposal saya</h2>
+      <div class="prop-list">${list.map(propCard).join('') || '<p class="muted">Belum ada proposal.</p>'}</div>
+      <h2 style="margin-top:32px">Ajukan proposal baru</h2>
+      <form id="prop-form" class="card" style="padding:20px;display:grid;gap:14px">
+        <div class="prop-grid">
+          ${field('company', 'Nama perusahaan', 'required maxlength="120"')}
+          ${field('npwp', 'NPWP', 'required maxlength="30"')}
+          ${field('licence', 'Nomor izin usaha', 'required maxlength="60"')}
+          ${field('contactName', 'Nama kontak', 'required maxlength="80"')}
+          ${field('phone', 'Telepon', 'required')}
+          ${field('email', 'Email', 'type="email" required')}
+          ${field('address', 'Alamat tujuan', 'required maxlength="240"')}
+          ${field('city', 'Kota', 'required maxlength="80"')}
+          ${field('quantityKg', 'Jumlah (kg, kelipatan 100)', 'type="number" min="1000" step="100" required')}
+          ${field('needBy', 'Dibutuhkan pada', 'type="date"')}
+          ${field('packaging', 'Kemasan (opsional)', 'maxlength="120"')}
+          ${field('minScore', 'Skor cupping minimal (opsional)', 'type="number" min="70" max="95"')}
+        </div>
+        <fieldset style="border:0;padding:0;margin:0"><legend style="font-weight:600">Tingkat yang diminati</legend>
+          <div class="btn-row">${PROP_TIERS.map(([v, l]) => `<label class="check"><input type="checkbox" name="tiers" value="${v}"> ${l}</label>`).join('')}</div>
+        </fieldset>
+        <div class="prop-grid">
+          <label>Syarat pengiriman<select name="deliveryTerms"><option value="delivered">Diantar ke alamat tujuan</option><option value="collect_jayapura">Ambil di Jayapura</option></select></label>
+          <label>Ongkir ditanggung<select name="freightBy"><option value="buyer">Pembeli</option><option value="anugerah">AnugerahLink (dihitung terpisah)</option></select></label>
+          <label>Kegunaan (opsional)<input name="intendedUse" maxlength="240"></label>
+        </div>
+        <fieldset style="border:0;padding:0;margin:0;display:grid;gap:8px"><legend style="font-weight:600">Persetujuan</legend>
+          <label class="check"><input type="checkbox" data-agree="accurate"> Data yang saya isi benar.</label>
+          <label class="check"><input type="checkbox" data-agree="verification"> Saya setuju perusahaan saya diverifikasi.</label>
+          <label class="check"><input type="checkbox" data-agree="offerSubject"> Penawaran tunduk pada ketersediaan lot dan kesepakatan tertulis kedua pihak.</label>
+          <label class="check"><input type="checkbox" data-agree="policy"> Saya setuju ketentuan klaim dan pengembalian.</label>
+          <label class="check"><input type="checkbox" data-agree="privacy"> Saya setuju kebijakan privasi untuk data usaha.</label>
+        </fieldset>
+        <p class="error" data-form-error hidden></p>
+        <div><button class="btn" type="submit">Kirim proposal</button></div>
+      </form>`);
+    main.querySelectorAll('[data-prop-respond]').forEach((b) => b.addEventListener('click', async () => {
+      const card = b.closest('.prop-card');
+      const errBox = card.querySelector('[data-prop-error]');
+      errBox.hidden = true;
+      const action = b.dataset.propRespond;
+      const body = { action };
+      if (action === 'counter') { const note = prompt('Perubahan yang Anda minta (kg, tingkat, atau jadwal):'); if (!note) return; body.note = note; }
+      if (action === 'decline') body.reason = prompt('Alasan (opsional):') || '';
+      try { await api(`/api/buyer/proposals/${b.dataset.id}/respond`, { method: 'POST', body }); toast('Respons Anda sudah dikirim.'); viewProposal(); }
+      catch (err) { errBox.hidden = false; errBox.textContent = err.message; }
+    }));
+    const form = document.getElementById('prop-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const raw = formData(form);
+      const tiers = [...form.querySelectorAll('input[name="tiers"]:checked')].map((x) => x.value);
+      const agreements = Object.fromEntries(PROP_AGREE.map((k) => [k, form.querySelector(`[data-agree="${k}"]`).checked]));
+      const body = { company: raw.company, npwp: raw.npwp, licence: raw.licence, contactName: raw.contactName, phone: raw.phone, email: raw.email, address: raw.address, city: raw.city, quantityKg: Number(raw.quantityKg), needBy: raw.needBy, packaging: raw.packaging, intendedUse: raw.intendedUse, deliveryTerms: raw.deliveryTerms, freightBy: raw.freightBy, tiers };
+      if (raw.minScore) body.minScore = Number(raw.minScore);
+      const btn = form.querySelector('button[type="submit"]');
+      busy(btn, true);
+      try {
+        const created = (await api('/api/buyer/proposals', { method: 'POST', body })).proposal;
+        await api(`/api/buyer/proposals/${created.id}/submit`, { method: 'POST', body: { agreements } });
+        toast('Proposal sudah dikirim. Kami akan menghubungi Anda setelah peninjauan.');
+        viewProposal();
+      } catch (err) { showFormError(form, err); }
+      finally { busy(btn, false); }
+    });
+  }
+
+  const PROP_NEXT = {
+    submitted: [['start_review', 'Mulai tinjau']],
+    in_review: [['request_info', 'Minta informasi'], ['make_offer', 'Buat penawaran']],
+    need_info: [['resume_review', 'Lanjutkan tinjau']],
+    negotiating: [['make_offer', 'Buat penawaran baru']],
+    agreed: [['request_deposit', 'Minta DP']],
+    deposit_pending: [['mark_deposit_paid', 'DP sudah dibayar']],
+    deposit_paid: [['start_prep', 'Mulai siapkan']],
+    preparing: [['request_balance', 'Minta pelunasan']],
+    balance_pending: [['mark_balance_paid', 'Pelunasan diterima']],
+    balance_paid: [['dispatch', 'Catat pengiriman']],
+    shipped: [['complete', 'Tandai selesai']],
+  };
+  async function viewAdminProposals() {
+    const { proposals: list } = await api('/api/admin/proposals', { admin: true });
+    setMain(adminShell('proposal', `
+      <h2 style="margin-top:0">Proposal pesanan besar</h2>
+      <p class="muted" style="font-size:14px">Tinjau, verifikasi, lalu catat setiap langkah. Setiap perubahan tercatat di riwayat proposal.</p>
+      <div class="prop-list">${list.map((p) => `
+        <article class="card prop-card">
+          <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
+          <p style="margin:6px 0 0">${esc(p.buyer.company || p.buyer.name)} · ${esc(p.buyer.email)}</p>
+          <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')} · NPWP ${esc(p.form.npwp || '—')}</p>
+          ${p.offers && p.offers.length ? `<p class="muted" style="margin:4px 0 0;font-size:14px">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
+          <div class="btn-row" style="margin-top:10px">
+            ${(PROP_NEXT[p.status] || []).map(([a, l]) => `<button class="btn small" type="button" data-prop-action="${a}" data-id="${esc(p.id)}">${esc(l)}</button>`).join('')}
+            ${['submitted', 'in_review', 'need_info', 'negotiating'].includes(p.status) ? `<button class="btn secondary small" type="button" data-prop-action="decline" data-id="${esc(p.id)}">Tolak</button>` : ''}
+          </div>
+        </article>`).join('') || '<p class="muted">Belum ada proposal.</p>'}</div>`));
+    wireSignOut();
+    main.querySelectorAll('[data-prop-action]').forEach((b) => b.addEventListener('click', async () => {
+      const action = b.dataset.propAction;
+      const body = { action };
+      try {
+        if (action === 'request_info') { const message = prompt('Informasi apa yang dibutuhkan?'); if (!message) return; body.message = message; }
+        if (action === 'make_offer') {
+          const raw = prompt('Lot dan kg, pisahkan dengan koma. Contoh: AL-2611-001:800, AL-2611-003:200');
+          if (!raw) return;
+          body.lines = raw.split(',').map((x) => { const [lotCode, kgs] = x.split(':').map((y) => y.trim()); return { lotCode, kg: Number(kgs) }; });
+        }
+        if (action === 'decline') body.reason = prompt('Alasan penolakan (opsional):') || '';
+        if (action === 'mark_deposit_paid' || action === 'mark_balance_paid') body.reference = prompt('Nomor referensi transfer (opsional):') || '';
+        if (action === 'dispatch') { body.courier = prompt('Kurir:') || ''; body.waybill = prompt('Nomor resi:') || ''; }
+        await api(`/api/admin/proposals/${b.dataset.id}/action`, { method: 'POST', admin: true, body });
+        toast('Proposal diperbarui.');
+        viewAdminProposals();
+      } catch (err) { toast(err.message); }
+    }));
+  }
+
   async function viewAdminFeedback() {
     const [{ feedback }, { groups }] = await Promise.all([api('/api/admin/feedback', { admin: true }), api('/api/admin/groups', { admin: true })]);
     const tags = [['pass-to-farmer', 'Teruskan ke petani'], ['internal-quality', 'Mutu internal'], ['internal-logistics', 'Logistik internal'], ['discard', 'Buang']];
@@ -2320,7 +2459,7 @@ const ICONS = {
   }
 
   // Alamat admin memakai nama Indonesia; kunci halaman di dalam kode tetap.
-  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', feedback: 'umpan-balik', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
+  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', proposal: 'proposal', feedback: 'umpan-balik', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
   const ADMIN_KEY = Object.fromEntries(Object.entries(ADMIN_SLUG).map(([k, v]) => [v, k]));
   const adminPath = (k) => ADMIN_SLUG[k] || k;
 
@@ -2356,6 +2495,7 @@ const ICONS = {
       if (head === 'lacak' && !a) return await viewTrack();
       if (head === 'lacak' && a) return await viewTrackDetail(a, query);
       if (head === 'umpan-balik' && a) return viewFeedback(a);
+      if (head === 'proposal') return await viewProposal();
       if (head === 'tentang') return viewAbout();
       if (head === 'kategori') { location.hash = '#/produk' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
       if (head === 'periksa') return viewVerify(query);
@@ -2382,6 +2522,7 @@ const ICONS = {
         if (sec === 'lots' && b) return await viewAdminGrade(b);
         if (sec === 'lots') return await viewAdminLots();
         if (sec === 'orders') return await viewAdminOrders();
+        if (sec === 'proposal') return await viewAdminProposals();
         if (sec === 'feedback') return await viewAdminFeedback();
         if (sec === 'settings') return await viewAdminSettings();
         return await viewAdminDashboard();
