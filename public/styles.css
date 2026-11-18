@@ -700,3 +700,25 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .ix-74{grid-template-columns:1fr;margin-top:12px !important}
 
 tr.is-selected { background: var(--green-soft) !important; }
+
+/* Beranda hidup: carousel lot terbaru, ticker fakta dari data, stok yang diperbarui, dan strip panen baru. */
+.hero-live { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: center; }
+.hero-carousel { position: relative; min-height: 280px; }
+.hero-slide { display: grid; background: var(--surface); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden; text-decoration: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+.hero-slide[hidden] { display: none; }
+.hero-slide img { width: 100%; height: 210px; object-fit: cover; display: block; background: var(--green-soft); }
+.hero-slide-fallback { height: 210px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 22px; }
+.hero-slide-body { display: grid; gap: 4px; padding: 14px 16px 16px; }
+.hero-carousel:not(.is-js) .hero-slide + .hero-slide { display: none; }
+.hero-dots { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.hero-dot { width: 10px; height: 10px; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+.hero-dot[aria-current="true"] { background: var(--green); }
+.hero-dot:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.live-ticker { margin: 14px 0; padding: 10px 14px; border-radius: 10px; background: var(--green-soft); color: var(--green); font-weight: 600; min-height: 1.6em; }
+.tier-stock-card.is-changed { animation: flash-change 1.2s ease-out; }
+@keyframes flash-change { from { box-shadow: 0 0 0 4px var(--gold-hi); } to { box-shadow: 0 0 0 0 transparent; } }
+.harvest-strip { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.harvest-item { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-decoration: none; }
+.harvest-badge { font-size: 12px; background: var(--gold-soft); color: var(--gold-ink); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+@media (max-width: 760px) { .hero-live { grid-template-columns: 1fr; } .hero-slide img, .hero-slide-fallback { height: 170px; } }
+@media (prefers-reduced-motion: reduce) { .tier-stock-card.is-changed { animation: none; } }
