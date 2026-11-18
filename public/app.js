@@ -274,6 +274,13 @@
           </select></div>
         <div class="field"><label class="check"><input type="checkbox" name="inStock" value="1" ${query.inStock !== '0' ? 'checked' : ''}> Hanya yang tersedia</label></div>
       </form>
+      <aside class="large-order-banner" aria-labelledby="large-order-title">
+        <div>
+          <h2 id="large-order-title">Butuh 1 ton atau lebih?</h2>
+          <p>Ajukan pesanan besar. Kami tinjau, verifikasi, lalu kirim penawaran tertulis untuk disetujui kedua pihak.</p>
+        </div>
+        <a class="btn" href="#/proposal">Ajukan pesanan besar</a>
+      </aside>
       <p class="muted" role="status">${lots.length} lot ${query.inStock !== '0' ? 'tersedia' : 'terdaftar'}</p>
       ${lots.length
         ? `<div class="grid lots">${lots.map(lotCard).join('')}</div>`

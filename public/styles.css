@@ -565,3 +565,8 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .prop-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .prop-grid label { display: grid; gap: 4px; font-size: 14px; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+
+/* Product page: large-order banner */
+.large-order-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin: 0 0 20px; padding: 18px 22px; border-radius: var(--radius-lg); background: var(--green-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.large-order-banner h2 { margin: 0 0 4px; font-size: 18px; color: var(--heading); }
+.large-order-banner p { margin: 0; font-size: 14px; color: var(--ink-muted); max-width: 60ch; }
