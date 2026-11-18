@@ -702,15 +702,17 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 tr.is-selected { background: var(--green-soft) !important; }
 
 /* Beranda hidup: carousel lot terbaru, ticker fakta dari data, stok yang diperbarui, dan strip panen baru. */
-.hero-live { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: center; }
-.hero-carousel { position: relative; min-height: 280px; }
-.hero-slide { display: grid; background: var(--surface); color: var(--ink); border-radius: var(--radius-lg); overflow: hidden; text-decoration: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+.hero-live { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.hero-carousel { position: relative; max-width: 440px; width: 100%; justify-self: end; }
+.hero-slide { display: grid; background: #fff; color: var(--ink); border: 1px solid rgb(0 0 0 / 0.06); border-radius: 16px; overflow: hidden; text-decoration: none; box-shadow: 0 10px 28px rgb(0 0 0 / 0.14); }
 .hero-slide[hidden] { display: none; }
-.hero-slide img { width: 100%; height: 210px; object-fit: cover; display: block; background: var(--green-soft); }
-.hero-slide-fallback { height: 210px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 22px; }
-.hero-slide-body { display: grid; gap: 4px; padding: 14px 16px 16px; }
+.hero-slide img { width: 100%; height: 190px; object-fit: cover; display: block; background: #f3f1ea; }
+.hero-slide-fallback { height: 190px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
+.hero-slide-body { display: grid; gap: 6px; padding: 14px 18px 18px; }
+.hero-slide-body strong { font-size: 17px; line-height: 1.3; }
+.hero-slide-body .muted { font-size: 14px; }
 .hero-carousel:not(.is-js) .hero-slide + .hero-slide { display: none; }
-.hero-dots { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.hero-dots { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
 .hero-dot { width: 10px; height: 10px; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; padding: 0; }
 .hero-dot[aria-current="true"] { background: var(--green); }
 .hero-dot:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
@@ -720,5 +722,5 @@ tr.is-selected { background: var(--green-soft) !important; }
 .harvest-strip { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .harvest-item { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); text-decoration: none; }
 .harvest-badge { font-size: 12px; background: var(--gold-soft); color: var(--gold-ink); padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
-@media (max-width: 760px) { .hero-live { grid-template-columns: 1fr; } .hero-slide img, .hero-slide-fallback { height: 170px; } }
+@media (max-width: 760px) { .hero-live { grid-template-columns: 1fr; gap: 24px; } .hero-carousel { justify-self: stretch; max-width: none; } .hero-slide img, .hero-slide-fallback { height: 170px; } }
 @media (prefers-reduced-motion: reduce) { .tier-stock-card.is-changed { animation: none; } }
