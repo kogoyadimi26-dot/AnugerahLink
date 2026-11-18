@@ -157,8 +157,7 @@
   function lotHref(code) { return '#/lot/' + encodeURIComponent(code); }
 
   // ---------- toko (pembeli) ----------
-  // Kartu lot ala katalog: foto persegi, harga per kg jelas, stok nyata, dan ajakan beli.
-  // Semua angka dan label berasal dari data lot. Tidak ada hitung mundur atau stok palsu.
+  // Kartu lot: foto, skor cupping, harga per kg, stok nyata, dan ajakan beli. Semua angka dari data lot.
   function lotCard(l) {
     const soldOut = Boolean(l.soldOut);
     const minTotal = (Number(l.minOrderKg) || 0) * (Number(l.pricePerKg) || 0);
@@ -167,24 +166,28 @@
       : `<span class="lot-tile-fallback">${esc(l.code)}</span>`;
     const flag = soldOut ? '<span class="lot-tile-flag is-sold">Habis terjual</span>'
       : (l.lowStock ? '<span class="lot-tile-flag is-low">Stok menipis</span>' : '');
+    const score = l.cupScore ? `<span class="lot-tile-score" title="Skor cupping">${esc(l.cupScore)}</span>` : '';
     const details = [l.process, l.grade].filter(Boolean).map((v) => esc(v)).join(' · ');
+    const harvest = l.harvestDate ? `Panen ${esc(tanggal(l.harvestDate))}` : '';
+    const meta = [details, harvest].filter(Boolean).join(' · ');
     return `
       <article class="card lot-tile${soldOut ? ' is-sold' : ''}" aria-labelledby="lot-${esc(l.code)}">
         <a class="lot-tile-media" href="${lotHref(l.code)}" tabindex="-1" aria-hidden="true">
           ${photo}
           <span class="lot-tile-tier"><span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span></span>
           ${flag}
+          ${score}
         </a>
         <div class="lot-tile-body">
           <p class="lot-tile-kicker">${esc(l.code)} · ${esc(l.regionName || '')}</p>
           <h3 id="lot-${esc(l.code)}"><a href="${lotHref(l.code)}">${esc(l.title)}</a></h3>
-          ${details ? `<p class="lot-tile-meta">${details}</p>` : ''}
+          ${meta ? `<p class="lot-tile-meta">${meta}</p>` : ''}
           <p class="lot-tile-price"><span class="num">${rp(l.pricePerKg)}</span><span class="lot-unit"> / kg</span></p>
           <p class="lot-tile-min">Minimal ${kg(l.minOrderKg)} · total ${rp(minTotal)}</p>
           <p class="lot-tile-stock${l.lowStock ? ' is-low' : ''}">${soldOut ? 'Habis terjual' : `${kg(l.availableKg)} tersedia`}</p>
           ${soldOut
-            ? '<span class="btn secondary lot-tile-cta" aria-disabled="true">Habis terjual</span>'
-            : `<a class="btn lot-tile-cta" href="${lotHref(l.code)}">Beli sekarang</a>`}
+            ? '<span class="lot-tile-cta is-disabled" aria-disabled="true">Habis terjual</span>'
+            : `<a class="lot-tile-cta" href="${lotHref(l.code)}">Beli sekarang</a>`}
           <div class="lot-tile-links">
             <a href="${passportHref(l.code)}">Traceability</a>
             <a href="#/proposal?tier=${encodeURIComponent(l.tier)}">Pesanan besar</a>

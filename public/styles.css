@@ -809,3 +809,21 @@ tr.is-selected { background: var(--green-soft) !important; }
 .buy-now:hover { background: #e4932c; }
 .buy-add:focus-visible, .buy-now:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .buy-link { text-align: center; font-size: 14px; color: var(--green); }
+
+/* Kartu lot yang lebih rapi: skor cupping di foto, tautan pil, dan ajakan beli yang jelas. */
+.lot-tile { transition: transform .22s ease, box-shadow .22s ease; }
+.lot-tile:hover { transform: translateY(-4px); box-shadow: 0 18px 36px rgb(0 40 16 / 0.14); }
+.lot-tile-score { position: absolute; right: 12px; bottom: 12px; min-width: 46px; height: 46px; padding: 0 10px; border-radius: 999px; background: #fff; color: var(--green); display: grid; place-items: center; font-weight: 800; font-size: 17px; box-shadow: 0 4px 14px rgb(0 0 0 / 0.18); }
+.lot-tile-body { gap: 8px; padding: 16px 18px 18px; }
+.lot-tile-kicker { letter-spacing: .06em; font-size: 11px; }
+.lot-tile h3 { font-size: 18px; }
+.lot-tile-price { margin-top: 8px; font-size: 24px; }
+.lot-tile-stock { font-size: 14px; }
+.lot-tile-cta { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; padding: 13px 18px; border-radius: 999px; background: var(--green); color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; transition: background-color .2s ease, transform .2s ease; }
+.lot-tile-cta::after { content: "→"; transition: transform .2s ease; }
+.lot-tile-cta:hover { background: var(--green-2); color: #fff; }
+.lot-tile-cta:hover::after { transform: translateX(3px); }
+.lot-tile-cta.is-disabled { background: #e5e5e5; color: #666; }
+.lot-tile-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.lot-tile-links a { font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; }
+.lot-tile-links a:hover { border-color: var(--green); color: var(--green); }
