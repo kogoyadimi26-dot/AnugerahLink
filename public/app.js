@@ -175,6 +175,7 @@
         <div class="lot-actions">
           <a class="btn small" href="${lotHref(l.code)}">Lihat lot</a>
           <a class="btn secondary small" href="${passportHref(l.code)}">Traceability</a>
+          <a class="btn secondary small" href="#/proposal?tier=${encodeURIComponent(l.tier)}">Pesanan besar</a>
         </div>
       </article>`;
   }
@@ -246,7 +247,9 @@
     if (query.inStock === '0') params.set('inStock', '0');
     if (query.q) params.set('q', query.q);
     const regions = state.regions || [];
-    const { lots } = await api('/api/lots?' + params.toString());
+    const [{ lots }, { lots: allLots }] = await Promise.all([api('/api/lots?' + params.toString()), api('/api/lots')]);
+    const tierTotals = Object.fromEntries(['reserve', 'premium', 'verified', 'local'].map((t) => [t, 0]));
+    for (const l of allLots) tierTotals[l.tier] = (tierTotals[l.tier] || 0) + (l.availableKg || 0);
     const aktifJenis = query.kategori === 'kopi' ? 'kopi' : 'semua';
     setMain(`
       <h1>${query.q ? 'Hasil untuk &ldquo;' + esc(query.q) + '&rdquo;' : 'Produk'}</h1>
@@ -274,6 +277,13 @@
           </select></div>
         <div class="field"><label class="check"><input type="checkbox" name="inStock" value="1" ${query.inStock !== '0' ? 'checked' : ''}> Hanya yang tersedia</label></div>
       </form>
+      <section class="tier-stock" aria-label="Stok tersedia per tingkat">
+        <h2>Stok tersedia per tingkat</h2>
+        <div class="tier-stock-row">
+          ${Object.entries(tierTotals).map(([t, kgTotal]) => `<div class="tier-stock-card"><span class="${tierClass(t)}">${esc(tierLabel(t))}</span><strong class="num">${kg(kgTotal)}</strong></div>`).join('')}
+          <div class="tier-stock-card tier-stock-total"><span>Total</span><strong class="num">${kg(Object.values(tierTotals).reduce((a, b) => a + b, 0))}</strong></div>
+        </div>
+      </section>
       <aside class="large-order-banner" aria-labelledby="large-order-title">
         <div>
           <h2 id="large-order-title">Butuh 1 ton atau lebih?</h2>
@@ -1646,7 +1656,7 @@ const ICONS = {
       <p class="error" data-prop-error hidden></p>
     </article>`;
   }
-  async function viewProposal() {
+  async function viewProposal(query = {}) {
     if (!buyerToken()) return viewBuyerAuth();
     let list;
     try { ({ proposals: list } = await api('/api/buyer/proposals')); } catch { setBuyerToken(''); return viewBuyerAuth(); }
@@ -1654,7 +1664,8 @@ const ICONS = {
     const d = (draft && draft.form) || {};
     const val = (k) => (d[k] === undefined || d[k] === null ? '' : esc(d[k]));
     const field = (name, label, extra = '') => `<label>${label}<input name="${name}" value="${val(name)}" ${extra}></label>`;
-    const tierOn = (v) => ((d.tiers || []).includes(v) ? 'checked' : '');
+    const preset = !draft && PROP_TIERS.some(([v]) => v === query.tier) ? query.tier : null;
+    const tierOn = (v) => ((d.tiers || []).includes(v) || preset === v ? 'checked' : '');
     const sel = (name, value) => (d[name] === value ? 'selected' : '');
     setMain(`
       <h1>Pesanan besar</h1>
@@ -2551,7 +2562,7 @@ const ICONS = {
       if (head === 'lacak' && !a) return await viewTrack();
       if (head === 'lacak' && a) return await viewTrackDetail(a, query);
       if (head === 'umpan-balik' && a) return viewFeedback(a);
-      if (head === 'proposal') return await viewProposal();
+      if (head === 'proposal') return await viewProposal(query);
       if (head === 'tentang') return viewAbout();
       if (head === 'kategori') { location.hash = '#/produk' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
       if (head === 'periksa') return viewVerify(query);
