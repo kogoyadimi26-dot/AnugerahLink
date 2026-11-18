@@ -255,3 +255,24 @@ test('expiry sweep expires an offer and queues the expired message', () => {
   assert.equal(p.status, 'expired');
   assert.ok(db.outbox.some((m) => m.event === 'proposal_expired'));
 });
+
+test('offer by quantity picks lots of the tier from stock, largest free first', () => {
+  const db = baseDb();
+  const p = submitted(db);
+  proposals.staffAction(db, p.id, 'start_review', {}, NOW);
+  proposals.staffAction(db, p.id, 'make_offer', { kg: 1500, tier: 'premium' }, NOW);
+  assert.deepEqual(p.lines.map((l) => [l.lotCode, l.kg]), [['L1', 1500]]);
+  assert.equal(p.offers[0].total, 1500 * 250000);
+});
+
+test('offer by quantity splits across lots and reports a shortfall when stock is short', () => {
+  const db = baseDb();
+  db.lots.push({ code: 'L4', tier: 'premium', status: 'listed', sellableKg: 500, reservedKg: 0, soldKg: 0 });
+  const p = submitted(db);
+  proposals.staffAction(db, p.id, 'start_review', {}, NOW);
+  proposals.staffAction(db, p.id, 'make_offer', { kg: 3200, tier: 'premium' }, NOW);
+  assert.deepEqual(p.lines.map((l) => [l.lotCode, l.kg]), [['L1', 3000], ['L4', 200]]);
+  const q = submitted(db);
+  proposals.staffAction(db, q.id, 'start_review', {}, NOW);
+  assert.throws(() => proposals.staffAction(db, q.id, 'make_offer', { kg: 9000, tier: 'premium' }, NOW), (e) => e.code === 'insufficient_stock' && /kurang 5500 kg/.test(e.message));
+});
