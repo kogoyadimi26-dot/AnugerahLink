@@ -185,21 +185,154 @@
       </article>`;
   }
 
+  // Beranda hidup: lot terbaru bergantian, ticker fakta dari data, stok per tingkat yang diperbarui, dan strip panen baru.
+  // Semua angka berasal dari /api/lots; tidak ada angka karangan.
+  let homeTimer = null;
+  const HARVEST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+  function heroSlide(l) {
+    const media = l.coverPhotoId
+      ? `<img src="/api/lots/${encodeURIComponent(l.code)}/photos/${encodeURIComponent(l.coverPhotoId)}" alt="" loading="lazy">`
+      : `<span class="hero-slide-fallback">${esc(l.code)}</span>`;
+    return `<a class="hero-slide" href="${lotHref(l.code)}">
+        ${media}
+        <span class="hero-slide-body">
+          <span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span>
+          <strong>${esc(l.title)}</strong>
+          <span class="muted">${esc(l.regionName || '')} · panen ${esc(tanggal(l.harvestDate))} · ${rp(l.pricePerKg)} per kg</span>
+        </span>
+      </a>`;
+  }
+
+  function newestHarvest(lots) {
+    return lots.filter((l) => !l.soldOut && l.harvestDate)
+      .sort((a, b) => String(b.harvestDate).localeCompare(String(a.harvestDate)));
+  }
+
+  function harvestStrip(lots) {
+    const now = Date.now();
+    const recent = newestHarvest(lots).filter((l) => now - Date.parse(l.harvestDate) <= HARVEST_WINDOW_MS).slice(0, 6);
+    if (!recent.length) return '';
+    return `<section aria-labelledby="harvest-title">
+        <h2 id="harvest-title">Baru dipanen</h2>
+        <div class="harvest-strip">
+          ${recent.map((l) => `<a class="harvest-item" href="${lotHref(l.code)}">
+            <span><strong>${esc(l.title)}</strong><br><span class="muted">${esc(l.regionName || '')}</span></span>
+            <span class="harvest-badge">Panen ${esc(tanggal(l.harvestDate))}</span>
+          </a>`).join('')}
+        </div>
+      </section>`;
+  }
+
+  // Fakta dari data lot, ditampilkan satu per satu.
+  function tickerFacts(lots) {
+    const avail = lots.filter((l) => !l.soldOut);
+    const facts = [];
+    const newest = newestHarvest(lots)[0];
+    if (newest) facts.push(`Panen terbaru: ${newest.title} (${newest.tierLabel}), ${tanggal(newest.harvestDate)}`);
+    const best = avail.slice().sort((a, b) => (b.cupScore || 0) - (a.cupScore || 0))[0];
+    if (best && best.cupScore) facts.push(`Skor cupping tertinggi: ${best.cupScore} · ${best.code}`);
+    const totalKg = avail.reduce((a, l) => a + (l.availableKg || 0), 0);
+    facts.push(`${avail.length} lot tayang · stok tersedia ${kg(totalKg)}`);
+    facts.push('Setiap lot dinilai dan ditelusuri ke kelompok tani.');
+    return facts;
+  }
+
+  function startHomeLive(lots) {
+    const tiers = ['reserve', 'premium', 'verified', 'local'];
+    const kgByTier = (list) => Object.fromEntries(tiers.map((t) => [t, list.filter((l) => l.tier === t && !l.soldOut).reduce((a, l) => a + (l.availableKg || 0), 0)]));
+    let last = kgByTier(lots);
+    let facts = tickerFacts(lots);
+    let factIndex = 0;
+    const ticker = document.getElementById('live-ticker');
+    const showFact = () => { if (ticker && facts.length) ticker.textContent = facts[factIndex % facts.length]; };
+    showFact();
+
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (homeTimer) clearInterval(homeTimer);
+    homeTimer = setInterval(async () => {
+      if (!document.getElementById('live-root')) { clearInterval(homeTimer); homeTimer = null; return; }
+      try {
+        const { lots: fresh } = await api('/api/lots?sort=cup_desc');
+        const now = kgByTier(fresh);
+        const stock = document.getElementById('live-stock');
+        if (stock) stock.innerHTML = tierStockSection(fresh);
+        for (const t of tiers) {
+          if (now[t] !== last[t]) {
+            const card = document.querySelector(`#live-stock .tier-stock-card .tier-${t}`);
+            if (card && card.parentElement) card.parentElement.classList.add('is-changed');
+          }
+        }
+        last = now;
+        facts = tickerFacts(fresh);
+        showFact();
+      } catch { /* jaringan gagal: tampilan tetap yang terakhir */ }
+    }, 60000);
+
+    // Ticker berganti fakta tiap 5 detik. Berhenti bila pengguna minta gerak dikurangi.
+    if (!reduced) {
+      setInterval(() => {
+        if (!document.getElementById('live-ticker')) return;
+        factIndex += 1;
+        showFact();
+      }, 5000);
+    }
+  }
+
+  function startCarousel() {
+    const root = document.getElementById('hero-carousel');
+    if (!root) return;
+    const slides = [...root.querySelectorAll('.hero-slide')];
+    const dots = [...root.querySelectorAll('.hero-dot')];
+    if (slides.length < 2) return;
+    root.classList.add('is-js');
+    let index = 0;
+    let paused = false;
+    const show = (n) => {
+      index = (n + slides.length) % slides.length;
+      slides.forEach((s, k) => { s.hidden = k !== index; });
+      dots.forEach((d, k) => d.setAttribute('aria-current', k === index ? 'true' : 'false'));
+    };
+    root.addEventListener('mouseenter', () => { paused = true; });
+    root.addEventListener('mouseleave', () => { paused = false; });
+    root.addEventListener('focusin', () => { paused = true; });
+    root.addEventListener('focusout', () => { paused = false; });
+    dots.forEach((d, k) => d.addEventListener('click', () => show(k)));
+    show(0);
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduced) {
+      const t = setInterval(() => {
+        if (!document.getElementById('hero-carousel')) { clearInterval(t); return; }
+        if (!paused) show(index + 1);
+      }, 6000);
+    }
+  }
+
   async function viewHome() {
     setMain(`<p class="muted">Memuat lot…</p>`);
     const { lots } = await api('/api/lots?sort=cup_desc');
     const featured = lots.slice(0, 3);
-    const tiers = state.config.tiers;
+    const picks = newestHarvest(lots).slice(0, 3);
+    const carouselLots = picks.length ? picks : featured;
     setMain(`
-      <section class="hero">
-        <h1>${esc(state.config.content.homeTitle)}</h1>
-        <p class="lead">${esc(state.config.content.homeLead)}</p>
-        <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a><a class="btn secondary" href="#/tentang">Cara kerja kami</a></div>
+      <div id="live-root">
+      <section class="hero hero-live">
+        <div class="hero-copy">
+          <h1>${esc(state.config.content.homeTitle)}</h1>
+          <p class="lead">${esc(state.config.content.homeLead)}</p>
+          <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a><a class="btn secondary" href="#/tentang">Cara kerja kami</a></div>
+        </div>
+        <div class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="Lot terbaru">
+          ${carouselLots.length ? carouselLots.map(heroSlide).join('') : '<p class="muted">Lot baru segera tayang.</p>'}
+          ${carouselLots.length > 1 ? `<div class="hero-dots">${carouselLots.map((_, i) => `<button type="button" class="hero-dot" aria-label="Lot ${i + 1}"></button>`).join('')}</div>` : ''}
+        </div>
       </section>
-      ${tierStockSection(lots)}
+      <p class="live-ticker" id="live-ticker" aria-live="polite"></p>
+      <div id="live-stock">${tierStockSection(lots)}</div>
+      ${harvestStrip(lots)}
       <section aria-labelledby="featured">
         <h2 id="featured">Lot tersedia sekarang</h2>
-        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi ya.</p></div>'}
+        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi.</p></div>'}
         <p class="ix-18"><a href="#/produk">Lihat semua lot</a></p>
       </section>
       <section aria-labelledby="how">
@@ -213,7 +346,9 @@
             </article>`).join('')}
         </div>
       </section>
-`);
+      </div>`);
+    startCarousel();
+    startHomeLive(lots);
   }
 
   // Stok tersedia per tingkat, dihitung dari semua lot tayang (tidak ikut saringan).
