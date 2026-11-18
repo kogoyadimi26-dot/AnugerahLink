@@ -107,9 +107,9 @@ module.exports = {
   // icon: shield | sprout | hand | check
   values: [
     { icon: 'shield', title: 'Integritas', text: 'Kami hanya menjual kopi yang sudah kami periksa, nilai, dan dapat kami buktikan.' },
+    { icon: 'sprout', title: 'Anugerah', text: 'Kopi Papua adalah anugerah dari tanah dan petaninya. Kami menghargainya dengan membayar tunai dan menjaga mutunya sampai ke cangkir pembeli.' },
+    { icon: 'hand', title: 'Menghubungkan', text: 'Kami menghubungkan petani langsung dengan roaster dan kafe, tanpa rantai pengumpul yang memotong harga di tengah jalan.' },
     { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot sesuai dengan grade, skor cupping, dan traceability-nya, selalu.' },
-    { icon: 'sprout', title: 'Pemberdayaan', text: 'Kami melatih petani dan menetapkan harga secara transparan, agar mereka bisa menghasilkan kopi yang lebih baik dan memperoleh penghasilan lebih besar.' },
-    { icon: 'hand', title: 'Membantu', text: 'Kami menghadirkan kopi Papua yang tersembunyi ke pasar, agar pembeli dapat merasakan kopinya dan petani mendapat pengakuan atasnya.' },
   ],
 
   // About page content. Edit the text here; the page updates from this file.
@@ -118,6 +118,13 @@ module.exports = {
     eyebrow: 'Tentang kami',
     title: 'Kopi Papua yang bisa ditelusuri',
     lead: 'AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan traceability yang menunjukkan asalnya.',
+    // Misi: satu kalimat yang menjelaskan model bisnis.
+    mission: 'Membayar petani Papua harga yang adil secara tunai, lalu menjual kopi mereka dengan bukti mutu, agar setiap cangkir bisa ditelusuri sampai ke kebunnya.',
+    // Sejarah singkat, hanya dari rencana usaha (November 2026). Tambahkan tonggak nyata bila sudah ada.
+    history: [
+      'AnugerahLink lahir dari satu pertanyaan: mengapa kopi dataran tinggi Papua dijual murah di kebun dan mahal di Jawa?',
+      'Rencana usahanya disusun pada November 2026. Tahap pertama adalah pilot 90 hari dengan 200 sampai 500 kg kopi dari Wamena dan Tiom, untuk memastikan harga beli, biaya kirim, dan komposisi grade sebelum platform dibangun penuh.',
+    ],
     pillars: [
       { icon: 'coin', title: 'Petani dibayar tunai', text: 'Harga diumumkan di kebun dan dibayar saat pengambilan. Petani tidak perlu menunggu.' },
       { icon: 'check', title: 'Dinilai sebelum dijual', text: 'Setiap lot ditimbang, disortir dan dicupping sebelum masuk katalog.' },

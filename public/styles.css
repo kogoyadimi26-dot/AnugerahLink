@@ -531,3 +531,10 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .dash-row { margin-bottom: 16px; }
 .dash-row .dash-actions { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .dash-grid-top, .dash-grid-stock { align-items: stretch; }
+
+/* About: mission and short history */
+.about-mission, .about-history { max-width: 760px; margin: 0 0 40px; }
+.about-mission { margin-top: 40px; }
+.about-mission h2, .about-history h2 { font-size: 22px; margin: 0 0 12px; color: var(--heading); }
+.about-mission p { font-size: 19px; line-height: 1.6; color: var(--ink); margin: 0; padding-left: 16px; border-left: 3px solid var(--accent); }
+.about-history p { color: var(--ink-muted); line-height: 1.7; margin: 0 0 10px; }
