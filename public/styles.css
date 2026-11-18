@@ -529,3 +529,91 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
   .ord-edit { grid-template-columns: 1fr 1fr; }
   .ord-edit .btn { grid-column: 1 / -1; }
 }
+/* Dashboard: weekly line trend, tier mix donut */
+.dash-line-path { stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.dash-area { fill: var(--accent); opacity: .10; }
+.dash-point { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; cursor: pointer; transition: fill .15s; }
+.dash-point:hover, .dash-point:focus { fill: var(--accent); outline: none; }
+.dash-donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.dash-donut { width: 150px; height: 150px; flex: none; }
+.dash-donut-total { font-size: 13px; font-weight: 700; fill: var(--heading); }
+.dash-donut-sub { font-size: 10px; fill: var(--ink-muted); }
+.dash-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 200px; display: grid; gap: 10px; }
+.dash-legend li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; font-size: 14px; }
+.dash-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.dash-leg-kg { font-size: 13px; color: var(--ink-muted); }
+.dash-leg-pct { min-width: 3.2em; text-align: right; }
+.dash-row { margin-bottom: 16px; }
+.dash-row .dash-actions { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.dash-grid-top, .dash-grid-stock { align-items: stretch; }
+
+/* About: mission and short history */
+.about-mission, .about-history { max-width: 760px; margin: 0 0 40px; }
+.about-mission { margin-top: 40px; }
+.about-mission h2, .about-history h2 { font-size: 22px; margin: 0 0 12px; color: var(--heading); }
+.about-mission p { font-size: 19px; line-height: 1.6; color: var(--ink); margin: 0; padding-left: 16px; border-left: 3px solid var(--accent); }
+.about-history p { color: var(--ink-muted); line-height: 1.7; margin: 0 0 10px; }
+.about-claim { max-width: 760px; margin: 40px 0 0; padding: 20px 22px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.about-claim h2 { font-size: 20px; margin: 0 0 10px; color: var(--heading); }
+.about-claim p { margin: 0; line-height: 1.7; color: var(--ink); }
+
+/* About: news article */
+.about-news { max-width: 760px; margin: 40px 0 0; }
+.about-news > h2 { font-size: 22px; margin: 0 0 14px; color: var(--heading); }
+.news-card { padding: 22px 24px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.news-date { margin: 0 0 6px; font-size: 13px; color: var(--ink-muted); }
+.news-card h3 { font-size: 20px; margin: 0 0 12px; line-height: 1.3; color: var(--heading); }
+.news-card p { margin: 0 0 10px; line-height: 1.7; color: var(--ink); }
+
+/* About: news article */
+.about-news { max-width: 760px; margin: 40px 0 0; }
+.about-news > h2 { font-size: 22px; margin: 0 0 14px; color: var(--heading); }
+.news-card { padding: 22px 24px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.news-date { margin: 0 0 6px; font-size: 13px; color: var(--ink-muted); }
+.news-card h3 { font-size: 20px; margin: 0 0 12px; line-height: 1.3; color: var(--heading); }
+.news-card p { margin: 0 0 10px; line-height: 1.7; color: var(--ink); }
+
+/* Proposal pesanan besar */
+.prop-list { display: grid; gap: 12px; }
+.prop-card { padding: 16px 18px; display: grid; gap: 4px; }
+.prop-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.prop-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.prop-grid label { display: grid; gap: 4px; font-size: 14px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+
+/* Product page: large-order banner */
+.large-order-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin: 0 0 20px; padding: 18px 22px; border-radius: var(--radius-lg); background: var(--green-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.large-order-banner h2 { margin: 0 0 4px; font-size: 18px; color: var(--heading); }
+.large-order-banner p { margin: 0; font-size: 14px; color: var(--ink-muted); max-width: 60ch; }
+
+/* Product page: stock per tier */
+.tier-stock { margin: 0 0 20px; }
+.tier-stock h2 { font-size: 16px; margin: 0 0 10px; color: var(--heading); }
+.tier-stock-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.tier-stock-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.tier-stock-card strong { font-size: 18px; color: var(--heading); }
+.tier-stock-total { background: var(--green-soft); }
+.tier-stock-total span { font-size: 13px; color: var(--ink-muted); }
+.prop-action-form { display: grid; gap: 8px; margin-top: 10px; }
+.prop-action-form[hidden] { display: none; }
+.prop-detail { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.prop-detail summary { cursor: pointer; font-weight: 600; color: var(--heading); }
+.prop-card { min-width: 0; }
+.prop-detail { min-width: 0; }
+.prop-detail .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 600px) { .prop-tier-col { display: none; } }
+.prop-detail td, .prop-detail th { white-space: nowrap; }
+
+/* Product page: filters in a compact left sidebar */
+.catalog-layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+.catalog-main { min-width: 0; }
+.catalog-side { min-width: 0; }
+@media (min-width: 1024px) {
+  .catalog-layout { grid-template-columns: 200px minmax(0, 1fr); align-items: start; }
+  .catalog-side { position: sticky; top: 96px; }
+  .catalog-side .filters { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 14px; margin: 0; border-radius: 16px; flex-wrap: nowrap; }
+  .catalog-side .filters .field { display: grid; gap: 4px; margin: 0; flex: none; min-width: 0; }
+  .catalog-side .filters .field label { font-size: 12.5px; font-weight: 600; color: var(--ink-muted); }
+  .catalog-side .filters select { width: 100%; min-height: 40px; font-size: 14px; }
+  .catalog-side .filters label.check { min-height: 0; font-size: 13px; }
+}

@@ -65,7 +65,7 @@
 
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
   function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
-  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'feedback', 'users', 'pembeli', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
+  const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'proposal', 'feedback', 'users', 'pembeli', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
   function canDo(action) {
     const r = (currentUser() || {}).role;
     if (action === 'verify') return r === 'admin' || r === 'grader';
@@ -175,6 +175,7 @@
         <div class="lot-actions">
           <a class="btn small" href="${lotHref(l.code)}">Lihat lot</a>
           <a class="btn secondary small" href="${passportHref(l.code)}">Traceability</a>
+          <a class="btn secondary small" href="#/proposal?tier=${encodeURIComponent(l.tier)}">Pesanan besar</a>
         </div>
       </article>`;
   }
@@ -246,7 +247,9 @@
     if (query.inStock === '0') params.set('inStock', '0');
     if (query.q) params.set('q', query.q);
     const regions = state.regions || [];
-    const { lots } = await api('/api/lots?' + params.toString());
+    const [{ lots }, { lots: allLots }] = await Promise.all([api('/api/lots?' + params.toString()), api('/api/lots')]);
+    const tierTotals = Object.fromEntries(['reserve', 'premium', 'verified', 'local'].map((t) => [t, 0]));
+    for (const l of allLots) tierTotals[l.tier] = (tierTotals[l.tier] || 0) + (l.availableKg || 0);
     const aktifJenis = query.kategori === 'kopi' ? 'kopi' : 'semua';
     setMain(`
       <h1>${query.q ? 'Hasil untuk &ldquo;' + esc(query.q) + '&rdquo;' : 'Produk'}</h1>
@@ -255,6 +258,8 @@
           ? `<a class="chip${aktifJenis === j.key ? ' is-active' : ''}" href="#/produk${j.key === 'semua' ? '' : '?kategori=' + j.key}"${aktifJenis === j.key ? ' aria-current="page"' : ''}>${esc(j.label)}</a>`
           : `<span class="chip is-soon" aria-disabled="true">${esc(j.label)} <small>segera</small></span>`).join('')}
       </nav>
+      <div class="catalog-layout">
+      <aside class="catalog-side">
       <form class="filters card" id="filters" role="search" aria-label="Saring lot">
         <div class="field"><label for="f-tier">Kelas mutu</label>
           <select id="f-tier" name="tier"><option value="">Semua kelas</option>
@@ -274,10 +279,28 @@
           </select></div>
         <div class="field"><label class="check"><input type="checkbox" name="inStock" value="1" ${query.inStock !== '0' ? 'checked' : ''}> Hanya yang tersedia</label></div>
       </form>
+      </aside>
+      <div class="catalog-main">
+      <section class="tier-stock" aria-label="Stok tersedia per tingkat">
+        <h2>Stok tersedia per tingkat</h2>
+        <div class="tier-stock-row">
+          ${Object.entries(tierTotals).map(([t, kgTotal]) => `<div class="tier-stock-card"><span class="${tierClass(t)}">${esc(tierLabel(t))}</span><strong class="num">${kg(kgTotal)}</strong></div>`).join('')}
+          <div class="tier-stock-card tier-stock-total"><span>Total</span><strong class="num">${kg(Object.values(tierTotals).reduce((a, b) => a + b, 0))}</strong></div>
+        </div>
+      </section>
+      <aside class="large-order-banner" aria-labelledby="large-order-title">
+        <div>
+          <h2 id="large-order-title">Butuh 1 ton atau lebih?</h2>
+          <p>Ajukan pesanan besar. Kami tinjau, verifikasi, lalu kirim penawaran tertulis untuk disetujui kedua pihak.</p>
+        </div>
+        <a class="btn" href="#/proposal">Ajukan pesanan besar</a>
+      </aside>
       <p class="muted" role="status">${lots.length} lot ${query.inStock !== '0' ? 'tersedia' : 'terdaftar'}</p>
       ${lots.length
         ? `<div class="grid lots">${lots.map(lotCard).join('')}</div>`
-        : `<div class="card"><p><strong>Belum ada lot yang cocok dengan pilihan Anda.</strong></p><p class="muted">Coba ubah saringan, atau <a href="#/produk">lihat semua lot</a>.</p></div>`}`);
+        : `<div class="card"><p><strong>Belum ada lot yang cocok dengan pilihan Anda.</strong></p><p class="muted">Coba ubah saringan, atau <a href="#/produk">lihat semua lot</a>.</p></div>`}
+      </div>
+      </div>`);
     document.getElementById('filters').addEventListener('change', () => {
       const f = new FormData(document.getElementById('filters'));
       const q = {};
@@ -863,9 +886,12 @@ const ICONS = {
       <section class="about-hero">
         <p class="eyebrow">${esc(a.eyebrow)}</p>
         <h1>${esc(a.title)}</h1>
-        <p class="lead">${esc(a.lead)}</p>
+        ${a.lead ? `<p class="lead">${esc(a.lead)}</p>` : ''}
         <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a></div>
       </section>
+      ${a.claim ? `<section class="about-claim" aria-labelledby="about-claim"><h2 id="about-claim">${esc(a.claim.title)}</h2><p>${esc(a.claim.text)}</p></section>` : ''}
+      ${a.mission ? `<section class="about-mission" aria-labelledby="about-mission"><h2 id="about-mission">Misi kami</h2><p>${esc(a.mission)}</p></section>` : ''}
+      ${(a.history || []).length ? `<section class="about-history" aria-labelledby="about-history"><h2 id="about-history">Tentang AnugerahLink</h2>${a.history.map((t) => `<p>${esc(t)}</p>`).join('')}</section>` : ''}
       <section class="values-block" aria-labelledby="about-values">
         <h2 id="about-values">Nilai kami</h2>
         <div class="pillars">
@@ -877,14 +903,15 @@ const ICONS = {
             </article>`).join('')}
         </div>
       </section>
-      <section class="pillars" aria-label="Keunggulan kami">
+      ${(a.pillars || []).length ? `<section class="pillars" aria-label="Keunggulan kami">
         ${a.pillars.map((x) => `
           <article class="pillar">
             <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
             <h3>${esc(x.title)}</h3>
             <p>${esc(x.text)}</p>
           </article>`).join('')}
-      </section>
+      </section>` : ''}
+      ${(a.news || []).length ? `<section class="about-news" aria-labelledby="about-news"><h2 id="about-news">Berita</h2>${a.news.map((n) => `<article class="news-card"><p class="news-date">${esc(n.date)}</p><h3>${esc(n.title)}</h3>${n.body.map((t) => `<p>${esc(t)}</p>`).join('')}</article>`).join('')}</section>` : ''}
       <section class="policy" aria-labelledby="policy-title">
         <div class="policy-head">
           <h2 id="policy-title">Klaim dan pengembalian</h2>
@@ -903,7 +930,7 @@ const ICONS = {
   // ---------- tim (admin) ----------
 
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Feedback'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['proposal', 'Proposal'], ['feedback', 'Feedback'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -1222,25 +1249,46 @@ const ICONS = {
     if (pct === null) return '';
     return `<span class="dash-chip ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
   }
-  function dashBarChart(series, metric) {
-    const W = 640, H = 240, P = 26, TOP = 14;
-    const key = metric;
+  const TIER_COLOR = { reserve: '#7a4a1f', premium: '#1e6b3f', verified: '#5b9a74', local: '#c9962b' };
+  function dashLineChart(series, metric) {
+    const W = 640, H = 240, P = 28, TOP = 16;
     const fmt = metric === 'revenue' ? (v) => rp(v) : (v) => `${v} pesanan`;
-    const max = Math.max(1, ...series.map((x) => x[key]));
-    const bw = (W - 2 * P) / Math.max(1, series.length);
-    const step = Math.max(1, Math.ceil(series.length / 7));
-    const grid = [0.25, 0.5, 0.75, 1].map((f) => { const y = H - P - f * (H - P - TOP); return `<line x1="${P}" x2="${W - P}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" class="dash-grid"/>`; }).join('');
-    const bars = series.map((x, i) => {
-      const h = Math.max(x[key] > 0 ? 3 : 0, (x[key] / max) * (H - P - TOP));
-      const bx = P + i * bw + bw * 0.18;
-      const w = bw * 0.64;
-      return `<rect class="dash-bar" data-i="${i}" x="${bx.toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="5"/>`;
-    }).join('');
-    const labels = series.map((x, i) => (i % step === 0 ? `<text x="${(P + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="dash-axis">${esc(dashLabel(x.key))}</text>` : '')).join('');
-    const data = JSON.stringify(series.map((x) => ({ l: dashLabel(x.key), v: fmt(x[key]) })));
+    const vals = series.map((x) => x[metric]);
+    const max = Math.max(1, ...vals);
+    const n = series.length;
+    const x = (i) => (n === 1 ? W / 2 : P + (i * (W - 2 * P)) / (n - 1));
+    const y = (v) => H - P - (v / max) * (H - P - TOP);
+    const grid = [0.25, 0.5, 0.75, 1].map((f) => { const gy = y(max * f); return `<line x1="${P}" x2="${W - P}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" class="dash-grid"/>`; }).join('');
+    const pts = series.map((v, i) => `${x(i).toFixed(1)},${y(v[metric]).toFixed(1)}`);
+    const line = `<polyline class="dash-line-path" points="${pts.join(' ')}" fill="none"/>`;
+    const area = n > 1 ? `<polygon class="dash-area" points="${x(0).toFixed(1)},${H - P} ${pts.join(' ')} ${x(n - 1).toFixed(1)},${H - P}"/>` : '';
+    const dots = series.map((v, i) => `<circle class="dash-point" data-i="${i}" cx="${x(i).toFixed(1)}" cy="${y(v[metric]).toFixed(1)}" r="5" tabindex="0"/>`).join('');
+    const step = Math.max(1, Math.ceil(n / 7));
+    const labels = series.map((v, i) => (i % step === 0 || i === n - 1 ? `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="dash-axis">${esc(dashLabel(v.key))}</text>` : '')).join('');
+    const data = JSON.stringify(series.map((v) => ({ l: 'Minggu ' + dashLabel(v.key), v: fmt(v[metric]) })));
     return `<div class="dash-chart-wrap" data-series='${esc(data)}'>
-      <svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="Grafik ${metric === 'revenue' ? 'pendapatan' : 'pesanan'} per periode">${grid}${bars}${labels}</svg>
+      <svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="Grafik tren penjualan mingguan">${grid}${area}${line}${dots}${labels}</svg>
       <div class="dash-tip" hidden></div></div>`;
+  }
+  function dashDonut(mix) {
+    const total = mix.reduce((a, m) => a + m.kg, 0);
+    const C = 2 * Math.PI * 44;
+    let acc = 0;
+    const arcs = total > 0 ? mix.filter((m) => m.kg > 0).map((m) => {
+      const len = (m.kg / total) * C;
+      const el = `<circle r="44" cx="60" cy="60" fill="none" stroke="${TIER_COLOR[m.tier] || '#999'}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+      acc += len;
+      return el;
+    }).join('') : '';
+    const legend = mix.map((m) => `<li><span class="dash-swatch" style="background:${TIER_COLOR[m.tier] || '#999'}"></span><span class="dash-leg-name">${esc(m.label)}</span><span class="dash-leg-kg num">${kg(m.kg)}</span><strong class="num dash-leg-pct">${m.pct}%</strong></li>`).join('');
+    return `<div class="dash-donut-wrap">
+      <svg viewBox="0 0 120 120" class="dash-donut" role="img" aria-label="Persentase kg terjual per tingkat">
+        <g transform="rotate(-90 60 60)"><circle r="44" cx="60" cy="60" fill="none" stroke="var(--green-soft)" stroke-width="16"/>${arcs}</g>
+        <text x="60" y="58" text-anchor="middle" class="dash-donut-total">${total > 0 ? kg(total) : '0 kg'}</text>
+        <text x="60" y="74" text-anchor="middle" class="dash-donut-sub">terjual</text>
+      </svg>
+      <ul class="dash-legend">${legend}</ul>
+    </div>${total > 0 ? '' : '<p class="dash-note">Belum ada penjualan dalam periode ini.</p>'}`;
   }
   function renderDashboard(d, s, late, range) {
     const k = d.kpis;
@@ -1285,23 +1333,27 @@ const ICONS = {
         ${kpi('Stok tayang', kg(k.stockKg), '', k.weeksCover !== null ? `±${k.weeksCover} minggu` : '')}
       </section>
       ${insights}
-      <div class="dash-grid2">
+      <div class="dash-grid2 dash-grid-top">
         <section class="card dash-panel">
-          <div class="dash-panel-head"><h2 class="dash-h">Tren</h2>${seg}</div>
-          ${d.series.length ? dashBarChart(d.series, metric) : '<p class="dash-note">Belum ada data.</p>'}
+          <div class="dash-panel-head"><div><h2 class="dash-h">Tren mingguan</h2><p class="dash-note">12 minggu terakhir</p></div>${seg}</div>
+          ${d.weekly.length ? dashLineChart(d.weekly, metric) : '<p class="dash-note">Belum ada data.</p>'}
         </section>
+        <section class="card dash-panel">
+          <h2 class="dash-h">Penjualan per tingkat</h2>
+          ${dashDonut(d.mix)}
+        </section>
+      </div>
+      <div class="dash-grid2 dash-grid-stock">
         <section class="card dash-panel">
           <h2 class="dash-h">Corong pesanan</h2>
           <div class="dash-stages">${funnel}</div>
         </section>
-      </div>
-      <div class="dash-grid2${actionsCard ? ' dash-grid-stock' : ''}">
         <section class="card dash-panel">
           <h2 class="dash-h">Stok per tingkat</h2>
           <div class="dash-stock">${stock}</div>
         </section>
-        ${actionsCard}
       </div>
+      ${actionsCard ? `<div class="dash-row">${actionsCard}</div>` : ''}
       <section class="card dash-panel" style="margin-top:16px">
         <h2 class="dash-h">Pesanan terbaru</h2>
         ${recent}
@@ -1332,11 +1384,10 @@ const ICONS = {
         const box = wrap.getBoundingClientRect(); const r = rect.getBoundingClientRect();
         tip.style.left = `${Math.min(Math.max(0, r.left - box.left + r.width / 2), box.width)}px`;
       };
-      wrap.querySelectorAll('.dash-bar').forEach((rect) => {
+      wrap.querySelectorAll('.dash-point').forEach((rect) => {
         rect.addEventListener('mouseenter', () => show(rect));
         rect.addEventListener('focus', () => show(rect));
         rect.addEventListener('click', () => show(rect));
-        rect.setAttribute('tabindex', '0');
       });
       wrap.addEventListener('mouseleave', () => { tip.hidden = true; });
     });
@@ -1599,6 +1650,269 @@ const ICONS = {
         err.hidden = false;
         err.textContent = 'Galat: ' + (ex.fields && Object.values(ex.fields)[0] ? Object.values(ex.fields)[0] : ex.message);
       }
+    }));
+  }
+
+  // ---- Proposal pesanan besar ----
+  const PROP_STATUS = { draft: 'Draf', submitted: 'Diajukan', in_review: 'Ditinjau', need_info: 'Perlu informasi', offered: 'Penawaran dikirim', negotiating: 'Negosiasi', agreed: 'Disepakati', deposit_pending: 'Menunggu DP', deposit_paid: 'DP diterima', preparing: 'Disiapkan', balance_pending: 'Menunggu pelunasan', balance_paid: 'Lunas', shipped: 'Dikirim', completed: 'Selesai', declined: 'Ditolak', expired: 'Kedaluwarsa', cancelled: 'Dibatalkan' };
+  const PROP_TIERS = [['reserve', 'Reserve'], ['premium', 'Premium'], ['verified', 'Standar Terverifikasi'], ['local', 'Lokal']];
+  const PROP_AGREE = ['accurate', 'verification', 'offerSubject', 'policy', 'privacy'];
+  // Kg yang ditawarkan pada penawaran terakhir dibanding kg yang diminta pembeli.
+  function offeredKg(o) { return (o.lines || []).reduce((a, l) => a + (l.kg || 0), 0); }
+  function qtyNote(p) {
+    const o = (p.offers || [])[(p.offers || []).length - 1];
+    if (!o) return '';
+    const got = offeredKg(o), asked = (p.form && p.form.quantityKg) || 0;
+    if (got >= asked) return '';
+    return `<p class="notice bad" style="margin:8px 0 0;font-size:14px" role="status">Penawaran ${kg(got)} dari ${kg(asked)} yang diminta.</p>`;
+  }
+  function bankBlock(p) {
+    const due = ['deposit_pending', 'balance_pending'].includes(p.status);
+    if (!due) return '';
+    const b = state.config.payment.bank || {};
+    return `<div class="card" style="margin-top:10px;padding:12px 14px"><strong>Transfer ke rekening</strong>
+      <dl style="margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px">
+        <dt>Bank</dt><dd style="margin:0">${esc(b.bankName || '')}</dd>
+        <dt>Atas nama</dt><dd style="margin:0">${esc(b.accountName || '')}</dd>
+        <dt>Nomor rekening</dt><dd style="margin:0">${esc(b.accountNumber || '')}</dd>
+        <dt>Jumlah</dt><dd style="margin:0">${rp(p.status === 'deposit_pending' ? p.deposit.amount : p.balance.amount)}</dd>
+      </dl></div>`;
+  }
+  function propCard(p) {
+    return `<article class="card prop-card">
+      <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
+      <p class="muted" style="margin:6px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')}</p>
+      ${p.offers && p.offers.length ? `<p class="muted" style="margin:6px 0 0;font-size:14px">Penawaran terakhir: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
+      ${p.deposit ? `<p class="muted" style="margin:6px 0 0;font-size:14px">DP ${rp(p.deposit.amount)}${p.deposit.paidAt ? ' (sudah dibayar)' : ''}</p>` : ''}
+      ${p.status === 'offered' ? `<div class="btn-row" style="margin-top:10px"><button class="btn small" type="button" data-prop-respond="accept" data-id="${esc(p.id)}">Terima</button><button class="btn secondary small" type="button" data-prop-respond="counter" data-id="${esc(p.id)}">Ajukan perubahan</button><button class="btn secondary small" type="button" data-prop-respond="decline" data-id="${esc(p.id)}">Tolak</button></div>` : ''}
+      ${qtyNote(p)}${propDetail(p)}${bankBlock(p)}
+      <p class="error" data-prop-error hidden></p>
+    </article>`;
+  }
+  // Detail penawaran untuk pembeli: lot, harga, total, masa berlaku, DP, dan kode kesepakatan.
+  function propDetail(p) {
+    const offers = p.offers || [];
+    if (!offers.length) return '';
+    const latest = offers[offers.length - 1];
+    const lines = (latest.lines || []).map((l) => `<tr><td>${esc(l.lotCode)}</td><td class="prop-tier-col">${esc(tierLabel(l.tier))}</td><td class="num">${kg(l.kg)}</td><td class="num">${rp(l.pricePerKg)}</td><td class="num">${rp(l.amount)}</td></tr>`).join('');
+    const deliveryLabel = latest.deliveryTerms === 'collect_jayapura' ? 'Ambil di Jayapura' : 'Diantar ke alamat tujuan';
+    const agreed = p.agreedOffer ? `<p class="muted" style="margin:6px 0 0;font-size:13px">Disepakati: penawaran v${p.agreedOffer.version}, kode ${esc(String(p.agreedOffer.hash).slice(0, 16))}…</p>` : '';
+    const history = offers.length > 1 ? `<p class="muted" style="margin:6px 0 0;font-size:13px">Versi sebelumnya: ${offers.slice(0, -1).map((o) => 'v' + o.version + ' (' + esc(o.status) + ')').join(', ')}</p>` : '';
+    return `<details class="prop-detail" open>
+      <summary>Detail penawaran v${latest.version}</summary>
+      <div class="table-wrap" style="margin-top:8px"><table>
+        <thead><tr><th>Lot</th><th class="prop-tier-col">Tingkat</th><th class="num">Jumlah</th><th class="num">Harga/kg</th><th class="num">Subtotal</th></tr></thead>
+        <tbody>${lines}</tbody>
+      </table></div>
+      <p style="margin:10px 0 0;font-weight:700;color:var(--heading)">Total: ${rp(latest.total)}</p>
+      <ul class="muted" style="margin:10px 0 0;padding-left:18px;font-size:14px;display:grid;gap:4px">
+        <li>Syarat pengiriman: ${esc(deliveryLabel)}</li>
+        <li>Berlaku sampai: ${tanggal(latest.validUntil)}</li>
+        <li>DP ${esc(String((p.deposit && p.deposit.pct) || 30))}%${p.deposit ? ': ' + rp(p.deposit.amount) : ' (dihitung saat disepakati)'}</li>
+        <li>Status penawaran: ${esc(latest.status)}</li>
+      </ul>
+      ${agreed}${history}
+    </details>`;
+  }
+  async function viewProposal(query = {}) {
+    if (!buyerToken()) return viewBuyerAuth();
+    let list;
+    try { ({ proposals: list } = await api('/api/buyer/proposals')); } catch { setBuyerToken(''); return viewBuyerAuth(); }
+    const draft = list.find((p) => p.status === 'draft' || p.status === 'need_info') || null;
+    const d = (draft && draft.form) || {};
+    const val = (k) => (d[k] === undefined || d[k] === null ? '' : esc(d[k]));
+    const field = (name, label, extra = '') => `<label>${label}<input name="${name}" value="${val(name)}" ${extra}></label>`;
+    const preset = !draft && PROP_TIERS.some(([v]) => v === query.tier) ? query.tier : null;
+    const tierOn = (v) => ((d.tiers || []).includes(v) || preset === v ? 'checked' : '');
+    const sel = (name, value) => (d[name] === value ? 'selected' : '');
+    setMain(`
+      <h1>Pesanan besar</h1>
+      <p class="muted">Untuk pesanan 1.000 kg ke atas. Isi proposal, kami tinjau dan verifikasi, lalu kami kirim penawaran tertulis untuk disetujui kedua pihak.</p>
+      <h2 style="margin-top:28px">Proposal saya</h2>
+      <div class="prop-list">${list.filter((p) => p !== draft).map(propCard).join('') || '<p class="muted">Belum ada proposal yang diajukan.</p>'}</div>
+      <h2 style="margin-top:32px">${draft ? 'Lanjutkan proposal' : 'Ajukan proposal baru'}</h2>
+      ${draft && draft.status === 'need_info' && draft.infoRequest ? `<div class="notice" role="status" style="margin-bottom:12px">Kami perlu informasi: <strong>${esc(draft.infoRequest.message)}</strong>. Perbarui kolom di bawah, lalu kirim ulang.</div>` : ''}
+      <form id="prop-form" class="card" style="padding:20px;display:grid;gap:14px">
+        <div class="prop-grid">
+          ${field('company', 'Nama perusahaan', 'required maxlength="120"')}
+          ${field('npwp', 'NPWP', 'required maxlength="30"')}
+          ${field('licence', 'Nomor izin usaha', 'required maxlength="60"')}
+          ${field('contactName', 'Nama kontak', 'required maxlength="80"')}
+          ${field('phone', 'Telepon', 'required')}
+          ${field('email', 'Email', 'type="email" required')}
+          ${field('address', 'Alamat tujuan', 'required maxlength="240"')}
+          ${field('city', 'Kota', 'required maxlength="80"')}
+          ${field('quantityKg', 'Jumlah (kg, kelipatan 100)', 'type="number" min="1000" step="100" required')}
+          ${field('needBy', 'Dibutuhkan pada', 'type="date"')}
+          ${field('packaging', 'Kemasan (opsional)', 'maxlength="120"')}
+          ${field('minScore', 'Skor cupping minimal (opsional)', 'type="number" min="70" max="95"')}
+        </div>
+        <fieldset style="border:0;padding:0;margin:0"><legend style="font-weight:600">Tingkat yang diminati</legend>
+          <div class="btn-row">${PROP_TIERS.map(([v, l]) => `<label class="check"><input type="checkbox" name="tiers" value="${v}" ${tierOn(v)}> ${l}</label>`).join('')}</div>
+        </fieldset>
+        <div class="prop-grid">
+          <label>Syarat pengiriman<select name="deliveryTerms"><option value="delivered" ${sel('deliveryTerms', 'delivered')}>Diantar ke alamat tujuan</option><option value="collect_jayapura" ${sel('deliveryTerms', 'collect_jayapura')}>Ambil di Jayapura</option></select></label>
+          <label>Ongkir ditanggung<select name="freightBy"><option value="buyer" ${sel('freightBy', 'buyer')}>Pembeli</option><option value="anugerah" ${sel('freightBy', 'anugerah')}>AnugerahLink (dihitung terpisah)</option></select></label>
+          <label>Kegunaan (opsional)<input name="intendedUse" maxlength="240" value="${val('intendedUse')}"></label>
+        </div>
+        <fieldset style="border:0;padding:0;margin:0;display:grid;gap:8px"><legend style="font-weight:600">Persetujuan</legend>
+          <label class="check"><input type="checkbox" data-agree="accurate"> Data yang saya isi benar.</label>
+          <label class="check"><input type="checkbox" data-agree="verification"> Saya setuju perusahaan saya diverifikasi.</label>
+          <label class="check"><input type="checkbox" data-agree="offerSubject"> Penawaran tunduk pada ketersediaan lot dan kesepakatan tertulis kedua pihak.</label>
+          <label class="check"><input type="checkbox" data-agree="policy"> Saya setuju ketentuan klaim dan pengembalian.</label>
+          <label class="check"><input type="checkbox" data-agree="privacy"> Saya setuju kebijakan privasi untuk data usaha.</label>
+        </fieldset>
+        <p class="error" data-form-error hidden></p>
+        <div class="btn-row"><button class="btn secondary" type="button" id="prop-save">Simpan draf</button><button class="btn" type="submit">Kirim proposal</button></div>
+      </form>`);
+    main.querySelectorAll('[data-prop-respond]').forEach((b) => b.addEventListener('click', async () => {
+      const errBox = b.closest('.prop-card').querySelector('[data-prop-error]');
+      errBox.hidden = true;
+      const action = b.dataset.propRespond;
+      const body = { action };
+      if (action === 'counter') { const note = prompt('Perubahan yang Anda minta (kg, tingkat, atau jadwal):'); if (!note) return; body.note = note; }
+      if (action === 'decline') body.reason = prompt('Alasan (opsional):') || '';
+      try { await api(`/api/buyer/proposals/${b.dataset.id}/respond`, { method: 'POST', body }); toast('Respons Anda sudah dikirim.'); viewProposal(); }
+      catch (err) { errBox.hidden = false; errBox.textContent = err.message; }
+    }));
+    const form = document.getElementById('prop-form');
+    const payload = () => {
+      const raw = formData(form);
+      const tiers = [...form.querySelectorAll('input[name="tiers"]:checked')].map((x) => x.value);
+      const body = { company: raw.company, npwp: raw.npwp, licence: raw.licence, contactName: raw.contactName, phone: raw.phone, email: raw.email, address: raw.address, city: raw.city, quantityKg: Number(raw.quantityKg), needBy: raw.needBy, packaging: raw.packaging, intendedUse: raw.intendedUse, deliveryTerms: raw.deliveryTerms, freightBy: raw.freightBy, tiers };
+      if (raw.minScore) body.minScore = Number(raw.minScore);
+      return body;
+    };
+    // Simpan draf: buat atau perbarui, tanpa mengajukan.
+    let draftId = draft ? draft.id : null;
+    const save = async () => {
+      const body = payload();
+      const out = draftId
+        ? await api(`/api/buyer/proposals/${draftId}`, { method: 'PATCH', body })
+        : await api('/api/buyer/proposals', { method: 'POST', body });
+      draftId = out.proposal.id;
+      return out;
+    };
+    document.getElementById('prop-save').addEventListener('click', async (e) => {
+      const btn = e.currentTarget; busy(btn, true, 'Menyimpan…');
+      try { await save(); toast('Draf disimpan.'); }
+      catch (err) { showFormError(form, err); }
+      finally { busy(btn, false); }
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const agreements = Object.fromEntries(PROP_AGREE.map((k) => [k, form.querySelector(`[data-agree="${k}"]`).checked]));
+      const btn = form.querySelector('button[type="submit"]');
+      busy(btn, true);
+      try {
+        await save();
+        await api(`/api/buyer/proposals/${draftId}/submit`, { method: 'POST', body: { agreements } });
+        toast('Proposal sudah dikirim. Kami akan menghubungi Anda setelah peninjauan.');
+        viewProposal();
+      } catch (err) { showFormError(form, err); }
+      finally { busy(btn, false); }
+    });
+  }
+
+  const PROP_NEXT = {
+    submitted: [['start_review', 'Mulai tinjau']],
+    in_review: [['request_info', 'Minta informasi'], ['make_offer', 'Buat penawaran']],
+    need_info: [['resume_review', 'Lanjutkan tinjau']],
+    negotiating: [['make_offer', 'Buat penawaran baru']],
+    agreed: [['request_deposit', 'Minta DP']],
+    deposit_pending: [['mark_deposit_paid', 'DP sudah dibayar']],
+    deposit_paid: [['start_prep', 'Mulai siapkan']],
+    preparing: [['request_balance', 'Minta pelunasan']],
+    balance_pending: [['mark_balance_paid', 'Pelunasan diterima']],
+    balance_paid: [['dispatch', 'Catat pengiriman']],
+    shipped: [['complete', 'Tandai selesai']],
+  };
+  // Baris penawaran: "KODE:KG" dipisah koma. Awalan "lot" boleh ditulis dan diabaikan.
+  function parseOfferLines(text) {
+    const parts = String(text || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!parts.length) return { error: 'Isi minimal satu lot, contoh: AL-2611-001:200' };
+    const lines = [];
+    for (const part of parts) {
+      const m = part.match(/^(?:lot\s+)?([A-Za-z0-9-]+)\s*:\s*(\d+(?:\.\d+)?)$/i);
+      if (!m) return { error: `Format salah untuk "${part}". Tulis KODE:KG, contoh AL-2611-001:200` };
+      lines.push({ lotCode: m[1].toUpperCase(), kg: Number(m[2]) });
+    }
+    return { lines };
+  }
+  // Staf: aksi yang butuh isian memakai formulir kecil di dalam kartu, bukan prompt browser.
+  const PROP_FIELDS = {
+    request_info: [['message', 'Informasi yang dibutuhkan', 'textarea', true]],
+    make_offer: [['kg', 'Jumlah (kg, 1 ton = 1.000 kg)', 'number', true], ['tier', 'Tingkat', 'select', true], ['lines', 'Atur lot sendiri (opsional): KODE:KG, contoh AL-2611-001:200, AL-2611-003:150', 'textarea', false]],
+    decline: [['reason', 'Alasan (opsional)', 'input', false]],
+    mark_deposit_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
+    mark_balance_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
+    dispatch: [['courier', 'Kurir', 'input', true], ['waybill', 'Nomor resi', 'input', true]],
+  };
+  const PROP_LABEL = { request_info: 'Minta informasi', make_offer: 'Buat penawaran', decline: 'Tolak', mark_deposit_paid: 'DP sudah dibayar', mark_balance_paid: 'Pelunasan diterima', dispatch: 'Catat pengiriman' };
+  function propActionForm(p, action) {
+    const asked = (p.form && p.form.quantityKg) || '';
+    const askedTier = ((p.form && p.form.tiers) || [])[0] || '';
+    const fields = PROP_FIELDS[action].map(([name, label, kind, req]) => {
+      if (kind === 'textarea') return `<label>${esc(label)}<textarea name="${name}" rows="2" ${req ? 'required' : ''}></textarea></label>`;
+      if (kind === 'select') return `<label>${esc(label)}<select name="${name}">${PROP_TIERS.map(([v, l]) => `<option value="${v}" ${v === askedTier ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+      const value = name === 'kg' ? ` value="${esc(asked)}"` : '';
+      return `<label>${esc(label)}<input name="${name}" ${kind === 'number' ? 'type="number" min="100" step="100"' : ''}${value} ${req ? 'required' : ''}></label>`;
+    }).join('');
+    const hint = action === 'make_offer' ? `<p class="muted" style="margin:0;font-size:13px">Diminta pembeli: ${kg(asked)} ${askedTier ? '· ' + esc(tierLabel(askedTier)) : ''}. Lot dipilih otomatis dari stok tingkat itu.</p>` : '';
+    return `<form class="prop-action-form" data-action="${action}" data-id="${esc(p.id)}" hidden>${fields}
+      ${hint}<div class="btn-row"><button class="btn small" type="submit">Simpan</button><button class="btn secondary small" type="button" data-prop-cancel>Batal</button></div>
+      <p class="error" data-prop-error hidden></p></form>`;
+  }
+  function propStaffButtons(p) {
+    const buttons = (PROP_NEXT[p.status] || []).map(([a, l]) => PROP_FIELDS[a]
+      ? `<button class="btn small" type="button" data-prop-toggle="${a}">${esc(l)}</button>`
+      : `<button class="btn small" type="button" data-prop-action="${a}" data-id="${esc(p.id)}">${esc(l)}</button>`).join('');
+    const decline = ['submitted', 'in_review', 'need_info', 'negotiating'].includes(p.status) ? `<button class="btn secondary small" type="button" data-prop-toggle="decline">Tolak</button>` : '';
+    const forms = Object.keys(PROP_FIELDS).filter((a) => (PROP_NEXT[p.status] || []).some(([x]) => x === a) || (a === 'decline' && decline)).map((a) => propActionForm(p, a)).join('');
+    return `<div class="btn-row" style="margin-top:10px">${buttons}${decline}</div>${forms}`;
+  }
+  async function viewAdminProposals() {
+    const { proposals: list } = await api('/api/admin/proposals', { admin: true });
+    setMain(adminShell('proposal', `
+      <h2 style="margin-top:0">Proposal pesanan besar</h2>
+      <p class="muted" style="font-size:14px">Tinjau, verifikasi, lalu catat setiap langkah. Setiap perubahan tercatat di riwayat proposal dan memicu pesan ke pembeli.</p>
+      <div class="prop-list">${list.map((p) => `
+        <article class="card prop-card">
+          <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
+          <p style="margin:6px 0 0">${esc(p.buyer.company || p.buyer.name)} · ${esc(p.buyer.email)}</p>
+          <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')} · NPWP ${esc(p.form.npwp || '—')}</p>
+          ${p.offers && p.offers.length ? `<p class="muted" style="margin:4px 0 0;font-size:14px">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)} · ${kg(offeredKg(p.offers[p.offers.length - 1]))}</p>` : ''}
+          ${qtyNote(p)}
+          ${propStaffButtons(p)}
+          <p class="error" data-prop-error hidden></p>
+        </article>`).join('') || '<p class="muted">Belum ada proposal.</p>'}</div>`));
+    wireSignOut();
+    main.querySelectorAll('[data-prop-toggle]').forEach((b) => b.addEventListener('click', () => {
+      const card = b.closest('.prop-card');
+      card.querySelectorAll('.prop-action-form').forEach((f) => { f.hidden = f.dataset.action !== b.dataset.propToggle ? true : !f.hidden; });
+    }));
+    main.querySelectorAll('[data-prop-cancel]').forEach((b) => b.addEventListener('click', () => { b.closest('form').hidden = true; }));
+    const send = async (id, body, errEl) => {
+      try { await api(`/api/admin/proposals/${id}/action`, { method: 'POST', admin: true, body }); toast('Proposal diperbarui.'); viewAdminProposals(); }
+      catch (err) { errEl.hidden = false; errEl.textContent = err.message; }
+    };
+    main.querySelectorAll('[data-prop-action]').forEach((b) => b.addEventListener('click', () => send(b.dataset.id, { action: b.dataset.propAction }, b.closest('.prop-card').querySelector('[data-prop-error]'))));
+    main.querySelectorAll('.prop-action-form').forEach((f) => f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const raw = formData(f);
+      const body = { action: f.dataset.action, ...raw };
+      if (f.dataset.action === 'make_offer') {
+        if (String(raw.lines || '').trim()) {
+          const parsed = parseOfferLines(raw.lines);
+          if (parsed.error) { const box = f.querySelector('[data-prop-error]'); box.hidden = false; box.textContent = parsed.error; return; }
+          body.lines = parsed.lines;
+        } else {
+          delete body.lines;
+          body.kg = Number(raw.kg);
+          body.tier = raw.tier;
+        }
+      }
+      send(f.dataset.id, body, f.querySelector('[data-prop-error]'));
     }));
   }
 
@@ -2058,7 +2372,7 @@ const ICONS = {
     if (!buyerToken()) return viewBuyerAuth();
     let me;
     try { me = (await api('/api/buyer/me')).buyer; } catch { setBuyerToken(''); return viewBuyerAuth(); }
-    const { orders } = await api('/api/buyer/orders');
+    const [{ orders }, { proposals }] = await Promise.all([api('/api/buyer/orders'), api('/api/buyer/proposals')]);
     setMain(`
       <div class="btn-row" style="justify-content:space-between;align-items:flex-end">
         <div><h1 style="margin-bottom:4px">Akun saya</h1><p class="muted" style="margin:0">Halo, ${esc(me.name)}. ${esc(me.email)}</p></div>
@@ -2069,6 +2383,12 @@ const ICONS = {
       ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
         ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a> · <button type="button" class="btn secondary small" data-invoice="${esc(o.number)}">Faktur PDF</button></td></tr>`).join('')}
         </tbody></table></div>` : `<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat saat masuk akan muncul di sini.</p><p><a class="btn" href="#/produk">Lihat katalog</a></p></div>`}
+      <h2>Proposal saya</h2>
+      ${proposals.length ? `<div class="prop-list">${proposals.map((p) => `<article class="card prop-card">
+        <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.statusLabel || p.status)}</span></div>
+        <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))}${p.offers && p.offers.length ? ' · Penawaran terakhir ' + rp(p.offers[p.offers.length - 1].total) : ''}</p>
+        <div class="btn-row" style="margin-top:8px"><a class="btn secondary small" href="#/proposal">Lihat proposal</a></div>
+      </article>`).join('')}</div>` : '<div class="card"><p class="muted" style="margin:0">Belum ada proposal pesanan besar. <a href="#/proposal">Ajukan pesanan 1 ton atau lebih</a>.</p></div>'}
       <h2>Alamat tersimpan</h2>
       <div class="grid">${me.addresses.map((a) => `
         <div class="card"><div class="btn-row" style="justify-content:space-between"><strong>${esc(a.label)}</strong>${a.isDefault ? '<span class="pill ok">Utama</span>' : ''}</div>
@@ -2297,7 +2617,7 @@ const ICONS = {
   }
 
   // Alamat admin memakai nama Indonesia; kunci halaman di dalam kode tetap.
-  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', feedback: 'feedback', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
+  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', proposal: 'proposal', feedback: 'feedback', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
   const ADMIN_KEY = Object.fromEntries(Object.entries(ADMIN_SLUG).map(([k, v]) => [v, k]));
   const adminPath = (k) => ADMIN_SLUG[k] || k;
 
@@ -2333,6 +2653,7 @@ const ICONS = {
       if (head === 'lacak' && !a) return await viewTrack();
       if (head === 'lacak' && a) return await viewTrackDetail(a, query);
       if (head === 'umpan-balik' && a) return viewFeedback(a);
+      if (head === 'proposal') return await viewProposal(query);
       if (head === 'tentang') return viewAbout();
       if (head === 'kategori') { location.hash = '#/produk' + (a === 'kopi' ? '?kategori=kopi' : ''); return; }
       if (head === 'periksa') return viewVerify(query);
@@ -2361,6 +2682,7 @@ const ICONS = {
         if (sec === 'lots' && b) return await viewAdminGrade(b);
         if (sec === 'lots') return await viewAdminLots();
         if (sec === 'orders') return await viewAdminOrders();
+        if (sec === 'proposal') return await viewAdminProposals();
         if (sec === 'feedback') return await viewAdminFeedback();
         if (sec === 'settings') return await viewAdminSettings();
         return await viewAdminDashboard();

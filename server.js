@@ -11,6 +11,7 @@ const { LoginLimiter } = require('./lib/ratelimit');
 const { productionProblems } = require('./lib/prodcheck');
 const content = require('./lib/content');
 const buyers = require('./lib/buyers');
+const proposals = require('./lib/proposals');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
 const legal = require('./config/legal');
@@ -312,6 +313,32 @@ function buildRoutes(ctx) {
     const orders = store.read().orders.filter((o) => o.buyerId === b.id).map((o) => domain.publicOrder(o));
     return { status: 200, body: { orders }, headers: { 'Cache-Control': 'no-store' } };
   });
+  // ---- Proposal pesanan besar (1.000 kg ke atas) ----
+  route('GET', /^\/api\/buyer\/proposals$/, (_p, _b, _q, req) => {
+    const b = needBuyer(req);
+    const db = store.update((d) => { proposals.expireDue(d, now()); return d; });
+    return { status: 200, body: { proposals: proposals.listForBuyer(db, b) }, headers: { 'Cache-Control': 'no-store' } };
+  });
+  route('POST', /^\/api\/buyer\/proposals$/, (_p, body, _q, req) => {
+    const b = needBuyer(req);
+    const out = store.update((db) => proposals.createProposal(db, b, body, now()));
+    return { status: 201, body: { proposal: proposals.publicProposal(out.proposal), problems: out.problems } };
+  });
+  route('PATCH', /^\/api\/buyer\/proposals\/([\w-]+)$/, ([id], body, _q, req) => {
+    const b = needBuyer(req);
+    const out = store.update((db) => proposals.updateDraft(db, id, b, body, now()));
+    return { status: 200, body: { proposal: proposals.publicProposal(out.proposal), problems: out.problems } };
+  });
+  route('POST', /^\/api\/buyer\/proposals\/([\w-]+)\/submit$/, ([id], body, _q, req) => {
+    const b = needBuyer(req);
+    const p = store.update((db) => proposals.submitProposal(db, id, b, body, now()));
+    return { status: 200, body: { proposal: proposals.publicProposal(p) } };
+  });
+  route('POST', /^\/api\/buyer\/proposals\/([\w-]+)\/respond$/, ([id], body, _q, req) => {
+    const b = needBuyer(req);
+    const p = store.update((db) => proposals.buyerAction(db, id, b, body.action, body, now()));
+    return { status: 200, body: { proposal: proposals.publicProposal(p) } };
+  });
   route('GET', /^\/api\/orders\/(ALO-\d{4}-\d{3})$/, ([number], _b, q) => {
     const order = domain.findOrderForBuyer(store.read(), number, q.email);
     if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
@@ -501,6 +528,18 @@ function buildRoutes(ctx) {
     });
     return { status: 200, body: { ok: true }, auditDetail: `Tautan atur ulang dikirim ke ${sentTo} oleh staf.` };
   }, { perm: 'users' });
+  route('GET', /^\/api\/admin\/proposals$/, () => {
+    const db = store.update((d) => { proposals.expireDue(d, now()); return d; });
+    const list = (db.proposals || []).slice().reverse().map((p) => {
+      const buyer = (db.buyers || []).find((x) => x.id === p.buyerId) || {};
+      return { ...proposals.publicProposal(p), buyer: { name: buyer.name || '', company: buyer.company || '', email: buyer.email || '' } };
+    });
+    return { status: 200, body: { proposals: list }, headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'proposals' });
+  route('POST', /^\/api\/admin\/proposals\/([\w-]+)\/action$/, ([id], body) => {
+    const p = store.update((db) => proposals.staffAction(db, id, body.action, body, now()));
+    return { status: 200, body: { proposal: proposals.publicProposal(p) } };
+  }, { perm: 'proposals' });
   route('GET', /^\/api\/admin\/late-orders$/, () => ({ status: 200, body: { orders: courier.lateOrders(store.read(), new Date().toISOString()) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('GET', /^\/api\/admin\/users$/, () => ({ status: 200, body: { users: store.read().users.map(auth.publicUser) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'users' });
   route('POST', /^\/api\/admin\/users$/, (_p, body) => ({ status: 201, body: { user: auth.publicUser(store.update((db) => auth.createUser(db, body, now()))) } }), { perm: 'users' });
@@ -786,6 +825,9 @@ if (require.main === module) {
     const at = new Date().toISOString();
     if (store.read().orders.some((o) => !o.lateNotifiedAt && o.status === 'shipped')) {
       store.update((db) => notify.notifyLateOrders(db, at));
+    }
+    if ((store.read().proposals || []).some((p) => ['offered', 'deposit_pending'].includes(p.status))) {
+      store.update((db) => proposals.expireDue(db, at));
     }
     notify.dispatchOutbox(store).catch((err) => console.error('[notify] gagal mengirim:', err.message));
   }, 60000).unref();
