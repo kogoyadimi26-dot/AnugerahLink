@@ -452,26 +452,29 @@
       <div class="lot-detail">
         <article class="card">
           <div class="btn-row ix-9"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
+          ${lot.tierDescription ? `<p class="lot-tier-note">${esc(lot.tierDescription)}</p>` : ''}
           <h1 class="ix-16">${esc(lot.title)}</h1>
           <div class="lot-detail-grid">
           <div class="lot-detail-media">
             ${lot.coverPhotoId ? `<img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(lot.coverPhotoId)}" alt="Foto ${esc(lot.title)}" class="lot-hero-photo">` : ''}
+          ${(lot.photos || []).length > 1 ? `<div class="lot-thumbs">${lot.photos.map((p, i) => `<button type="button" class="lot-thumb${i === 0 ? ' is-active' : ''}" aria-label="Foto ${i + 1}"><img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(p.id)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
           </div>
           <div class="lot-detail-info">
           ${lot.story ? `<p class="lead ix-72">${esc(lot.story)}</p>` : ''}
-          <p class="muted ix-71">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</p>
+          <p class="muted ix-71">${esc([lot.regionName, lot.regency].filter(Boolean).join(', '))}</p>
           <dl class="kv ix-13">
             <dt>Kelompok tani</dt><dd>${esc(lot.groupName)}</dd>
             <dt>Kabupaten</dt><dd>${esc(lot.regency)}</dd>
             <dt>Proses</dt><dd>${processHtml(lot.process, lot.processInfo)}</dd>
             <dt>Grade</dt><dd>${esc(lot.grade)}</dd>
             <dt>Panen</dt><dd>${tanggal(lot.harvestDate)}</dd>
-            <dt>Stok</dt><dd>${lot.soldOut ? '<span class="pill bad">Habis terjual</span>' : kg(lot.availableKg) + (lot.lowStock ? ' <span class="pill warn">Stok menipis</span>' : '')}</dd>
+            <dt>Skor cupping</dt><dd>${esc(lot.cupScore)}</dd>
           </dl>
           <p class="price num ix-70">${rp(lot.pricePerKg)} <span class="muted ix-69">per kg</span></p>
+          ${lot.shippingNote ? `<p class="lot-ship">${esc(lot.shippingNote)}</p>` : ''}
           ${lot.soldOut ? '' : `
           <form id="add-form" class="buy-box">
-            <p class="buy-stock">Tersedia</p>
+            <p class="buy-stock">Tersedia · ${kg(lot.availableKg)}${lot.lowStock ? ' <span class="pill warn">Stok menipis</span>' : ''}</p>
             <div class="buy-qty">
               <span id="kg-label">Jumlah (kg)</span>
               <div class="stepper">
@@ -479,8 +482,10 @@
                 <input id="kg" name="kg" type="number" inputmode="numeric" min="${lot.minOrderKg}" max="${maxKg}" step="${lot.stepKg}" value="${startKg}" aria-labelledby="kg-label">
                 <button type="button" class="btn secondary" data-step="${lot.stepKg}" aria-label="Tambah">+</button>
               </div>
+              <p class="buy-limits">Minimal ${kg(lot.minOrderKg)} · kelipatan ${kg(lot.stepKg)} · maks. ${kg(maxKg)}</p>
               <p class="error" id="kg-error" hidden></p>
             </div>
+            ${lot.sample ? '<p class="lot-sample">Contoh kopi bisa diminta sebelum memesan.</p>' : ''}
             <button class="buy-add" type="submit" data-intent="cart">${inCart ? 'Perbarui keranjang' : 'Tambah ke keranjang'}</button>
             <button class="buy-now" type="submit" data-intent="buy">Beli sekarang</button>
             <a class="buy-link" href="${passportHref(lot.code)}">Lihat traceability</a>
@@ -2529,6 +2534,16 @@ const ICONS = {
   document.addEventListener('click', (e) => {
     const btn = e.target.closest ? e.target.closest('#theme-toggle') : null;
     if (btn) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+
+  // Galeri foto lot: klik miniatur untuk mengganti foto utama.
+  document.addEventListener('click', (e) => {
+    const thumb = e.target.closest ? e.target.closest('.lot-thumb') : null;
+    if (!thumb) return;
+    const main = document.querySelector('.lot-detail-media .lot-hero-photo');
+    const src = thumb.querySelector('img').getAttribute('src');
+    if (main) main.setAttribute('src', src);
+    document.querySelectorAll('.lot-thumb').forEach((b) => b.classList.toggle('is-active', b === thumb));
   });
 
   // Tautan dengan data-scroll membuka halaman lalu menggulir ke bagian yang dituju.
