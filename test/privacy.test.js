@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-privasi-'));
 const OWNER = { email: 'pemilik-privasi@test.local', password: 'kata-sandi-privasi-123' };
@@ -17,7 +18,7 @@ test.before(async () => {
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${app.server.address().port}`;
   STAFF = (await call('POST', '/api/auth/login', { body: OWNER })).json.token;
-  TOKEN = (await call('POST', '/api/buyer/signup', { body: BUYER })).json.token;
+  TOKEN = (await signupAndLogin(call, BUYER)).token;
 });
 test.after(async () => {
   await new Promise((r) => app.server.close(r));
