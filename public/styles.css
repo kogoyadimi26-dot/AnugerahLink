@@ -513,3 +513,19 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .dash-recent table { min-width: 560px; }
 @media (max-width: 600px) { .dash-recent table { min-width: 0; } .dash-recent th:nth-child(2), .dash-recent td:nth-child(2) { display: none; } .dash-recent td, .dash-recent th { padding-left: 6px; padding-right: 6px; } }
 .nowrap { white-space: nowrap; }
+
+/* Admin orders: one card per order */
+.ord-list { display: grid; gap: 12px; margin-bottom: 28px; }
+.ord-card { display: grid; gap: 14px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.ord-head, .ord-body { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px 16px; flex-wrap: wrap; }
+.ord-no { font-size: 16px; color: var(--heading); }
+.ord-status { display: flex; align-items: center; gap: 12px; }
+.ord-buyer { font-weight: 600; }
+.ord-meta { font-size: 13px; line-height: 1.5; }
+.ord-edit { display: grid; grid-template-columns: minmax(140px, 1.2fr) repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: center; margin: 0; }
+.ord-edit select, .ord-edit input { min-width: 0; width: 100%; }
+.ord-sim { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 760px) {
+  .ord-edit { grid-template-columns: 1fr 1fr; }
+  .ord-edit .btn { grid-column: 1 / -1; }
+}

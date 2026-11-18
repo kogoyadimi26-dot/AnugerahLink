@@ -903,7 +903,7 @@ const ICONS = {
   // ---------- tim (admin) ----------
 
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Feedback'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -1547,30 +1547,35 @@ const ICONS = {
     setMain(adminShell('orders', `
       <h2 style="margin-top:0">Pesanan</h2>
       <p class="muted" style="font-size:14px">Isi referensi transfer sebelum menandai dibayar.</p>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Pesanan</th><th>Pembeli</th><th>Status</th><th class="num">Total</th><th>Perbarui</th></tr></thead>
-        <tbody>
-          ${orders.map((o) => `
-            <tr>
-              <td>${esc(o.number)}<br><span class="muted" style="font-size:13px">${tanggal(o.createdAt)}</span></td>
-              <td>${esc(o.customer.name)}${o.customer.company ? '<br><span class="muted">' + esc(o.customer.company) + '</span>' : ''}<br><span class="muted" style="font-size:13px">${esc(o.customer.email)} · ${esc(o.customer.phone)} · ${esc(o.customer.city)}</span><br><span class="muted" style="font-size:13px">${o.lines.map((l) => esc(l.lotCode) + ' ' + kg(l.kg)).join(', ')}</span></td>
-              <td><span class="pill">${esc(STATUS_TEKS[o.status] || o.status)}</span>${o.payment.reference ? `<br><span class="muted" style="font-size:13px">Ref: ${esc(o.payment.reference)}</span>` : ''}${(o.problems || []).length ? `<br><span class="pill warn">Ada laporan masalah</span><br><span class="muted" style="font-size:13px">${o.problems.map((p) => esc(p.message)).join(' · ')}</span>` : ''}</td>
-              <td class="num">${rp(o.total)}</td>
-              <td>
-                <form data-order="${esc(o.id)}" class="btn-row" style="flex-wrap:nowrap">
-                  <select name="status" aria-label="Status baru untuk ${esc(o.number)}" style="min-width:120px">
-                    ${statuses.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${esc(STATUS_TEKS[s])}</option>`).join('')}
-                  </select>
-                  <input name="paymentReference" aria-label="Nomor referensi bayar" placeholder="Ref transfer" value="${esc(o.payment.reference || '')}" style="min-width:120px">
-                  <input name="courier" aria-label="Kurir" placeholder="Kurir" value="${esc((o.shipment || {}).courier || '')}" style="min-width:100px">
-                  <input name="waybill" aria-label="Nomor resi" placeholder="No. resi" value="${esc((o.shipment || {}).waybill || '')}" style="min-width:120px">
-                  <button class="btn small" type="submit">Simpan</button>
-                </form>
-                ${(state.config.demoAccounts || []).length ? (o.payments || []).filter((p) => p.status === 'pending').map((p) => `<button class="btn secondary small" type="button" data-sim="${esc(p.providerRef || '')}" style="margin-top:6px">Simulasi bayar (demo)</button>`).join('') : ''}
-                <p class="error" data-row-error hidden></p>
-              </td>
-            </tr>`).join('') || '<tr><td colspan="5">Belum ada pesanan.</td></tr>'}
-        </tbody></table></div>
+      <div class="ord-list">
+        ${orders.map((o) => `
+          <article class="ord-card">
+            <div class="ord-head">
+              <div><strong class="ord-no">${esc(o.number)}</strong> <span class="muted ord-meta">${tanggal(o.createdAt)}</span></div>
+              <div class="ord-status"><span class="pill">${esc(STATUS_TEKS[o.status] || o.status)}</span><strong class="num">${rp(o.total)}</strong></div>
+            </div>
+            <div class="ord-body">
+              <div>
+                <div class="ord-buyer">${esc(o.customer.name)}${o.customer.company ? ' · ' + esc(o.customer.company) : ''}</div>
+                <div class="muted ord-meta">${esc(o.customer.email)} · ${esc(o.customer.phone)} · ${esc(o.customer.city)}</div>
+                <div class="muted ord-meta">${o.lines.map((l) => esc(l.lotCode) + ' ' + kg(l.kg)).join(', ')}</div>
+              </div>
+              ${o.payment.reference ? `<div class="muted ord-meta">Ref: ${esc(o.payment.reference)}</div>` : ''}
+              ${(o.problems || []).length ? `<div><span class="pill warn">Ada laporan masalah</span> <span class="muted ord-meta">${o.problems.map((p) => esc(p.message)).join(' · ')}</span></div>` : ''}
+            </div>
+            <form data-order="${esc(o.id)}" class="ord-edit">
+              <select name="status" aria-label="Status baru untuk ${esc(o.number)}">
+                ${statuses.map((st) => `<option value="${st}" ${st === o.status ? 'selected' : ''}>${esc(STATUS_TEKS[st])}</option>`).join('')}
+              </select>
+              <input name="paymentReference" aria-label="Nomor referensi bayar" placeholder="Ref transfer" value="${esc(o.payment.reference || '')}">
+              <input name="courier" aria-label="Kurir" placeholder="Kurir" value="${esc((o.shipment || {}).courier || '')}">
+              <input name="waybill" aria-label="Nomor resi" placeholder="No. resi" value="${esc((o.shipment || {}).waybill || '')}">
+              <button class="btn small" type="submit">Simpan</button>
+            </form>
+            ${(state.config.demoAccounts || []).length && (o.payments || []).some((p) => p.status === 'pending') ? `<div class="ord-sim">${(o.payments || []).filter((p) => p.status === 'pending').map((p) => `<button class="btn secondary small" type="button" data-sim="${esc(p.providerRef || '')}">Simulasi bayar (demo)</button>`).join('')}</div>` : ''}
+            <p class="error" data-row-error hidden></p>
+          </article>`).join('') || '<p class="muted">Belum ada pesanan.</p>'}
+      </div>
       <h2>Pesan ke pelanggan</h2>
       <p class="muted" style="font-size:14px">Email: ${box.providers.email ? 'terhubung' : 'belum diatur, pesan menunggu'} · WhatsApp: ${box.providers.whatsapp ? 'terhubung' : 'belum diatur, pesan menunggu'}</p>
       <div class="table-wrap"><table>
@@ -1601,7 +1606,7 @@ const ICONS = {
     const [{ feedback }, { groups }] = await Promise.all([api('/api/admin/feedback', { admin: true }), api('/api/admin/groups', { admin: true })]);
     const tags = [['pass-to-farmer', 'Teruskan ke petani'], ['internal-quality', 'Mutu internal'], ['internal-logistics', 'Logistik internal'], ['discard', 'Buang']];
     setMain(adminShell('feedback', `
-      <h2 style="margin-top:0">Umpan balik</h2>
+      <h2 style="margin-top:0">Feedback</h2>
       <p class="muted" style="font-size:14px">Hanya "Teruskan ke petani" yang masuk laporan.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Pesanan · Lot</th><th>Rasa</th><th>Masalah</th><th>Pesan ulang</th><th>Tag</th></tr></thead>
@@ -2292,7 +2297,7 @@ const ICONS = {
   }
 
   // Alamat admin memakai nama Indonesia; kunci halaman di dalam kode tetap.
-  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', feedback: 'umpan-balik', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
+  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', feedback: 'feedback', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
   const ADMIN_KEY = Object.fromEntries(Object.entries(ADMIN_SLUG).map(([k, v]) => [v, k]));
   const adminPath = (k) => ADMIN_SLUG[k] || k;
 
@@ -2342,6 +2347,8 @@ const ICONS = {
         if (cu && cu.mustChangePassword) return viewChangePassword();
         // Alamat lama #/admin/users dialihkan ke #/admin/pengguna.
         if (a === 'users') { location.hash = '#/admin/' + adminPath('users') + location.hash.slice('#/admin/users'.length); return; }
+        // Alamat lama #/admin/umpan-balik dialihkan ke #/admin/feedback.
+        if (a === 'umpan-balik') { location.hash = '#/admin/feedback' + location.hash.slice('#/admin/umpan-balik'.length); return; }
         const pages = allowedPages();
         const sec = ADMIN_KEY[a] || a || landingPage();
         if (!pages.includes(sec)) { location.hash = '#/admin/' + adminPath(landingPage()); return; }
