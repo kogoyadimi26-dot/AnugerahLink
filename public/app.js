@@ -2388,13 +2388,119 @@ const ICONS = {
     try {
       const me = (await api('/api/buyer/me')).buyer;
       label.textContent = `Halo, ${String(me.name || '').split(' ')[0]}`;
+      translateChrome();
       if (guest) guest.hidden = true;
     } catch {
       setBuyerToken('');
       label.textContent = 'Halo, masuk';
       if (guest) guest.hidden = false;
     }
+    translateChrome();
   }
+
+  // Bahasa antarmuka. Saat ini hanya bagian tetap di header, menu, katalog, dan footer yang diterjemahkan.
+  // Isi halaman lain (lot, pesanan, formulir) tetap dalam bahasa Indonesia.
+  const LANG_EN = {
+    'Asal kopi': 'Coffee origin',
+    'Cari': 'Search',
+    'Kopi': 'Coffee',
+    'Bahasa & mata uang': 'Language & currency',
+    'ID · IDR': 'EN · IDR',
+    'Halo, masuk': 'Hello, sign in',
+    'Akun & daftar': 'Account & sign up',
+    'Pesanan': 'Orders',
+    '& Lacak': '& Track',
+    'Keranjang': 'Cart',
+    'Produk': 'Products',
+    'Tentang': 'About',
+    'Kebijakan privasi': 'Privacy policy',
+    'Syarat': 'Terms',
+    'Skor cupping tertinggi': 'Highest cupping score',
+    'Panen terbaru': 'Newest harvest',
+    'Harga terendah': 'Lowest price',
+    'Termasuk yang habis': 'Including sold out',
+    'Pilih bahasa': 'Choose language',
+    'Mata uang': 'Currency',
+    'USD · Dolar AS': 'USD · US dollar',
+    'Masuk': 'Sign in',
+    'Pelanggan baru?': 'New customer?',
+    'Daftar di sini': 'Sign up here',
+    'Akun Anda': 'Your account',
+    'Akun saya': 'My account',
+    'Alamat tersimpan': 'Saved addresses',
+    'Unduh data saya': 'Download my data',
+    'Pesanan saya': 'My orders',
+    'Lacak pesanan': 'Track an order',
+    'Pesanan besar': 'Large order',
+    'segera hadir': 'coming soon',
+    'Kenali kami': 'About us',
+    'Tentang kami': 'About us',
+    'Nilai kami': 'Our values',
+    'Cara kerja kami': 'How we work',
+    'Belanja': 'Shop',
+    'Buat akun atau masuk': 'Create an account or sign in',
+    'Pembayaran': 'Payment',
+    'Transfer BCA atau BNI (virtual account), dan QRIS.': 'Bank transfer (BCA or BNI virtual account) and QRIS.',
+    'Faktur PDF tersedia untuk setiap pesanan.': 'A PDF invoice is available for every order.',
+    'Bantuan': 'Help',
+    'Klaim dan pengembalian': 'Claims and returns',
+    'Kebijakan privasi ': 'Privacy policy',
+    'Syarat penggunaan': 'Terms of use',
+    'Setiap lot dinilai oleh AnugerahLink sebelum dijual. Petani dibayar tunai di kebun.': 'Every lot is graded by AnugerahLink before it is sold. Farmers are paid in cash at the farm.',
+    'Masuk tim': 'Team sign in',
+    'Kembali ke atas': 'Back to top',
+  };
+  const LANG_TRANSLATE_ROOTS = ['.site-header', '.subbar', '.site-footer', '#back-to-top'];
+  let currentLang = 'id';
+  function langText(src) {
+    if (currentLang !== 'en') return src;
+    if (LANG_EN[src] !== undefined) return LANG_EN[src];
+    const hello = /^Halo, (.+)$/.exec(src);
+    if (hello) return `Hello, ${hello[1]}`;
+    return src;
+  }
+  // Mengganti teks bagian tetap sesuai bahasa aktif. Teks Indonesia asli disimpan agar bisa kembali.
+  function translateChrome() {
+    document.documentElement.lang = currentLang;
+    const search = document.getElementById('search-q');
+    if (search) {
+      if (search.dataset.srcPlaceholder === undefined) search.dataset.srcPlaceholder = search.getAttribute('placeholder') || '';
+      search.setAttribute('placeholder', langText(search.dataset.srcPlaceholder));
+    }
+    LANG_TRANSLATE_ROOTS.forEach((sel) => {
+      document.querySelectorAll(sel).forEach((root) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const parent = node.parentNode;
+          if (parent && parent.closest && parent.closest('script, style')) continue;
+          const raw = node.nodeValue;
+          const trimmed = raw.trim();
+          if (!trimmed) continue;
+          if (node.__src === undefined) node.__src = trimmed;
+          const next = langText(node.__src);
+          if (next !== trimmed) node.nodeValue = raw.replace(trimmed, next);
+        }
+      });
+    });
+    document.querySelectorAll('[data-lang]').forEach((b) => {
+      const on = b.dataset.lang === currentLang;
+      b.classList.toggle('is-current', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  function setLang(code) {
+    currentLang = code === 'en' ? 'en' : 'id';
+    try { localStorage.setItem('al-lang', currentLang); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
+    translateChrome();
+  }
+  try { currentLang = localStorage.getItem('al-lang') === 'en' ? 'en' : 'id'; } catch { currentLang = 'id'; }
+  document.addEventListener('click', (e) => {
+    const opt = e.target.closest ? e.target.closest('button[data-lang]') : null;
+    if (!opt) return;
+    setLang(opt.dataset.lang);
+    closeMenus();
+  });
 
   // Tautan dengan data-scroll membuka halaman lalu menggulir ke bagian yang dituju.
   let scrollTarget = null;
@@ -2922,6 +3028,7 @@ const ICONS = {
     }
     // Pratinjau tema admin hanya berlaku di halaman itu; pindah halaman mengembalikannya.
     window.addEventListener('hashchange', () => { applyTheme(state.config.theme); closeMenus(); route(); paintAccountMenu(); });
+    translateChrome();
     paintAccountMenu();
     route();
   }
