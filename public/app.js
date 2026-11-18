@@ -2378,6 +2378,31 @@ const ICONS = {
   function isBuyerPath(path) { return BUYER_PATHS.some((b) => path === b || path.startsWith(b + '/') || path.startsWith(b + '?')); }
   // Penanda saja (bukan token): menandakan pembeli sudah masuk.
   function buyerToken() { try { return localStorage.getItem('al-buyer') || ''; } catch { return ''; } }
+
+  // Menu akun di header: sapaan dengan nama bila sudah masuk; tombol Masuk bila belum.
+  async function paintAccountMenu() {
+    const label = document.getElementById('acct-k');
+    const guest = document.getElementById('acct-guest');
+    if (!label) return;
+    if (!buyerToken()) { label.textContent = 'Halo, masuk'; if (guest) guest.hidden = false; return; }
+    try {
+      const me = (await api('/api/buyer/me')).buyer;
+      label.textContent = `Halo, ${String(me.name || '').split(' ')[0]}`;
+      if (guest) guest.hidden = true;
+    } catch {
+      setBuyerToken('');
+      label.textContent = 'Halo, masuk';
+      if (guest) guest.hidden = false;
+    }
+  }
+
+  // Menu header tertutup saat klik di luar, saat Esc, dan saat pindah halaman.
+  function closeMenus() { document.querySelectorAll('details.menu[open]').forEach((d) => { d.open = false; }); }
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('details.menu[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenus(); });
+
   // Pemeriksaan publik catatan lot: siapa pun bisa memasukkan kode lot dan hash untuk memastikan datanya tidak berubah.
   function viewVerify(query) {
     const code = String(query.code || '');
@@ -2911,7 +2936,8 @@ const ICONS = {
       location.hash = '#/';
     }
     // Pratinjau tema admin hanya berlaku di halaman itu; pindah halaman mengembalikannya.
-    window.addEventListener('hashchange', () => { applyTheme(state.config.theme); route(); });
+    window.addEventListener('hashchange', () => { applyTheme(state.config.theme); closeMenus(); route(); paintAccountMenu(); });
+    paintAccountMenu();
     route();
   }
 
