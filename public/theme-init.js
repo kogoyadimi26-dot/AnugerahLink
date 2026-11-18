@@ -42,8 +42,6 @@
   if (mq && mq.addEventListener) mq.addEventListener('change', paint);
 
   try {
-    var mode = localStorage.getItem('al-theme');
-    if (mode === 'light' || mode === 'dark') root.setAttribute('data-theme', mode);
     var raw = localStorage.getItem('al-theme-cfg');
     if (raw) { cfg = JSON.parse(raw); paint(); }
   } catch (e) { /* penyimpanan diblokir: pakai tema bawaan dari styles.css */ }
