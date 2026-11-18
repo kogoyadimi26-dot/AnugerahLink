@@ -7,14 +7,16 @@ Read first: `PLAN.md` (what it does and why), `DESIGN.md` (look and layout), `BE
 ## Run it
 
 ```bash
-ADMIN_TOKEN='choose-a-long-secret' npm start
+OWNER_EMAIL='pemilik@contoh.com' OWNER_PASSWORD='kata-sandi-yang-panjang' npm start
 ```
 
-Open http://localhost:3000. The first run creates `data/db.json` with sample regions, groups and three sample lots (marked "sample" everywhere).
+Open http://localhost:3000 and sign in with the owner account. The first run creates `data/app.db` (SQLite) with sample regions, groups and lots (marked "sample" everywhere). An existing `data/db.json` is imported once and renamed to `db.json.migrated`.
 
-Without `ADMIN_TOKEN` the app uses a development token and prints a warning. Do not run it that way where other people can reach it.
+Without `OWNER_PASSWORD` the app uses a development password and prints a warning. Do not run it that way where other people can reach it.
 
-Options: `PORT` (default 3000), `DATA_FILE` (default `data/db.json`).
+**Roles.** The owner adds team members under Pengguna. Admin: everything. Penilai (grader): view lots, grade, publish, withdraw. Petugas lapangan (field agent): record purchases and photos, view lots. Every change is recorded under Riwayat (who, when, what, not the data itself).
+
+Options: `PORT` (default 3000), `DATA_FILE` (default `data/app.db`), `OWNER_NAME`, `OWNER_EMAIL`, `OWNER_PASSWORD`.
 
 ## Test
 
@@ -54,3 +56,46 @@ Covers pricing and the v2 economics, passport hashing, stock reservation and rel
 - Business numbers are the v2 defaults and need the owner's confirmation (see `PLAN.md` section 12).
 - "Closs" from the benchmark request did not match any platform in search. Confirm the name.
 - Bank details, group contacts and real farmer group names are placeholders.
+
+## Online payment (virtual account and QRIS)
+
+Buyers choose Virtual Account BCA or BNI, or QRIS, on the order page. Payments use Midtrans Core API.
+
+**Environment variables**
+- `MIDTRANS_SERVER_KEY`: the server key from the Midtrans dashboard. Use the sandbox key (starts with `SB-Mid-server-`) for testing. Without it, the app uses a local simulator.
+- `MIDTRANS_ENV`: `sandbox` (default) or `production`.
+
+Keys go in environment variables only, never in the code or in chat.
+
+**Testing with a tunnel**
+Midtrans must reach the webhook over public HTTPS, and your Mac's `localhost` is not public. Use a tunnel such as ngrok:
+
+```bash
+ngrok http 3000
+```
+
+In the Midtrans sandbox dashboard, set the Payment Notification URL to `https://<tunnel-address>/api/payments/webhook`.
+
+**Notes**
+- Notifications are verified with the SHA-512 signature from Midtrans. Only settlement (or capture with fraud status accept) marks an order paid. Other statuses are acknowledged and ignored.
+- A payment that arrives after an order was cancelled is flagged for the team.
+- Refunds are done in the Midtrans dashboard for now.
+- The exact response fields from Midtrans should be checked against the sandbox on first use.
+
+
+## Sebelum dipakai untuk data sungguhan
+
+- Atur `NODE_ENV=production`, `OWNER_EMAIL`, dan `OWNER_PASSWORD` (minimal 12 karakter). Server menolak mulai bila kata sandi masih contoh atau `DEMO_ACCOUNTS=1`.
+- Pembatas masuk: 5 kegagalan per email dalam 15 menit mengunci email itu selama 15 menit. Hitungan ini disimpan di memori dan hilang saat server dimulai ulang.
+- Cadangan: `node scripts/backup.js` membuat salinan database dan foto di folder `backups/`. Bisa dijalankan saat server berjalan.
+- Pemulihan: hentikan server, lalu `node scripts/restore.js backups/<folder> --yes`. Data yang ada disimpan dulu di `data/sebelum-pulih-<waktu>`.
+
+
+## Mengelola katalog (untuk admin)
+
+- **Harga per kategori:** menu Pengaturan → "Harga per kategori". Ubah angka, tulis alasan, lalu simpan. Harga berlaku untuk semua lot di kategori itu, dan perubahan tercatat di Riwayat beserta alasannya.
+- **Teks beranda dan footer:** Pengaturan → "Teks beranda dan footer". Teks standar bisa dikembalikan dengan satu tombol.
+- **Tampilan lot di katalog:** buka lot (menu Lot → Nilai), lalu bagian "Tampilan di katalog": judul, cerita untuk pembeli, unggah foto katalog (JPG atau PNG, maksimal 2 MB), pilih satu foto sebagai sampul, lalu simpan.
+- **Foto pemeriksaan** (sampel dan karung) hanya untuk tim dan tidak pernah tampil ke pembeli.
+- **Tayang:** lot tetap harus diverifikasi dan diterbitkan seperti biasa. Penilai bisa melihat tampilan katalog tetapi tidak bisa mengubahnya.
+- Setiap perubahan dicatat di Riwayat (siapa, kapan, dan apa yang berubah).

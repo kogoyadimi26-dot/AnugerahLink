@@ -7,17 +7,20 @@ const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
 
-const TOKEN = 'test-admin-token-123';
+let TOKEN;
+const OWNER = { email: 'owner@test.local', password: 'owner-test-123' };
 let server;
 let base;
 let tmpDir;
 
 test.before(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-test-'));
-  const app = createApp({ dataFile: path.join(tmpDir, 'db.json'), adminToken: TOKEN });
+  const app = createApp({ dataFile: path.join(tmpDir, 'app.db'), owner: { name: 'Pemilik Uji', ...OWNER } });
   server = app.server;
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
+  const login = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(OWNER) });
+  TOKEN = (await login.json()).token;
 });
 
 test.after(async () => {
@@ -73,15 +76,24 @@ test('admin routes refuse missing or wrong tokens', async () => {
   assert.equal((await call('GET', '/api/admin/summary', { token: TOKEN })).status, 200);
 });
 
+// Pesanan butuh akun pembeli. Daftar bila belum ada, lalu masuk, dan kembalikan token.
+async function buyerSession(email, name = 'Uji Pembeli') {
+  const password = 'kata-sandi-uji-1';
+  const signup = await call('POST', '/api/buyer/signup', { body: { name, email, password, phone: '081234567890', company: '', buyerType: 'specialty_cafe', consent: true } });
+  if (signup.status === 201) return signup.json.token;
+  return (await call('POST', '/api/buyer/login', { body: { email, password } })).json.token;
+}
+
 test('full buyer flow: quote, order, track, reject wrong email', async () => {
   const quote = await call('POST', '/api/cart/quote', { body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }] } });
   assert.equal(quote.status, 200);
   assert.equal(quote.json.totals.subtotal, 30 * 250000);
 
   const order = await call('POST', '/api/orders', {
+    token: await buyerSession('ayu@example.com', 'Ayu Test'),
     body: {
       lines: [{ lotCode: 'AL-2611-001', kg: 30 }],
-      customer: { name: 'Ayu Test', company: '', buyerType: 'premium_roaster', phone: '081234567890', email: 'Ayu@Example.com', city: 'Surabaya', notes: '' },
+      consent: true, customer: { name: 'Ayu Test', company: '', buyerType: 'premium_roaster', phone: '081234567890', email: 'Ayu@Example.com', city: 'Surabaya', notes: '' },
     },
   });
   assert.equal(order.status, 201);
@@ -97,7 +109,7 @@ test('full buyer flow: quote, order, track, reject wrong email', async () => {
 });
 
 test('orders with bad input return 400 and field messages', async () => {
-  const r = await call('POST', '/api/orders', { body: { lines: [{ lotCode: 'AL-2611-001', kg: 10 }], customer: { name: 'A', email: 'x' } } });
+  const r = await call('POST', '/api/orders', { token: await buyerSession('bad-input@test.local', 'Uji Input'), body: { lines: [{ lotCode: 'AL-2611-001', kg: 10 }], consent: true, customer: { name: 'A', email: 'x' } } });
   assert.equal(r.status, 400);
   assert.ok(r.json.error.fields.email || r.json.error.fields.name);
 });
@@ -114,7 +126,12 @@ test('admin can publish a new lot and see it on the storefront only after gradin
     token: TOKEN, body: { tier: 'reserve', grade: 'SNI Grade 1', cupScore: '87', sellableKg: '140', moisturePct: '11.5' },
   });
   assert.equal(grade.status, 200);
-  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: TOKEN })).status, 200);
+  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: TOKEN })).status, 409, 'not verified yet');
+  assert.equal((await call('POST', `/api/admin/lots/${id}/verify`, { token: TOKEN })).status, 200);
+  // Penerbitan dilakukan orang lain (admin kedua), sesuai aturan dua orang
+  await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Admin Kedua', email: 'admin2@test.local', role: 'admin', password: 'admin-kedua-123' } });
+  const second = (await call('POST', '/api/auth/login', { body: { email: 'admin2@test.local', password: 'admin-kedua-123' } })).json.token;
+  assert.equal((await call('POST', `/api/admin/lots/${id}/publish`, { token: second })).status, 200);
   const visible = await call('GET', `/api/lots/${code}`);
   assert.equal(visible.status, 200);
   assert.equal(visible.json.lot.availableKg, 140);
@@ -132,4 +149,232 @@ test('static files are served with security headers, and traversal is blocked', 
   assert.equal(page.headers.get('x-content-type-options'), 'nosniff');
   const traversal = await fetch(base + '/..%2F..%2Fpackage.json');
   assert.notEqual(traversal.status, 200);
+});
+
+// ---------- foto pemeriksaan ----------
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+test('staff can upload a sample photo and view it; visitors cannot', async () => {
+  const intake = await call('POST', '/api/admin/lots', {
+    token: TOKEN, body: { groupId: 'g-1', harvestDate: '2026-11-12', kgIn: 90, sampleId: 'S-PHOTO', moisturePct: 11, defectCount: 4, scaleCalibrated: true, farmerPresent: true, retainedSample: true },
+  });
+  assert.equal(intake.status, 201);
+  assert.equal(intake.json.lot.intakeCheck.evidence.retainedSample, true);
+  const id = intake.json.lot.id;
+  const up = await call('POST', `/api/admin/lots/${id}/photos`, { token: TOKEN, body: { kind: 'sample', dataUrl: PNG_1PX } });
+  assert.equal(up.status, 201);
+  const photoId = up.json.photo.id;
+  const bad = await call('POST', `/api/admin/lots/${id}/photos`, { token: TOKEN, body: { kind: 'sample', dataUrl: 'data:text/plain;base64,aGk=' } });
+  assert.equal(bad.status, 400);
+  const view = await fetch(`${base}/api/admin/photos/${photoId}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  assert.equal(view.status, 200);
+  assert.equal(view.headers.get('content-type'), 'image/png');
+  const anon = await fetch(`${base}/api/admin/photos/${photoId}`);
+  assert.equal(anon.status, 401);
+});
+
+// ---------- akun dan peran ----------
+test('login gives a session; a wrong password is refused; logout ends the session', async () => {
+  const bad = await call('POST', '/api/auth/login', { body: { email: OWNER.email, password: 'salah-sekali' } });
+  assert.equal(bad.status, 401);
+  const me = await call('GET', '/api/auth/me', { token: TOKEN });
+  assert.equal(me.status, 200);
+  assert.equal(me.json.user.role, 'admin');
+  const out = await call('POST', '/api/auth/logout', { token: TOKEN });
+  assert.equal(out.status, 200);
+  assert.equal((await call('GET', '/api/auth/me', { token: TOKEN })).status, 401);
+  const again = await call('POST', '/api/auth/login', { body: OWNER });
+  TOKEN = again.json.token;
+});
+
+test('a field agent can record purchases but cannot publish or see orders; changes are audited', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Petugas Uji', email: 'petugas@test.local', role: 'field_agent', password: 'petugas-uji-123' } });
+  assert.equal(made.status, 201);
+  const pw = await call('POST', '/api/auth/login', { body: { email: 'petugas@test.local', password: 'petugas-uji-123' } });
+  const agent = pw.json.token;
+  const intake = await call('POST', '/api/admin/lots', { token: agent, body: { groupId: 'g-1', harvestDate: '2026-11-12', kgIn: 50, sampleId: 'S-ROLE', moisturePct: 11, defectCount: 5 } });
+  assert.equal(intake.status, 201);
+  assert.equal((await call('GET', '/api/admin/orders', { token: agent })).status, 403);
+  assert.equal((await call('POST', `/api/admin/lots/${intake.json.lot.id}/publish`, { token: agent })).status, 403);
+  const audit = await call('GET', '/api/admin/audit', { token: TOKEN });
+  assert.equal(audit.status, 200);
+  assert.ok(audit.json.entries.some((e) => e.action.includes('/api/admin/lots') && e.userName === 'Petugas Uji'));
+  assert.equal((await call('GET', '/api/admin/audit', { token: agent })).status, 403);
+});
+
+test('the owner cannot deactivate their own account', async () => {
+  const me = await call('GET', '/api/auth/me', { token: TOKEN });
+  const r = await call('PATCH', `/api/admin/users/${me.json.user.id}`, { token: TOKEN, body: { active: false } });
+  assert.equal(r.status, 400);
+});
+
+// ---------- pengelolaan staf ----------
+test('admin resets a password: old sessions end, the new password must be changed at next sign-in', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Penilai Uji', email: 'penilai@test.local', role: 'grader', password: 'penilai-awal-123' } });
+  const uid = made.json.user.id;
+  const first = await call('POST', '/api/auth/login', { body: { email: 'penilai@test.local', password: 'penilai-awal-123' } });
+  const oldToken = first.json.token;
+  const reset = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { password: 'penilai-baru-456' } });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.json.user.mustChangePassword, true);
+  assert.equal((await call('GET', '/api/auth/me', { token: oldToken })).status, 401, 'old session ended');
+  const again = await call('POST', '/api/auth/login', { body: { email: 'penilai@test.local', password: 'penilai-baru-456' } });
+  const t = again.json.token;
+  assert.equal(again.json.user.mustChangePassword, true);
+  assert.equal((await call('GET', '/api/admin/lots', { token: t })).status, 403, 'blocked until password changed');
+  const wrong = await call('POST', '/api/auth/password', { token: t, body: { current: 'salah-sekali', password: 'penilai-final-789' } });
+  assert.equal(wrong.status, 400);
+  const ok = await call('POST', '/api/auth/password', { token: t, body: { current: 'penilai-baru-456', password: 'penilai-final-789' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.json.user.mustChangePassword, false);
+  assert.equal((await call('GET', '/api/admin/lots', { token: t })).status, 200);
+});
+
+test('admin edits name and email and sees a user activity list', async () => {
+  const made = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Nama Lama', email: 'lama@test.local', role: 'field_agent', password: 'lama-awal-12345' } });
+  const uid = made.json.user.id;
+  const edit = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { name: 'Nama Baru', email: 'baru@test.local' } });
+  assert.equal(edit.status, 200);
+  assert.equal(edit.json.user.name, 'Nama Baru');
+  const dup = await call('PATCH', `/api/admin/users/${uid}`, { token: TOKEN, body: { email: 'owner@test.local' } });
+  assert.equal(dup.status, 400);
+  await call('POST', '/api/auth/login', { body: { email: 'baru@test.local', password: 'lama-awal-12345' } });
+  const act = await call('GET', `/api/admin/users/${uid}/activity`, { token: TOKEN });
+  assert.equal(act.status, 200);
+  assert.ok(act.json.entries.some((e) => e.action === 'login'));
+});
+
+// ---------- akun demo ----------
+test('demo accounts exist and sign in only when demo mode is on', async () => {
+  const demoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-demo-'));
+  const demo = createApp({ dataFile: path.join(demoDir, 'app.db'), owner: { name: 'Pemilik', email: 'o@test.local', password: 'owner-demo-123' }, demo: true });
+  await new Promise((r) => demo.server.listen(0, '127.0.0.1', r));
+  const dbase = `http://127.0.0.1:${demo.server.address().port}`;
+  try {
+    const cfg = await (await fetch(dbase + '/api/config')).json();
+    assert.equal(cfg.demoAccounts.length, 3);
+    const admin = cfg.demoAccounts.find((d) => d.role === 'admin');
+    const res = await fetch(dbase + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: admin.email, password: admin.password }) });
+    assert.equal(res.status, 200);
+    assert.equal((await fetch(dbase + '/api/admin/summary', { headers: { Authorization: 'Bearer ' + (await res.json()).token } })).status, 200);
+  } finally {
+    await new Promise((r) => demo.server.close(r));
+    fs.rmSync(demoDir, { recursive: true, force: true });
+  }
+  const cfgOff = await call('GET', '/api/config');
+  assert.deepEqual(cfgOff.json.demoAccounts, []);
+});
+
+// ---------- pembayaran online ----------
+test('online payment: start with VA or QRIS, a signed webhook marks the order paid once', async () => {
+  const secret = 'webhook-uji-rahasia';
+  process.env.PAYMENT_WEBHOOK_SECRET = secret;
+  const order = await call('POST', '/api/orders', {
+    token: await buyerSession('bayar@test.local', 'Bayar Uji'),
+    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], consent: true, customer: { name: 'Bayar Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'bayar@test.local', city: 'Bandung', notes: '' } },
+  });
+  const number = order.json.order.number;
+  const total = order.json.order.total;
+  const pay = await call('POST', `/api/orders/${number}/payment`, { body: { email: 'bayar@test.local', method: 'va_bca' } });
+  assert.equal(pay.status, 201);
+  assert.equal(pay.json.payment.instructions.kind, 'va');
+  assert.match(pay.json.payment.instructions.vaNumber, /^014\d{13}$/);
+  const qris = await call('POST', `/api/orders/${number}/payment`, { body: { email: 'bayar@test.local', method: 'qris' } });
+  assert.equal(qris.json.payment.instructions.kind, 'qris');
+  const providerRef = `sbx-${pay.json.payment.id}`;
+
+  const body = JSON.stringify({ providerRef, amount: total });
+  const sig = require('../lib/payments').signWebhook(Buffer.from(body), secret);
+  const hook = (b, s) => fetch(base + '/api/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature': s }, body: b });
+  assert.equal((await hook(body, 'deadbeef')).status, 401, 'wrong signature refused');
+  const first = await hook(body, sig);
+  assert.equal(first.status, 200);
+  assert.equal((await first.json()).duplicate, false);
+  const again = await hook(body, sig);
+  assert.equal((await again.json()).duplicate, true, 'repeat message changes nothing');
+  const track = await call('GET', `/api/orders/${number}`, { email: 'bayar@test.local' });
+  assert.equal(track.json.order.status, 'paid');
+  const badBody = JSON.stringify({ providerRef: `sbx-${qris.json.payment.id}`, amount: total - 1 });
+  const badSig = require('../lib/payments').signWebhook(Buffer.from(badBody), secret);
+  assert.equal((await hook(badBody, badSig)).status, 400, 'amount mismatch refused');
+  delete process.env.PAYMENT_WEBHOOK_SECRET;
+});
+
+// ---------- Midtrans ----------
+test('Midtrans notifications: signature checked, settlement marks paid, other statuses ignored', async () => {
+  const pw = require('../lib/payments');
+  const serverKey = 'SB-Mid-server-uji';
+  const order = await call('POST', '/api/orders', {
+    token: await buyerSession('mid@test.local', 'Midtrans Uji'),
+    body: { lines: [{ lotCode: 'AL-2611-001', kg: 30 }], consent: true, customer: { name: 'Midtrans Uji', company: '', buyerType: 'specialty_cafe', phone: '081234567890', email: 'mid@test.local', city: 'Bandung', notes: '' } },
+  });
+  const number = order.json.order.number;
+  const total = order.json.order.total;
+  const pay = await call('POST', `/api/orders/${number}/payment`, { body: { email: 'mid@test.local', method: 'va_bni' } });
+  const orderId = pay.json.payment.instructions.vaNumber ? `sbx-${pay.json.payment.id}` : null;
+  assert.ok(orderId);
+  process.env.MIDTRANS_SERVER_KEY = serverKey;
+  const notif = (status, gross, key = serverKey) => {
+    const n = { order_id: orderId, status_code: '200', gross_amount: gross, transaction_status: status, fraud_status: 'accept' };
+    n.signature_key = pw.midtransSignature(n, key);
+    return n;
+  };
+  const send = (n) => fetch(base + '/api/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(n) });
+  try {
+    assert.equal((await send(notif('settlement', `${total}.00`, 'wrong-key'))).status, 401, 'wrong key refused');
+    const pending = await send(notif('pending', `${total}.00`));
+    assert.equal((await pending.json()).ignored, true);
+    const paid = await send(notif('settlement', `${total}.00`));
+    assert.equal(paid.status, 200);
+    const track = await call('GET', `/api/orders/${number}`, { email: 'mid@test.local' });
+    assert.equal(track.json.order.status, 'paid');
+    assert.equal((await (await send(notif('settlement', `${total}.00`))).json()).duplicate, true);
+  } finally {
+    delete process.env.MIDTRANS_SERVER_KEY;
+  }
+});
+
+test('admin sets theme colours and radius; public config reflects it; bad colours refused', async () => {
+  const base0 = await call('GET', '/api/config');
+  const baseRadius = base0.json.theme.radius.md;
+
+  const bad = await call('PUT', '/api/admin/theme', { token: TOKEN, body: { light: { primary: 'red; background:url(x)' } } });
+  assert.equal(bad.status, 400);
+  assert.equal(bad.json.error.fields.primary !== undefined, true);
+
+  const ok = await call('PUT', '/api/admin/theme', { token: TOKEN, body: { light: { primary: '#0a4d2e', accent: '#d4a017' }, radius: 'bulat' } });
+  assert.equal(ok.status, 200);
+  const cfg = await call('GET', '/api/config');
+  assert.equal(cfg.json.theme.light.primary, '#0a4d2e');
+  assert.equal(cfg.json.theme.light.primaryHover, '#0a4d2e');
+  assert.equal(cfg.json.theme.light.accent, '#d4a017');
+  assert.equal(cfg.json.theme.radius.md, '18px');
+  assert.notEqual(cfg.json.theme.radius.md, baseRadius);
+
+  const reset = await call('PUT', '/api/admin/theme', { token: TOKEN, body: { reset: true } });
+  assert.equal(reset.status, 200);
+  const after = await call('GET', '/api/config');
+  assert.equal(after.json.theme.light.primary, '#003C18');
+  assert.equal(after.json.theme.radius.md, baseRadius);
+});
+
+test('theme settings are admin-only', async () => {
+  const pw = 'staff-theme-123';
+  const admin = await call('POST', '/api/admin/users', { token: TOKEN, body: { name: 'Penilai Tema', email: 'penilai-tema@test.local', password: pw, role: 'grader' } });
+  assert.equal(admin.status, 201);
+  const login = await call('POST', '/api/auth/login', { body: { email: 'penilai-tema@test.local', password: pw } });
+  const res = await call('PUT', '/api/admin/theme', { token: login.json.token, body: { reset: true } });
+  assert.equal(res.status, 403);
+});
+
+test('an order without a buyer account is refused and nothing is saved', async () => {
+  const lot = (await call('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
+  const before = (await call('GET', '/api/admin/orders', { token: TOKEN })).json.orders.length;
+  const guest = await call('POST', '/api/orders', {
+    body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Tamu', buyerType: 'other', phone: '081200000000', email: 'tamu@test.local', city: 'Jayapura' } },
+  });
+  assert.equal(guest.status, 401);
+  assert.equal(guest.json.error.code, 'auth_required');
+  const after = (await call('GET', '/api/admin/orders', { token: TOKEN })).json.orders.length;
+  assert.equal(after, before);
 });

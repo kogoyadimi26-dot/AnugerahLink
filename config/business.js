@@ -8,7 +8,8 @@
 module.exports = {
   currency: 'IDR',
 
-  // Buying from farmer groups
+  // Buying from farmer groups. Rp120.000 dipakai sebagai asumsi perencanaan (harga tertinggi, Grade A).
+  // Rp100.000 hanya referensi lama (2022). Ganti setelah lot percobaan memberi harga nyata.
   buyPricePerKg: 120000,
   sortingLossPct: 0.05,
 
@@ -17,10 +18,24 @@ module.exports = {
   feesPerKg: 2000, // samples, claims, payment charges
 
   // Fixed costs (full team) used for break-even
-  fixedCostsPerYear: 400000000,
+  // Biaya tetap per tahun (Rp). Dasar: staf Rp471 juta (6 orang, tengah) + software Rp26 juta + sewa gudang Rp119 juta
+  // (150 m2, Rp60.000/m2/bulan, PPN 10%). Lihat docs/business/CAPEX_v1.md bagian 6-10. Bukan dari sumber; asumsi.
+  fixedCostsPerYear: 616000000,
+
+  // Estimasi tiba (asumsi perencanaan, perlu dikonfirmasi dengan kurir): dihitung dari tanggal dikirim.
+  // Batas akhir dipakai sebagai janji agar keterlambatan tidak dihitung terlalu cepat.
+  delivery: {
+    transitDaysMin: 2,
+    transitDaysMax: 4,
+  },
 
   // Ordering rules
   minOrderKg: 30,
+  // Maksimal kg per lot dalam satu pesanan online: 999 kg (keputusan pemilik, 18 November 2026).
+  // Pesanan 1.000 kg ke atas memakai proposal.
+  maxOrderKg: 999,
+  // Pesanan dari angka ini ke atas memakai proposal (lihat docs/app/LARGE_ORDER_PLAN.md), bukan checkout online.
+  largeOrderMinKg: 1000,
   stepKg: 1,
   lowStockKg: 60,
 
@@ -30,23 +45,38 @@ module.exports = {
     reserve: { label: 'Reserve', pricePerKg: 350000, shippingBy: 'anugerah', description: 'Kafe spesialti terbaik dan contoh ekspor. Skor cupping 86+, lot kecil.' },
     premium: { label: 'Premium', pricePerKg: 250000, shippingBy: 'anugerah', description: 'Kafe spesialti dan roaster premium. SNI Grade 1, skor cupping 84 sampai 85.' },
     verified: { label: 'Standar Terverifikasi', pricePerKg: 150000, shippingBy: 'buyer', description: 'Roaster di Jakarta dan Surabaya. SNI Grade 1 sampai 2, skor cupping 80 sampai 83.' },
-    local: { label: 'Lokal', pricePerKg: 100000, shippingBy: 'none', description: 'Kafe dan roaster di Papua. Grade 3 ke bawah, skor cupping di bawah 80.' },
+    // Harga Lokal dinaikkan dari Rp100.000: pada harga beli Rp120.000, Rp100.000 rugi Rp26.900/kg.
+    // Rp130.000 memberi margin tipis positif (sekitar Rp1.600/kg). Lihat test "local tier stays above break-even".
+    local: { label: 'Lokal', pricePerKg: 130000, shippingBy: 'none', description: 'Kafe dan roaster di Papua. Grade 3 ke bawah, skor cupping di bawah 80.' },
   },
 
   // Assumed grade mix (share of sellable kg), used when there is no stock yet
   defaultMix: { reserve: 0.05, premium: 0.25, verified: 0.40, local: 0.30 },
 
-  // Pemeriksaan saat pembelian (intake). Semua angka perlu dikonfirmasi pemilik.
+  // Alur kerja staf: lot dinilai, diverifikasi penilai, lalu diterbitkan admin.
+  workflow: {
+    requireSecondPersonToPublish: true,
+  },
+
+  // Pemeriksaan saat pembelian (intake). Angka ini sudah dikonfirmasi pemilik.
   // Sampel: jumlah biji yang diperiksa per sampel (gram).
   intake: {
     sampleGrams: 300,
     moisture: { min: 10, max: 12, rejectBelow: 8, rejectAbove: 14 }, // persen
     defects: { pass: 25, reject: 60 },                               // cacat per sampel
-    deductionPct: 10,                                                // potongan harga untuk lot "dipotong"
+    deductionPct: 10,                                                // (lama) potongan harga; diganti grade bands
   },
 
+  // Grade pembelian berdasarkan jumlah cacat per sampel. Harga dibayar = payPct persen
+  // dari harga beli. Angka ini default sementara dan perlu dikonfirmasi pemilik.
+  gradeBands: [
+    { key: 'A', label: 'Grade A', maxDefects: 25, payPct: 100 },
+    { key: 'B', label: 'Grade B', maxDefects: 45, payPct: 90 },
+    { key: 'C', label: 'Grade C', maxDefects: 60, payPct: 80 },
+  ],
+
   // Penjelasan proses pengolahan untuk pembeli. "match" adalah nama yang sering dipakai
-  // produsen. Tambah atau ubah di sini; halaman lot dan paspor ikut berubah.
+  // produsen. Tambah atau ubah di sini; halaman lot dan traceability ikut berubah.
   processes: {
     washed: {
       label: 'Dicuci (fully washed)',
@@ -75,16 +105,53 @@ module.exports = {
     },
   },
 
+  // Nilai inti perusahaan, ditampilkan di beranda. Ubah teks di sini.
+  // icon: shield | sprout | hand | check
+  values: [
+    { icon: 'shield', title: 'Integritas', text: 'Kami hanya menjual apa yang sudah kami periksa, nilai, dan dapat kami buktikan.' },
+    { icon: 'sprout', title: 'Anugerah', text: 'Papua memiliki kekayaan alam yang masih tersembunyi. Kami menghargainya dengan membayar petani secara tunai dan adil, lalu menjaga mutunya sampai ke cangkir pembeli.' },
+    { icon: 'hand', title: 'Menghubungkan', text: 'Kami membuka jalan dari kebun di pedalaman ke pasar di seluruh dunia, supaya hasil bumi Papua tidak lagi tertahan karena jauh dari pembeli.' },
+    { icon: 'check', title: 'Kepercayaan', text: 'Setiap lot diuji di laboratorium dan dicupping, sesuai dengan grade dan skor yang tercatat, sehingga petani dan pembeli dapat saling percaya.' },
+  ],
+
   // About page content. Edit the text here; the page updates from this file.
   // icon: coin | passport | check
   about: {
     eyebrow: 'Tentang kami',
-    title: 'Kopi Papua yang bisa ditelusuri',
-    lead: 'AnugerahLink membeli kopi dari kelompok tani di dataran tinggi Papua, menilai setiap lot, dan menjualnya dengan paspor yang menunjukkan asalnya.',
+    title: 'Tentang AnugerahLink',
+    lead: '',
+    // Klaim kualitas: ditampilkan setelah misi. Dirancang untuk memenuhi standar; pastikan sudah terverifikasi sebelum dipublikasikan.
+    claim: {
+      title: 'Mengapa pembeli bisa percaya',
+      text: 'Banyak pembeli ragu membeli kopi Papua karena proses kualitasnya belum jelas: lot tidak dinilai, mutu tidak konsisten, dan asal-usulnya sulit dibuktikan. AnugerahLink menjawab masalah ini dengan layanan yang bisa dibuktikan. Setiap lot diuji di laboratorium, dicupping, dan dinilai sesuai standar nasional dan internasional sebelum dijual. Kopi kami dirancang memenuhi standar grade A, specialty, dan reserve.',
+    },
+    // Misi, sejarah, dan nilai kami ditampilkan dari blok di bawah.
+    mission: 'Membuka akses pasar bagi kopi dan hasil bumi Papua dari pedalaman: membayar petani secara tunai dan adil, menguji mutu setiap lot di laboratorium, dan menghubungkannya langsung dengan pembeli, agar kekayaan alam Papua dikenal dan dihargai lebih luas.',
+    history: [
+      'AnugerahLink didirikan pada 17 November 2026. Namanya mencerminkan keyakinan kami bahwa kekayaan alam Papua adalah pemberian yang berharga, yang selama ini masih tersembunyi di pedalaman.',
+      'Masyarakat Papua memiliki hasil bumi yang berharga, tetapi di daerah terpencil mereka sering tidak bisa menjualnya ke pasar. Jalan yang sulit, transportasi yang mahal, infrastruktur yang terbatas, dan keterbatasan sumber daya manusia untuk mengelola hasil bumi dengan baik membuat banyak orang sulit menjangkau pembeli yang mau membayar dengan layak.',
+      'AnugerahLink hadir untuk menjembatani itu. Kami membeli langsung dari kelompok tani, menilai dan menelusuri setiap lot, lalu menghubungkannya dengan roaster dan kafe. Langkah pertama kami adalah pilot 90 hari dengan 200 sampai 500 kg kopi dari Wamena dan Tiom.',
+      'Tujuan kami sederhana: agar kopi dan hasil bumi Papua dikenal di dunia, petaninya memperoleh penghasilan yang layak, dan pembeli dapat mempercayai mutu serta asal-usulnya.',
+    ],
+    // Layanan kami (ditampilkan di bawah nilai). icon: coin | passport | check
     pillars: [
-      { icon: 'coin', title: 'Petani dibayar tunai', text: 'Harga diumumkan di kebun dan dibayar saat pengambilan. Petani tidak perlu menunggu.' },
-      { icon: 'check', title: 'Dinilai sebelum dijual', text: 'Setiap lot ditimbang, disortir dan dicupping sebelum masuk katalog.' },
-      { icon: 'passport', title: 'Paspor setiap lot', text: 'Asal, grade, skor cupping dan harga yang dibayarkan, dengan kode hash untuk memastikan data tidak berubah.' },
+      { icon: 'check', title: 'Uji laboratorium', text: 'Setiap lot diuji mutunya di laboratorium sebelum masuk katalog, termasuk kadar air dan cacat biji.' },
+      { icon: 'check', title: 'Cupping dan grading', text: 'Penilai terlatih melakukan cupping dan memberi grade sesuai standar nasional, lalu mencatat skornya.' },
+      { icon: 'passport', title: 'Traceability setiap lot', text: 'Asal kebun, kelompok tani, grade, dan skor cupping dapat ditelusuri dengan kode verifikasi.' },
+    ],
+    // Berita: ditampilkan di bawah layanan. Hanya memuat fakta dari rencana usaha; tambahkan kutipan pembeli hanya jika sudah ada sumbernya.
+    news: [
+      {
+        date: '18 November 2026',
+        title: 'Mengapa kopi Papua sulit dipercaya pembeli, dan bagaimana kami memperbaikinya',
+        body: [
+          'Kopi dataran tinggi Papua dijual dengan harga premium di Jawa, tetapi pembeli sering ragu membelinya. Menurut rencana usaha AnugerahLink, ada tiga alasan utama.',
+          '1. Mutu tidak konsisten. Banyak lot dijual tanpa penilaian grade dan skor cupping, sehingga pembeli tidak tahu apa yang akan mereka terima.',
+          '2. Asal-usul sulit dibuktikan. Kopi berpindah tangan melalui beberapa pengumpul, dan jejak dari kebun hilang di tengah jalan.',
+          '3. Pasokan kecil dan tidak stabil. Menurut rencana kami, produksi Jayawijaya pada 2020 sekitar 161 ton, dan satu pembeli besar hanya mendapat 20 ton dari seluruh Papua pada 2018.',
+          'AnugerahLink menjawab ketiga masalah ini dengan layanan yang bisa dibuktikan: setiap lot diuji di laboratorium, dicupping, dan dinilai grade-nya, lalu asal kebun dan kelompok tani dicatat dan dapat ditelusuri. Kami memulai dengan pilot 90 hari, 200 sampai 500 kg kopi dari Wamena dan Tiom, untuk menguji kualitas dan pasokan sebelum melayani pembeli dalam jumlah lebih besar.',
+        ],
+      },
     ],
   },
 
@@ -106,10 +173,11 @@ module.exports = {
 
   // Bank transfer details are placeholders until the owner provides them.
   // The app shows them on the order page and never invents account numbers.
+  // DUMMY untuk uji coba. Ganti dengan rekening asli sebelum ada pesanan nyata.
   payment: {
     method: 'bank_transfer_invoice',
-    bankName: 'TO BE CONFIRMED BY THE TEAM',
-    accountName: 'TO BE CONFIRMED BY THE TEAM',
-    accountNumber: 'TO BE CONFIRMED BY THE TEAM',
+    bankName: 'BANK CONTOH (DUMMY)',
+    accountName: 'PT CONTOH ANUGERAHLINK (DUMMY)',
+    accountNumber: '000-000-0000 (DUMMY)',
   },
 };

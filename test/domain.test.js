@@ -23,12 +23,22 @@ function freshDb() {
 
 // ---------- pricing and economics ----------
 
-test('economics with the v2 grade mix matches the v2 spreadsheet', () => {
+// Angka ini sengaja berbeda dari spreadsheet v2 (margin Rp33.900/kg, impas 11.800 ton) karena Lokal dinaikkan ke Rp130.000.
+// Dengan Lokal Rp100.000, hasilnya tetap sama dengan spreadsheet v2 (lihat test berikut).
+test('economics with the default mix uses the repriced Local tier', () => {
   const e = pricing.economics({ mix: config.defaultMix });
-  assert.equal(e.salesPerKgBought, 161500);
+  assert.equal(e.salesPerKgBought, 170050);   // 95% x blended Rp179.000
   assert.equal(e.buyPerKgBought, 120000);
   assert.equal(e.shippingPerKgBought, 5700);
   assert.equal(e.feesPerKgBought, 1900);
+  assert.equal(e.grossMarginPerKgBought, 42450);
+  assert.equal(e.breakEvenKgPerYear, 14512);  // 616M / 42,450 = 14,511.2, rounded up
+});
+
+test('economics with the v2 Local price still matches the v2 spreadsheet', () => {
+  const tiers = { ...config.tiers, local: { ...config.tiers.local, pricePerKg: 100000 } };
+  const e = pricing.economics({ mix: config.defaultMix, tiers, fixedCostsPerYear: 400000000 });
+  assert.equal(e.salesPerKgBought, 161500);
   assert.equal(e.grossMarginPerKgBought, 33900);
   // 400M / 33,900 = 11,799.4, rounded up to 11,800 (plan shows 11,799)
   assert.equal(e.breakEvenKgPerYear, 11800);
@@ -47,7 +57,12 @@ test('a line for Verified standard adds buyer-paid shipping, Premium does not', 
 test('local lots carry no shipping charge', () => {
   const l = pricing.priceLine({ code: 'Z', tier: 'local' }, 40);
   assert.equal(l.shippingTotal, 0);
-  assert.equal(l.pricePerKg, 100000);
+  assert.equal(l.pricePerKg, config.tiers.local.pricePerKg);
+});
+
+test('local tier stays above break-even at the planning buy price', () => {
+  const e = pricing.economics({ mix: { local: 1 }, buyPricePerKg: config.buyPricePerKg });
+  assert.ok(e.grossMarginPerKgBought >= 0, `Lokal rugi Rp${-e.grossMarginPerKgBought}/kg`);
 });
 
 test('kg rules: minimum, whole numbers and step', () => {
@@ -165,12 +180,35 @@ test('intake creates a received lot; it must be graded before publishing', () =>
   const db = freshDb();
   const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 200, process: 'Washed', sampleId: 'S-001', moisturePct: 11, defectCount: 10 }, NOW);
   assert.equal(lot.status, 'received');
-  assert.throws(() => domain.publishLot(db, lot.id, NOW), (e) => e.status === 409);
+  const grader = { id: 'u-grader', name: 'Penilai' };
+  const admin = { id: 'u-admin', name: 'Admin' };
+  assert.throws(() => domain.publishLot(db, lot.id, admin, NOW), (e) => e.status === 409);
   domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '190', moisturePct: '11' });
   assert.equal(lot.status, 'graded');
-  domain.publishLot(db, lot.id, NOW);
+  assert.throws(() => domain.publishLot(db, lot.id, admin, NOW), (e) => e.status === 409, 'must be verified first');
+  domain.verifyLot(db, lot.id, grader, NOW);
+  assert.equal(lot.status, 'verified');
+  domain.publishLot(db, lot.id, admin, NOW);
   assert.equal(lot.status, 'listed');
+  assert.equal(lot.publishedBy.name, 'Admin');
   assert.ok(lot.passportHash);
+});
+
+test('the person who verified a lot cannot publish it', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, process: 'Washed', sampleId: 'S-WF', moisturePct: 11, defectCount: 10 }, NOW);
+  domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '90', moisturePct: '11' });
+  const same = { id: 'u-1', name: 'Pemilik' };
+  domain.verifyLot(db, lot.id, same, NOW);
+  assert.throws(() => domain.publishLot(db, lot.id, same, NOW), (e) => e.code === 'same_person');
+});
+
+test('a verified lot is locked against grading changes', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, process: 'Washed', sampleId: 'S-LK', moisturePct: 11, defectCount: 10 }, NOW);
+  domain.gradeLot(db, lot.id, { tier: 'premium', grade: 'SNI Grade 1', cupScore: '84', sellableKg: '90', moisturePct: '11' });
+  domain.verifyLot(db, lot.id, { id: 'u-1', name: 'Penilai' }, NOW);
+  assert.throws(() => domain.gradeLot(db, lot.id, { cupScore: 80 }), (e) => e.status === 409);
 });
 
 test('a listed lot cannot be graded until withdrawn, and withdrawal needs no open orders', () => {
@@ -322,4 +360,40 @@ test('hulling yield is recorded when gabah and green weights are given', () => {
   const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-13', moisturePct: 11, defectCount: 5, gabahKg: 50, greenKg: 40 }, NOW);
   assert.equal(lot.intakeCheck.yieldPct, 80);
   assert.throws(() => domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-14', moisturePct: 11, defectCount: 5, gabahKg: 10, greenKg: 20 }, NOW), (e) => Boolean(e.fields && e.fields.greenKg));
+});
+
+test('a single lot line cannot exceed the maximum order size', () => {
+  const db = freshDb();
+  const lot = db.lots.find((l) => l.code === 'AL-2611-001');
+  assert.ok(config.maxOrderKg > 0, 'maxOrderKg is configured');
+  assert.throws(() => domain.quote(db, [{ lotCode: lot.code, kg: config.maxOrderKg + 1 }]), (e) => e.status === 400);
+});
+
+test('grade bands set the price: defects 26 to 45 pay 90%, 46 to 60 pay 80%', () => {
+  const db = freshDb();
+  const b = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-20', moisturePct: 11, defectCount: 30 }, NOW);
+  assert.equal(b.intakeCheck.gradeKey, 'B');
+  assert.equal(b.intakeCheck.payPct, 90);
+  const c = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-21', moisturePct: 11, defectCount: 50 }, NOW);
+  assert.equal(c.intakeCheck.gradeKey, 'C');
+  assert.equal(c.intakeCheck.amountDue, 100 * 120000 * 0.8);
+});
+
+test('moisture outside target keeps a lot out of grade A', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-22', moisturePct: 9, defectCount: 5 }, NOW);
+  assert.equal(lot.intakeCheck.gradeKey, 'B');
+  assert.equal(lot.intakeCheck.result, 'adjusted');
+});
+
+test('intake records the three field checks', () => {
+  const db = freshDb();
+  const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-23', moisturePct: 11, defectCount: 5, scaleCalibrated: true, farmerPresent: 'true', retainedSample: false }, NOW);
+  assert.deepEqual(lot.intakeCheck.evidence, { scaleCalibrated: true, farmerPresent: true, retainedSample: false });
+});
+
+test('online limit is 999 kg and the proposal threshold starts at 1,000 kg', () => {
+  assert.equal(config.maxOrderKg, 999);
+  assert.equal(config.largeOrderMinKg, 1000);
+  assert.ok(config.maxOrderKg < config.largeOrderMinKg);
 });

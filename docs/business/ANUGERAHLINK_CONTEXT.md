@@ -37,8 +37,10 @@ A flat 5% commission on sales made through the platform. **This does not cover c
 ### Later revenue
 Traceability and EUDR data sold as a paid service to exporters and cooperatives.
 
-### Decision still open
-The owner has not yet confirmed trading margin over commission. Record the choice here once made.
+### Decision (recommended, pending owner confirmation)
+Trading margin, started with trial lots of 200 to 500 kg per farmer group and buying in batches of 1 to 2 tons. Reason: the promise that every lot is graded before sale can only be kept if the company owns the stock. Commission needs about 57 tons a year to break even; trading needs about 9.4 tons with the current mix (11.8 tons if Local stays at Rp100,000). The Local price depends on Papua buyers paying Rp130,000, which is not yet tested. Cash is the main risk, so the pilot tests margin and cycle time, not full break-even.
+Safeguard (proposed): stop buying from a farmer group if two batches in a row grade below B.
+The owner has not yet confirmed this. Record the confirmed choice here.
 
 ---
 
@@ -77,6 +79,32 @@ Ten tons at Rp100,000/kg is about **Rp1 billion** of stock cash at any one time 
 - Volume is 50% of the plan.
 
 ---
+
+### 3a. Grade-based pricing and intake costs (revised model)
+
+**Pricing change.** Lots are now paid by grade at intake, not one flat price. Target grade A pays 100% of the buying price, grade B pays 90%, and grade C pays 80%. Defaults are in `config/business.js` (`gradeBands`) and need owner confirmation.
+
+**Effect on unit economics (per kg bought).** The calculation uses the same sales mix and cost lines as section 3, and only the buying price changes.
+
+| Case | Buying price per kg | Gross margin per kg bought | Gross margin (% of sales) | Break-even per year |
+|---|---|---|---|---|
+| Flat price (section 3) | Rp 120,000 | Rp 33,900 | 21% | 11,800 kg |
+| Grade-based, assumed grade mix A 60%, B 30%, C 10% | Rp 114,000 | Rp 39,900 | 25% | 10,026 kg |
+
+Grade mix of 60/30/10 is an assumption. The trial lots (section 13) will replace it with real data.
+
+**Caveat, important.** This case assumes lower-grade lots still sell at the same tier mix. A grade B or C lot may only sell at Verified standard or Local prices. If the sales mix shifts down, the margin falls below the flat-price case. The model must be re-run with the trial-lot sales data before it is relied on.
+
+**Intake costs (new cost lines, to be quoted):**
+
+| Cost | Per year | Notes |
+|---|---|---|
+| Scale calibration service | To quote | Calibrated scale, checked before each purchase day |
+| Sample storage (labelled bags, shelf space) | To quote | Retained samples, 300 g each |
+| Photo storage on the server | Included in platform hosting | Photos are small (max 2 MB each) |
+| Sample check time for the field agent | Included in field agent cost | Adds time at each collection |
+
+These lines are not yet in the cost structure above (section 8 of the v2 plan). Add them once quotes are available.
 
 ## 4. Market facts (with sources and dates)
 
@@ -224,11 +252,72 @@ The owner's v2 plan and v2 spreadsheet are stored in `docs/business/source/`. Th
 | Claims | Avoid "unalterable" and "absolute trust" | Same, and the plan says to describe QR passport as a verified record | Consistent |
 
 Points to resolve with the owner before building:
-1. Confirm the buying price. Rp120,000 is the plan's assumption. Break-even and margin move with it.
+1. Confirm the buying price. Recommended: plan at Rp120,000, the top price (Grade A), and treat Rp100,000 as an old 2022 reference only. The app uses Rp120,000. With the default grade mix and Local at Rp130,000, margin is Rp42,450/kg and break-even is about 9.4 tons a year. Without the Local price change, it is Rp33,900/kg and 11.8 tons. Replace it after trial lots give real prices.
 2. Confirm scope. Start with Wamena and one hub, as v2 says, or open all regions from the start.
 3. Confirm what "Grabs" refers to in the earlier message. Cacao is Year 3 in v2.
-4. Confirm the Local tier. It loses money by design. Decide whether to keep it, reprice it, or drop it.
+4. Local tier. Recommended and applied: reprice from Rp100,000 to Rp130,000/kg. At Rp120,000 buying, Rp100,000 lost Rp26,900/kg; Rp130,000 gives about Rp1,600/kg, which is a floor, not a return. A test keeps it at or above break-even.
 5. Confirm the Premium price basis. The Rp250,000/kg Premium price is the top of the listed range for Wamena green beans, and those listings are mostly 1 kg retail packs. v2 itself notes that bulk buyers may pay less. Roasted retail prices (for example Rp150,000 per 250 g from a Papuan processor) are not a green-bean per-kg price and should not be used to justify Premium. Test with five to ten buyers.
+
+## 13. Sourcing and quality strategy (buying from farmer groups)
+
+Purpose: make sure each lot is good quality before we pay cash, and that farmers know in advance how they will be paid for quality. Applies to green coffee: gabah (dried cherry in parchment) and green beans after hulling.
+
+**1. Start with a trial lot.** Buy a small amount (200 to 500 kg) from each new group. Grade it. Only after the result, agree on regular prices with that group.
+
+**2. Pay by grade, not one flat price.** Publish a price for each grade:
+- full price for the target grade (today's app: Rp 120,000/kg for the target lot)
+- a stated deduction for lower grades (today's app: 10% for lots that are "dipotong")
+- rejection for lots that fail the minimum (no payment)
+
+The current app pays one flat buying price for every lot that passes, plus the 10% reduction for "dipotong" lots. Per-grade pricing is not built yet and is the next step if the owner agrees.
+
+**3. Check in front of the farmer.** Weigh, sample and check moisture together with the farmer present. Show the result, then pay. Cash is paid only for a lot that passes or is reduced as agreed.
+
+**4. Keep a retained sample.** Store a labelled sample (for example 300 g, with the sample number) from each paid lot, until the lot is sold and any dispute is closed.
+
+**5. Record everything.** For each purchase: date, group, weight before and after, moisture, defect count, gabah and green weights (hulling yield), the sample number and a photo of the sample. The app records the first three to five items now; photo upload is not built yet.
+
+**6. Reject rules in writing.** Agree with each group, before the first purchase, on what is rejected and what is reduced. Current rules (to be shown to every group):
+
+| Result | Condition | Payment |
+|---|---|---|
+| Lolos (passed) | Moisture 10 to 12%, defects up to 25 per 300 g | Full price |
+| Dipotong (adjusted) | Moisture 8 to 10% or 12 to 14%, or defects 26 to 60 | Price less 10% |
+| Ditolak (rejected) | Moisture below 8% or above 14%, or defects over 60 | No payment; lot is not graded or sold |
+
+These values are set in `config/business.js` under `intake` and were confirmed by the owner.
+
+**7. Check the scale.** Use a calibrated scale, check it before each purchase day, and weigh with the farmer present.
+
+**What the app already does:** records the sample number, moisture, defect count, hulling yield, and the result; sets the grade and pay percentage; calculates the amount due; records the three field checks; stores sample and bag photos; blocks grading and sale of rejected lots.
+
+**What it does not yet do:** farmer signature on the weight slip, a scale calibration log with dates, and printed price lists for farmers.
+
+## 14. Core values (Nilai inti)
+
+**Our quality principle.** AnugerahLink delivers top-quality Papuan coffee. We do not accept or sell low-quality coffee. Every lot is checked before we pay for it and graded before we sell it.
+
+| Value | English | Bahasa Indonesia |
+|---|---|---|
+| **Integrity** | We sell only the coffee we have checked, graded, and can prove. | **Integritas**: Kami hanya menjual kopi yang sudah kami periksa, nilai, dan dapat kami buktikan. |
+| **Trust** | Every lot matches its grade, cup score and passport, every time. | **Kepercayaan**: Setiap lot sesuai dengan grade, skor cupping, dan paspornya, selalu. |
+| **Empowerment** | We train farmers and price transparently, so they can grow better coffee and earn more. | **Pemberdayaan**: Kami melatih petani dan menetapkan harga secara transparan, agar mereka bisa menghasilkan kopi yang lebih baik dan memperoleh penghasilan lebih besar. |
+| **Help** | We bring Papua’s hidden coffee to market, so buyers taste what Papua produces, and farmers get credit for it. | **Membantu**: Kami menghadirkan kopi Papua yang tersembunyi ke pasar, agar pembeli dapat merasakan kopinya dan petani mendapat pengakuan atasnya. |
+
+**How the values show up in practice**
+
+- **Integrity:** lots that fail intake are rejected and not paid for (see section 13). Lower-grade lots are labelled as such and never sold as Reserve or Premium.
+- **Trust:** every passport shows the recorded grade, cup score and price paid, with a hash check. Claims and returns follow the published policy.
+- **Empowerment:** training for farmer groups, grade-based pricing (planned), and a result shown to the farmer before payment.
+- **Help:** Papuan coffee is presented by region and group, with the same standard as any other origin.
+
+The same four values are shown on the home page of the web app, from `config/business.js` (`values`).
+
+**Review notes for the owner**
+
+1. The Local tier and "dipotong" lots are below target grade. The values above are kept consistent by labelling them clearly and never selling them as higher tiers. Confirm this is the intended rule.
+2. Avoid claims such as "the best coffee in the world" or "absolute trust". Use what we can show: graded, traced, checked.
+3. Grade-based pricing (section 13 and 3a) is built in the app. Its effect on margin depends on the sales mix of lower grades, which the trial lots must confirm.
 
 ## 11. Glossary
 

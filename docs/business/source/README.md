@@ -15,6 +15,4 @@ How these relate to the rest of the repo:
 
 ## Diagram
 
-| File in this folder | Title | Date | Notes |
-|---|---|---|---|
-| `AnugerahLink_Business_Cycle.pdf` | AnugerahLink: the repeating business cycle | 17 Nov 2026 | Uploaded by the owner. Shows the cash, farmer and buyer loops. The 200 kg example matches v2: Rp24M paid out, about Rp30.8M back, about Rp6.8M left. |
+The current diagram is `docs/business/AnugerahLink_Business_Cycle_v3.svg`, `.png` and `.pdf`, one level up.

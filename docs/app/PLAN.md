@@ -178,9 +178,9 @@ Errors use `{ error: { code, message, fields? } }` with proper HTTP status codes
 
 ## 12. Open decisions (the app uses defaults until the owner confirms)
 
-1. Buying price Rp120,000/kg (v2) vs Rp100,000/kg (earlier context).
+1. Buying price: Rp120,000/kg is the planning assumption (applied); Rp100,000/kg is an old reference only.
 2. Launch scope: Wamena and one hub first, or all regions. The app lists all regions but marks the later ones as "coming soon", so either choice is a config change.
-3. Local tier: keep selling at Rp100,000 (loses money at the buying price), or reprice it.
+3. Local tier: repriced to Rp130,000/kg (applied). Rp100,000 lost money at the Rp120,000 buying price.
 4. Minimum order of 30 kg per lot line.
 5. Payment: bank transfer until a gateway is chosen.
 6. Which admin users get access and when separate logins are needed.
