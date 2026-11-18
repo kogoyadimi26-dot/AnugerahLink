@@ -1,6 +1,6 @@
 # Large order (2 ton and above): design and plan
 
-Status: draft for owner review. No code yet.
+Status: draft. Most decisions recorded in section 11. Threshold still open. No code yet.
 Date: 18 November 2026
 
 ## 1. Problem
@@ -9,7 +9,7 @@ The web checkout is built for small orders: 30 to 300 kg per order (`minOrderKg`
 
 ## 2. Goal
 
-For orders of **2,000 kg or more**, the buyer submits a proposal online. AnugerahLink reviews and verifies it, both sides agree written terms, the buyer pays, and AnugerahLink prepares the shipment to the buyer's destination.
+For orders at or above the threshold (section 4), the buyer submits a proposal online. AnugerahLink reviews and verifies it, both sides agree written terms, the buyer pays, and AnugerahLink prepares the shipment to the buyer's destination.
 
 ## 3. Scope
 
@@ -27,13 +27,7 @@ Out of scope for this phase:
 
 ## 4. Threshold and routing
 
-| Quantity | Path |
-|---|---|
-| Under 300 kg | Normal checkout (unchanged) |
-| 300 kg to under 2,000 kg | Normal checkout with a larger-order note, or a proposal (owner decision) |
-| 2,000 kg and above | Large-order proposal (this plan) |
-
-The threshold is one value (`largeOrderMinKg: 2000`) in `config/business.js`, so the owner can change it.
+The threshold is not yet decided. See section 11. The working assumption is **1,000 kg and above** for the proposal, from the owner's note. The threshold is one value in `config/business.js` (`largeOrderMinKg`), so the owner can change it.
 
 ## 5. End-to-end flow
 
@@ -77,7 +71,7 @@ Side exits: `declined`, `expired`, `cancelled`.
 - Delivery address, city, country, port or airport if relevant
 
 **Order**
-- Quantity in kg (must be 2,000 or more; step 100 kg)
+- Quantity in kg (must meet the threshold in section 4; step 100 kg)
 - Preferred tier(s): Reserve, Premium, Verified standard, Local (multi-select)
 - Minimum cupping score or grade (optional)
 - Processing preference (washed, honey, natural, and so on; optional)
@@ -102,7 +96,7 @@ Side exits: `declined`, `expired`, `cancelled`.
 
 **Attachments:** business licence, NPWP, company profile (optional), previous purchase order (optional).
 
-Validation: quantity 2,000 kg or more, delivery address required, at least one tier, all agreement boxes ticked.
+Validation: quantity at or above the threshold, delivery address required, at least one tier, all agreement boxes ticked.
 
 ## 8. Roles and permissions
 
@@ -135,19 +129,32 @@ Each status change sends email and WhatsApp (through the existing outbox in `lib
 - Deposit due and deposit received (buyer and staff)
 - Shipped (buyer), using the existing tracking link format
 
-## 11. Open decisions for the owner
+## 11. Decisions
 
-1. **Threshold:** 2,000 kg confirmed? Should 300 kg to 2,000 kg also use a proposal?
-2. **Bulk price:** same price per tier for large orders, or a volume discount? Minimum margin per kg must hold (see the unit-economics notes: Rp42,450 per kg at the default mix).
-3. **Deposit:** what percentage (for example 30 percent), and is it refundable if the buyer cancels after agreement?
-4. **Credit:** do any buyers get payment after shipment? If yes, on what terms and limit?
-5. **Delivery terms:** delivered to buyer, or collected in Jayapura or Wamena? Who pays air or sea freight, and is it quoted as a separate line?
-6. **Signature:** typed acceptance in the app with a version hash (simple), or a third-party e-signature service (cost, more legal weight)?
-7. **Legal review:** the offer and agreement template need a lawyer's review before the first large order. Governing law and dispute terms.
-8. **Export:** will any large order leave Indonesia? If yes, export documents, phytosanitary and EUDR plot geolocation (EU rule from 30 December 2026 for large companies) must be planned.
-9. **Supply:** can we reserve 2 tons across listed lots at one time? Current stock must be checked before any offer. The plan lists tier volumes of about 12 tons a year for the full model, so one 2-ton order is a large share of early supply.
-10. **SLA:** 2 business days for review, 7 days for an offer to be answered, 5 days for a deposit. Confirm these.
-11. **Who approves offers:** staff alone, or owner above a value?
+Owner answers are marked **Owner**. Where the owner left it open, the default follows common practice for green coffee trade and is marked **Default**. Defaults stay until the owner changes them.
+
+| # | Question | Decision | Basis |
+|---|---|---|---|
+| 1 | Threshold | **Open.** Owner note: orders under a ton go through the normal flow. Owner also asked whether 300 kg should stay the online limit. Needs one answer (see below). | Owner |
+| 2 | Reserve 2 tons across listed lots now? | **Yes**, subject to a stock check at the time of the offer. Lots reserved for the offer period only. | Owner |
+| 3 | Bulk price or same tier price? | **Same price per tier.** No volume discount in phase 1. A discount can be added later if the margin still holds. | Default: protects the margin at Rp42,450/kg |
+| 4 | Deposit | **30 percent** of the order value at agreement. Refundable only if AnugerahLink cancels. Not refundable if the buyer cancels after reservation. | Default: common in green coffee trade |
+| 5 | Credit after shipment | **None** for new buyers. Credit can be considered after three completed orders, with owner approval and a limit. | Default |
+| 6 | Who pays freight | **Buyer arranges freight by default.** AnugerahLink can arrange and quote it as a separate line, at cost. Default collection point: Jayapura. | Default: common for origin-collected green coffee |
+| 7 | Acceptance | **Typed acceptance in the app** with a version hash and time stamp. A paid e-signature service comes later if a buyer asks for it. | Default |
+| 8 | Lawyer review | **Not yet.** The offer and agreement wording must be reviewed by a lawyer before the first large order. | Owner question; answer is no |
+| 9 | Export | **Domestic only in phase 1.** Export needs export documents, phytosanitary certificate, and EUDR plot geolocation. Planned as a later phase. | Default |
+| 10 | SLA | 2 business days to review, 7 days for the offer, 5 days for the deposit. | Default |
+| 11 | Who approves offers | Staff prepare; owner approves any offer above Rp100 million or with credit. | Default |
+
+### Open question for the owner
+
+**Threshold.** The owner wrote "not even a ton goes normal" and also asked whether 300 kg should stay the online limit. Two readings:
+
+- **A:** Online checkout up to 300 kg (as now). Proposal for 1 ton and above. Orders from 300 kg to under 1 ton are not allowed online and need a proposal too.
+- **B:** Online checkout up to just under 1 ton (raise the limit from 300 kg). Proposal for 1 ton and above.
+
+Reading B matches "not even a ton goes normal". It means raising `maxOrderKg` from 300 to 999 kg, which changes the existing checkout rule.
 
 ## 12. Build phases
 
@@ -162,7 +169,7 @@ Each phase ships as its own PR with tests passing, following the normal branch a
 
 ## 13. Tests to write (when built)
 
-- Quantity under 2,000 kg is rejected from the large-order path.
+- Quantity below the threshold (section 4) is rejected from the large-order path.
 - Each status transition is allowed only from the states above (for example `shipped` cannot happen before `balance_paid`).
 - Agreed terms cannot change without a new version and new acceptance on both sides.
 - Lots reserved for an offer are not sold to another buyer while the offer is valid.
