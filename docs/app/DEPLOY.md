@@ -41,7 +41,14 @@ Caddy mengurus sertifikat HTTPS sendiri saat pertama kali domain diakses. Bila g
 
 ## 5. Cadangan
 - Cadangan dibuat otomatis setiap 24 jam ke folder `backups/`. Yang disimpan 30 hari terakhir (`BACKUP_KEEP_DAYS` di `.env`).
-- **Cadangan juga harus disimpan di luar server.** Salin folder `backups/` ke penyimpanan lain setiap malam (misalnya dengan `rclone` ke penyimpanan cloud). Ini belum dipasang otomatis; tim perlu memilih penyedia dan mengaturnya.
+- **Cadangan juga harus disimpan di luar server.** Script `scripts/offsite-backup.sh` menyalin folder `backups/` ke penyimpanan lain dengan `rclone copy` (tidak menghapus apa pun di tujuan). Penyedia belum dipilih, jadi tujuan diatur lewat `RCLONE_REMOTE`:
+  1. Pasang rclone dan buat remote: `rclone config` (pilih penyedia dan ikuti langkahnya).
+  2. Uji satu kali: `RCLONE_REMOTE=namaremote:folder ./scripts/offsite-backup.sh`.
+  3. Jadwalkan setiap malam, setelah cadangan harian dibuat (cek waktunya di folder `backups/`), misalnya lewat cron:
+     ```
+     30 3 * * * cd /opt/anugerahlink && RCLONE_REMOTE=namaremote:folder ./scripts/offsite-backup.sh >> /var/log/anugerahlink-offsite.log 2>&1
+     ```
+  Batas waktu simpan di tujuan diatur di penyedia, karena script tidak menghapus cadangan lama di sana.
 - **Uji pemulihan** sekali setiap bulan di server lain atau di komputer Anda.
 
 Pulihkan cadangan:

@@ -488,6 +488,19 @@ function buildRoutes(ctx) {
     const photo = store.update((db) => domain.addPhoto(db, id, body.kind, file, now()));
     return { status: 201, body: { photo: { id: photo.id, kind: photo.kind, createdAt: photo.createdAt } } };
   }, { perm: 'intake' });
+  route('GET', /^\/api\/admin\/buyers$/, (_p, _b, query) => ({ status: 200, body: { buyers: buyers.listBuyersForStaff(store.read(), query.q, now()) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'users' });
+  route('POST', /^\/api\/admin\/buyers\/([\w-]+)\/verify$/, ([id]) => {
+    const b = store.update((db) => buyers.staffVerifyBuyer(db, id, now()));
+    return { status: 200, body: { buyer: buyers.publicBuyer(b) }, auditDetail: `Email pembeli ${b.email} ditandai terverifikasi oleh staf.` };
+  }, { perm: 'users' });
+  route('POST', /^\/api\/admin\/buyers\/([\w-]+)\/reset$/, ([id]) => {
+    const sentTo = store.update((db) => {
+      const r = buyers.staffSendReset(db, id, now());
+      notify.enqueueAccountEmail(db, 'reset', r.email, accountLink('reset', r.token), now());
+      return r.email;
+    });
+    return { status: 200, body: { ok: true }, auditDetail: `Tautan atur ulang dikirim ke ${sentTo} oleh staf.` };
+  }, { perm: 'users' });
   route('GET', /^\/api\/admin\/late-orders$/, () => ({ status: 200, body: { orders: courier.lateOrders(store.read(), new Date().toISOString()) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'orders' });
   route('GET', /^\/api\/admin\/users$/, () => ({ status: 200, body: { users: store.read().users.map(auth.publicUser) }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'users' });
   route('POST', /^\/api\/admin\/users$/, (_p, body) => ({ status: 201, body: { user: auth.publicUser(store.update((db) => auth.createUser(db, body, now()))) } }), { perm: 'users' });
