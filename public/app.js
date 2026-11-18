@@ -209,6 +209,7 @@
         <p class="lead">${esc(state.config.content.homeLead)}</p>
         <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a><a class="btn secondary" href="#/tentang">Cara kerja kami</a></div>
       </section>
+      ${tierStockSection(lots)}
       <section aria-labelledby="featured">
         <h2 id="featured">Lot tersedia sekarang</h2>
         ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi ya.</p></div>'}
@@ -239,6 +240,19 @@
       ${policySection()}`);
   }
 
+  // Stok tersedia per tingkat, dihitung dari semua lot tayang (tidak ikut saringan).
+  function tierStockSection(allLots) {
+    const totals = Object.fromEntries(['reserve', 'premium', 'verified', 'local'].map((t) => [t, 0]));
+    for (const l of allLots || []) totals[l.tier] = (totals[l.tier] || 0) + (l.availableKg || 0);
+    const grand = Object.values(totals).reduce((a, b) => a + b, 0);
+    return `<section class="tier-stock" aria-label="Stok tersedia per tingkat">
+        <h2>Stok tersedia per tingkat</h2>
+        <div class="tier-stock-row">
+          ${Object.entries(totals).map(([t, kgTotal]) => `<div class="tier-stock-card"><span class="${tierClass(t)}">${esc(tierLabel(t))}</span><strong class="num">${kg(kgTotal)}</strong></div>`).join('')}
+          <div class="tier-stock-card tier-stock-total"><span>Total</span><strong class="num">${kg(grand)}</strong></div>
+        </div>
+      </section>`;
+  }
   async function viewCatalogue(query) {
     const params = new URLSearchParams();
     if (query.tier) params.set('tier', query.tier);
@@ -281,13 +295,7 @@
       </form>
       </aside>
       <div class="catalog-main">
-      <section class="tier-stock" aria-label="Stok tersedia per tingkat">
-        <h2>Stok tersedia per tingkat</h2>
-        <div class="tier-stock-row">
-          ${Object.entries(tierTotals).map(([t, kgTotal]) => `<div class="tier-stock-card"><span class="${tierClass(t)}">${esc(tierLabel(t))}</span><strong class="num">${kg(kgTotal)}</strong></div>`).join('')}
-          <div class="tier-stock-card tier-stock-total"><span>Total</span><strong class="num">${kg(Object.values(tierTotals).reduce((a, b) => a + b, 0))}</strong></div>
-        </div>
-      </section>
+      ${tierStockSection(allLots)}
       <aside class="large-order-banner" aria-labelledby="large-order-title">
         <div>
           <h2 id="large-order-title">Butuh 1 ton atau lebih?</h2>
