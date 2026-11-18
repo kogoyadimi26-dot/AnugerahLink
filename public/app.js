@@ -885,7 +885,7 @@ const ICONS = {
             <span class="muted">${u ? esc(u.roleLabel || u.role) : ''}</span>
           </div>
           <nav class="admin-nav" aria-label="Menu panel tim">
-            ${links.map(([k, l]) => `<a href="#/admin/${k}" ${active === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
+            ${links.map(([k, l]) => `<a href="#/admin/${adminPath(k)}" ${active === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
           </nav>
           <button class="btn secondary small admin-out" id="admin-out" type="button">Keluar</button>
         </aside>
@@ -943,7 +943,7 @@ const ICONS = {
         const out = await api('/api/auth/login', { method: 'POST', body: { email: f.email, password: f.password } });
         setAdminToken(out.token);
         try { sessionStorage.setItem('al-user', JSON.stringify(out.user)); } catch { /* abaikan */ }
-        location.hash = '#/admin/' + landingPage();
+        location.hash = '#/admin/' + adminPath(landingPage());
       } catch (err) {
         busy(btn, false);
         clearAdminToken();
@@ -972,7 +972,7 @@ const ICONS = {
               <td>${esc(u.roleLabel || u.role)}</td>
               <td><span class="pill ${u.active ? 'ok' : ''}">${u.active ? 'Aktif' : 'Nonaktif'}</span>${u.mustChangePassword ? ' <span class="pill warn">Ganti kata sandi</span>' : ''}</td>
               <td>${esc(when(u.lastSignInAt))}</td>
-              <td><a class="btn secondary small" href="#/admin/users/${encodeURIComponent(u.id)}">Kelola</a></td>
+              <td><a class="btn secondary small" href="#/admin/pengguna/${encodeURIComponent(u.id)}">Kelola</a></td>
             </tr>`).join('')}
         </tbody></table></div>
       ${sel ? `
@@ -987,7 +987,7 @@ const ICONS = {
             <div class="field"><label for="e-active">Status</label><select id="e-active" name="active"><option value="true" ${sel.active ? 'selected' : ''}>Aktif</option><option value="false" ${!sel.active ? 'selected' : ''}>Nonaktif</option></select></div>
             <div class="field wide"><label for="e-pass">Reset kata sandi (opsional)</label><input id="e-pass" name="password" type="password" minlength="10" autocomplete="new-password"><p class="help">Isi hanya jika ingin mengganti kata sandi. Pengguna harus membuat kata sandi baru saat masuk berikutnya, dan sesi lamanya berakhir.</p></div>
           </div>
-          <div class="btn-row"><button class="btn" type="submit" id="e-save">Simpan perubahan</button><a class="btn secondary" href="#/admin/users">Tutup</a></div>
+          <div class="btn-row"><button class="btn" type="submit" id="e-save">Simpan perubahan</button><a class="btn secondary" href="#/admin/pengguna">Tutup</a></div>
         </form>
         <h3 style="margin-top:24px">Riwayat ${esc(sel.name)}</h3>
         <div id="activity" class="muted" style="font-size:14px">Memuat…</div>
@@ -1069,7 +1069,7 @@ const ICONS = {
         const out = await api('/api/auth/password', { method: 'POST', admin: true, body: { current: f.current, password: f.password } });
         try { sessionStorage.setItem('al-user', JSON.stringify(out.user)); } catch { /* abaikan */ }
         toast('Kata sandi berhasil diganti');
-        location.hash = '#/admin/' + landingPage();
+        location.hash = '#/admin/' + adminPath(landingPage());
       } catch (err) { busy(btn, false); showFormError(form, err); }
     });
   }
@@ -1086,7 +1086,7 @@ const ICONS = {
     const cols = stages.map(([key, title, hint]) => {
       const items = lots.filter((l) => l.status === key);
       const actions = (l) => {
-        if (key === 'received') return `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>`;
+        if (key === 'received') return `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Nilai</a>`;
         if (key === 'graded' && canDo('verify')) return `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>`;
         if (key === 'verified' && canDo('publish')) return `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>`;
         return '';
@@ -1132,56 +1132,152 @@ const ICONS = {
     wireSignOut();
   }
 
-  async function viewAdminDashboard() {
-    const s = await api('/api/admin/summary', { admin: true });
-    const late = await api('/api/admin/late-orders', { admin: true }).then((r) => r.orders).catch(() => []);
+  // Dasbor penjualan: KPI, wawasan, tren, corong pesanan, stok per tingkat, tindakan, pesanan terbaru.
+  // Angka dari /api/admin/dashboard. Diperbarui setiap 60 detik selama halaman ini terbuka.
+  const DASH_RANGE = { 7: '7 hari', 30: '30 hari', 90: '90 hari', 0: 'Semua' };
+  const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  function dashLabel(key) {
+    if (key.length === 7) { const [y, m] = key.split('-'); return `${MONTHS_SHORT[Number(m) - 1]} ${y.slice(2)}`; }
+    const [, m, dd] = key.split('-');
+    return `${Number(dd)} ${MONTHS_SHORT[Number(m) - 1]}`;
+  }
+  function dashPct(now, prev) { return prev > 0 ? Math.round(((now - prev) / prev) * 1000) / 10 : null; }
+  function dashChip(pct) {
+    if (pct === null) return '';
+    return `<span class="dash-chip ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+  }
+  function dashBarChart(series, metric) {
+    const W = 640, H = 240, P = 26, TOP = 14;
+    const key = metric;
+    const fmt = metric === 'revenue' ? (v) => rp(v) : (v) => `${v} pesanan`;
+    const max = Math.max(1, ...series.map((x) => x[key]));
+    const bw = (W - 2 * P) / Math.max(1, series.length);
+    const step = Math.max(1, Math.ceil(series.length / 7));
+    const grid = [0.25, 0.5, 0.75, 1].map((f) => { const y = H - P - f * (H - P - TOP); return `<line x1="${P}" x2="${W - P}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" class="dash-grid"/>`; }).join('');
+    const bars = series.map((x, i) => {
+      const h = Math.max(x[key] > 0 ? 3 : 0, (x[key] / max) * (H - P - TOP));
+      const bx = P + i * bw + bw * 0.18;
+      const w = bw * 0.64;
+      return `<rect class="dash-bar" data-i="${i}" x="${bx.toFixed(1)}" y="${(H - P - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="5"/>`;
+    }).join('');
+    const labels = series.map((x, i) => (i % step === 0 ? `<text x="${(P + i * bw + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle" class="dash-axis">${esc(dashLabel(x.key))}</text>` : '')).join('');
+    const data = JSON.stringify(series.map((x) => ({ l: dashLabel(x.key), v: fmt(x[key]) })));
+    return `<div class="dash-chart-wrap" data-series='${esc(data)}'>
+      <svg viewBox="0 0 ${W} ${H}" class="dash-chart" role="img" aria-label="Grafik ${metric === 'revenue' ? 'pendapatan' : 'pesanan'} per periode">${grid}${bars}${labels}</svg>
+      <div class="dash-tip" hidden></div></div>`;
+  }
+  function renderDashboard(d, s, late, range) {
+    const k = d.kpis;
+    const metric = window.__dashMetric || 'revenue';
+    const ordersPct = dashPct(k.orders, k.prevOrders);
+    const kpi = (label, value, chip, sub) => `<div class="card dash-kpi"><p class="dash-label">${esc(label)}</p><p class="dash-value">${value}</p><div class="dash-foot">${chip}${sub ? `<span class="dash-sub">${sub}</span>` : ''}</div></div>`;
+    const tabs = [7, 30, 90, 0].map((r) => `<a class="dash-range${r === range ? ' is-active' : ''}" href="#/admin/dasbor?range=${r}" ${r === range ? 'aria-current="page"' : ''}>${DASH_RANGE[r]}</a>`).join('');
+    const seg = `<div class="dash-seg" role="group" aria-label="Pilih ukuran grafik">
+      <button type="button" data-metric="revenue" class="${metric === 'revenue' ? 'is-on' : ''}">Pendapatan</button>
+      <button type="button" data-metric="orders" class="${metric === 'orders' ? 'is-on' : ''}">Pesanan</button></div>`;
+    const insights = d.insights.length
+      ? `<section class="dash-insights">${d.insights.slice(0, 3).map((i) => `<div class="dash-insight ${i.severity}"><span class="dash-dot" aria-hidden="true"></span>${esc(i.text)}</div>`).join('')}</section>`
+      : '';
+    const maxPipe = Math.max(1, ...d.pipeline.stages.map((p) => p.count));
+    const funnel = d.pipeline.stages.map((p) => `<div class="dash-stage"><span class="dash-stage-name">${esc(p.label)}</span><span class="dash-stage-bar"><span style="width:${Math.round((p.count / maxPipe) * 100)}%"></span></span><span class="dash-stage-n">${p.count}</span><span class="dash-stage-v">${rp(p.value)}</span></div>`).join('')
+      + (d.pipeline.cancelled.count ? `<p class="dash-note">Dibatalkan ${d.pipeline.cancelled.count} pesanan</p>` : '');
+    const stock = d.stock.map((t) => `<div class="dash-stock-row">
+      <span class="${tierClass(t.tier)} nowrap">${esc(t.label)}</span>
+      <span class="dash-stock-kg num">${kg(t.available)}</span>
+      <div class="dash-stock-meta"><div class="dash-st"><span style="width:${Math.round((t.sellThrough || 0) * 100)}%"></span></div>
+        <span class="dash-note">${t.sellThrough === null ? 'Belum ada stok' : Math.round(t.sellThrough * 100) + '% terjual'}${t.weeksCover === null ? '' : ' · ±' + t.weeksCover + ' minggu'}</span></div></div>`).join('');
+    const actionsCard = d.actions.length
+      ? `<section class="card dash-panel"><h2 class="dash-h">Perlu tindakan</h2><div class="dash-actions">${d.actions.map((a) => `<a class="dash-action ${a.severity}" href="${a.href}"><strong class="num">${a.count}</strong><span>${esc(a.label)}</span></a>`).join('')}</div></section>`
+      : '';
+    const recent = d.recentOrders.length
+      ? `<div class="dash-table dash-recent"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${d.recentOrders.map((o) => `<tr><td>${esc(o.number)}</td><td>${esc(o.customer)}</td><td><span class="dash-status">${esc(o.statusLabel)}</span></td><td class="num">${rp(o.total)}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p class="dash-note">Belum ada pesanan.</p>';
+    const lateCard = late.length
+      ? `<section class="card dash-panel"><h2 class="dash-h">Pesanan terlambat <span class="dash-badge danger">${late.length}</span></h2>
+          <div class="dash-table"><table><thead><tr><th>Nomor</th><th>Pelanggan</th><th>Kurir</th><th>Terlambat</th></tr></thead><tbody>${late.map((x) => `<tr><td>${esc(x.number)}</td><td>${esc(x.customerName)}</td><td>${esc(x.courier || '—')}</td><td><span class="dash-status danger">${esc(x.delayLabel)}</span></td></tr>`).join('')}</tbody></table></div></section>`
+      : '';
     const e = s.economics;
-    const o = s.ordersByStatus;
     setMain(adminShell('dashboard', `
-      <div class="stats">
-        <div class="card stat">
-          <p class="stat-label">Stok tayang</p>
-          <p class="stat-value">${kg(s.totalStockKg)}</p>
-          <p class="stat-note">Kopi yang bisa dibeli sekarang</p>
-        </div>
-        <div class="card stat">
-          <p class="stat-label">Pesanan terbuka</p>
-          <p class="stat-value">${o.requested + o.confirmed + o.paid}</p>
-          <p class="stat-note">${o.requested} diminta · ${o.confirmed} dikonfirmasi · ${o.paid} dibayar</p>
-        </div>
-        <div class="card stat">
-          <p class="stat-label">Nilai pesanan terbuka</p>
-          <p class="stat-value">${rp(s.openRevenue)}</p>
-          <p class="stat-note">Belum dikirim</p>
-        </div>
-        <div class="card stat">
-          <p class="stat-label">Umpan balik perlu ditandai</p>
-          <p class="stat-value">${s.feedbackToReview}</p>
-          <p class="stat-note">Belum diperiksa tim</p>
-        </div>
+      <div class="dash-head">
+        <nav class="dash-tabs" aria-label="Rentang waktu">${tabs}</nav>
+        <span class="dash-stamp">Diperbarui ${tanggal(d.generatedAt)}</span>
       </div>
-      <h2>Pesanan terlambat</h2>
-      ${late.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>Nomor</th><th>Pelanggan</th><th>Kurir</th><th>Resi</th><th>Terlambat</th><th>Kejadian terakhir</th></tr></thead>
-        <tbody>${late.map((x) => `<tr><td>${esc(x.number)}</td><td>${esc(x.customerName)}${x.company ? `<br><span class="muted" style="font-size:13px">${esc(x.company)}</span>` : ''}<br><span class="muted" style="font-size:13px">${esc(x.phone)}</span></td><td>${esc(x.courier || '—')}</td><td class="num">${esc(x.waybill || '—')}</td><td><span class="pill bad">${esc(x.delayLabel)}</span></td><td>${x.lastEvent ? `${esc(x.lastEvent.label)} <span class="muted" style="font-size:13px">${tanggal(x.lastEvent.at)}</span>` : '<span class="muted">Belum ada kabar kurir</span>'}</td></tr>`).join('')}</tbody></table></div>`
-        : '<p class="muted">Tidak ada pesanan yang terlambat.</p>'}
-      <h2>Stok per kategori</h2>
-      <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Kg tersedia</th></tr></thead>
-        <tbody>${Object.entries(s.stockKgByTier).map(([t, k]) => `<tr><td><span class="${tierClass(t)}">${esc(tierLabel(t))}</span></td><td class="num">${kg(k)}</td></tr>`).join('')}</tbody></table></div>
-      <h2>Ekonomi per kg dibeli</h2>
-      
-      <div class="table-wrap"><table>
-        <tbody>
+      <section class="dash-kpis">
+        ${kpi('Pendapatan', rp(k.revenue), dashChip(k.revenueChangePct), k.prevRevenue > 0 ? `dari ${rp(k.prevRevenue)}` : '')}
+        ${kpi('Pesanan', k.orders, dashChip(ordersPct), '')}
+        ${kpi('Kg terjual', kg(k.kgSold), '', k.avgOrderValue ? `Rata-rata ${rp(k.avgOrderValue)}` : '')}
+        ${kpi('Stok tayang', kg(k.stockKg), '', k.weeksCover !== null ? `±${k.weeksCover} minggu` : '')}
+      </section>
+      ${insights}
+      <div class="dash-grid2">
+        <section class="card dash-panel">
+          <div class="dash-panel-head"><h2 class="dash-h">Tren</h2>${seg}</div>
+          ${d.series.length ? dashBarChart(d.series, metric) : '<p class="dash-note">Belum ada data.</p>'}
+        </section>
+        <section class="card dash-panel">
+          <h2 class="dash-h">Corong pesanan</h2>
+          <div class="dash-stages">${funnel}</div>
+        </section>
+      </div>
+      <div class="dash-grid2${actionsCard ? ' dash-grid-stock' : ''}">
+        <section class="card dash-panel">
+          <h2 class="dash-h">Stok per tingkat</h2>
+          <div class="dash-stock">${stock}</div>
+        </section>
+        ${actionsCard}
+      </div>
+      <section class="card dash-panel" style="margin-top:16px">
+        <h2 class="dash-h">Pesanan terbaru</h2>
+        ${recent}
+      </section>
+      ${lateCard ? `<div style="margin-top:16px">${lateCard}</div>` : ''}
+      <details class="dash-details">
+        <summary>Ekonomi per kg dibeli</summary>
+        <div class="dash-table"><table><tbody>
           <tr><td>Penjualan</td><td class="num">${rp(e.salesPerKgBought)}</td></tr>
           <tr><td>Dibayar ke petani</td><td class="num">${rp(e.buyPerKgBought)}</td></tr>
           <tr><td>Ongkir ditanggung AnugerahLink</td><td class="num">${rp(e.shippingPerKgBought)}</td></tr>
-          <tr><td>Biaya: contoh, klaim, pembayaran</td><td class="num">${rp(e.feesPerKgBought)}</td></tr>
+          <tr><td>Biaya contoh, klaim, pembayaran</td><td class="num">${rp(e.feesPerKgBought)}</td></tr>
           <tr><th>Margin kotor</th><th class="num">${rp(e.grossMarginPerKgBought)} (${e.grossMarginPctOfSales}%)</th></tr>
         </tbody></table></div>
-      <p style="margin-top:12px">Titik impas dengan tim penuh: <strong>${e.breakEvenKgPerYear ? e.breakEvenKgPerYear.toLocaleString('id-ID') + ' kg per tahun (' + e.breakEvenKgPerMonth.toLocaleString('id-ID') + ' kg per bulan)' : 'tidak tercapai dengan harga ini'}</strong>.</p>
-      <p class="muted" style="font-size:14px">Pendapatan dari pesanan yang sudah berjalan: ${rp(s.deliveredRevenue)}.</p>
-    `));
+      </details>`));
     wireSignOut();
+    main.querySelectorAll('[data-metric]').forEach((b) => b.addEventListener('click', () => {
+      window.__dashMetric = b.dataset.metric;
+      renderDashboard(d, s, late, range);
+    }));
+    main.querySelectorAll('.dash-chart-wrap').forEach((wrap) => {
+      const data = JSON.parse(wrap.dataset.series);
+      const tip = wrap.querySelector('.dash-tip');
+      const show = (rect) => {
+        const i = Number(rect.dataset.i);
+        tip.hidden = false;
+        tip.innerHTML = `<strong>${esc(data[i].l)}</strong><span>${esc(data[i].v)}</span>`;
+        const box = wrap.getBoundingClientRect(); const r = rect.getBoundingClientRect();
+        tip.style.left = `${Math.min(Math.max(0, r.left - box.left + r.width / 2), box.width)}px`;
+      };
+      wrap.querySelectorAll('.dash-bar').forEach((rect) => {
+        rect.addEventListener('mouseenter', () => show(rect));
+        rect.addEventListener('focus', () => show(rect));
+        rect.addEventListener('click', () => show(rect));
+        rect.setAttribute('tabindex', '0');
+      });
+      wrap.addEventListener('mouseleave', () => { tip.hidden = true; });
+    });
+  }
+
+  async function viewAdminDashboard(query = {}) {
+    const range = [7, 30, 90, 0].includes(Number(query.range)) ? Number(query.range) : 30;
+    const [d, s, late] = await Promise.all([
+      api(`/api/admin/dashboard?range=${range}`, { admin: true }),
+      api('/api/admin/summary', { admin: true }),
+      api('/api/admin/late-orders', { admin: true }).then((r) => r.orders).catch(() => []),
+    ]);
+    renderDashboard(d, s, late, range);
+    clearInterval(window.__dashTimer);
+    window.__dashTimer = setInterval(() => {
+      if (/^#\/admin\/(dasbor|dashboard)/.test(location.hash)) viewAdminDashboard({ range });
+    }, 60000);
   }
 
   async function viewAdminIntake() {
@@ -1245,10 +1341,10 @@ const ICONS = {
         const band = (state.config.gradeBands || []).find((b) => b.key === c.gradeKey);
         if (c.result === 'rejected') {
           toast(`${lot.code} ditolak. Tidak ada pembayaran.`);
-          location.hash = '#/admin/lots';
+          location.hash = '#/admin/lot';
         } else {
           toast(`${lot.code} ${band ? band.label : ''}. Bayar ${rp(c.amountDue)}.`);
-          location.hash = '#/admin/lots/' + encodeURIComponent(lot.id);
+          location.hash = '#/admin/lot/' + encodeURIComponent(lot.id);
         }
       } catch (err) { busy(btn, false); showFormError(form, err); if (err.status === 401) adminFail(err); }
     });
@@ -1293,7 +1389,7 @@ const ICONS = {
               <td class="num">${l.sellableKg ? kg(l.sellableKg) : '—'}</td>
               <td class="num">${kg(l.availableKg)}</td>
               <td><div class="btn-row">
-                ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Nilai</a>` : `<a class="btn secondary small" href="#/admin/lots/${encodeURIComponent(l.id)}">Ubah katalog</a>`}
+                ${['received', 'graded'].includes(l.status) ? `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Nilai</a>` : `<a class="btn secondary small" href="#/admin/lot/${encodeURIComponent(l.id)}">Ubah katalog</a>`}
                 ${l.status === 'graded' && canDo('verify') ? `<button class="btn small" data-verify="${esc(l.id)}">Verifikasi</button>` : ''}
                 ${l.status === 'verified' && canDo('publish') ? `<button class="btn small" data-publish="${esc(l.id)}">Terbitkan ke aplikasi</button>` : ''}
                 ${l.status === 'listed' && canDo('publish') ? `<button class="btn danger small" data-withdraw="${esc(l.id)}">Tarik</button>` : ''}
@@ -1337,7 +1433,7 @@ const ICONS = {
           <div class="field"><label for="g-process">Proses</label><input id="g-process" name="process" value="${esc(lot.process || '')}"></div>
           <div class="field wide"><label for="g-notes">Catatan</label><textarea id="g-notes" name="notes">${esc(lot.notes || '')}</textarea></div>
         </div>
-        <div class="btn-row"><button class="btn" type="submit" id="g-save">Simpan penilaian</button><a class="btn secondary" href="#/admin/lots">Kembali ke lot</a></div>
+        <div class="btn-row"><button class="btn" type="submit" id="g-save">Simpan penilaian</button><a class="btn secondary" href="#/admin/lot">Kembali ke lot</a></div>
       </form>
       ${(lot.photos || []).length ? `<h3 style="margin-top:20px">Foto pemeriksaan</h3><div class="btn-row">${lot.photos.map((p) => `<figure style="margin:0"><img data-photo="${esc(p.id)}" alt="Foto ${p.kind === 'sample' ? 'sampel' : 'karung'}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)"><figcaption class="help">${p.kind === 'sample' ? 'Sampel' : 'Karung'}</figcaption></figure>`).join('')}</div>` : ''}
       ${listingEditorHtml(lot)}`));
@@ -1364,7 +1460,7 @@ const ICONS = {
       try {
         await api(`/api/admin/lots/${encodeURIComponent(id)}`, { method: 'PATCH', admin: true, body: formData(form) });
         toast('Penilaian tersimpan');
-        location.hash = '#/admin/lots';
+        location.hash = '#/admin/lot';
       } catch (err) { busy(btn, false); showFormError(form, err); }
     });
   }
@@ -2119,7 +2215,12 @@ const ICONS = {
     });
   }
 
-  // ---------- router ----------
+  // Alamat admin memakai nama Indonesia; kunci halaman di dalam kode tetap.
+  const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', feedback: 'umpan-balik', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
+  const ADMIN_KEY = Object.fromEntries(Object.entries(ADMIN_SLUG).map(([k, v]) => [v, k]));
+  const adminPath = (k) => ADMIN_SLUG[k] || k;
+
+    // ---------- router ----------
   function parse() {
     const raw = location.hash.replace(/^#/, '') || '/';
     const [pathPart, queryPart] = raw.split('?');
@@ -2130,6 +2231,7 @@ const ICONS = {
 
   async function route() {
     const { parts, query } = parse();
+    clearInterval(window.__dashTimer);
     updateCartCount();
     markNav();
     try {
@@ -2158,12 +2260,12 @@ const ICONS = {
         const cu = currentUser();
         if (cu && cu.mustChangePassword) return viewChangePassword();
         const pages = allowedPages();
-        const sec = a || landingPage();
-        if (!pages.includes(sec)) { location.hash = '#/admin/' + landingPage(); return; }
+        const sec = ADMIN_KEY[a] || a || landingPage();
+        if (!pages.includes(sec)) { location.hash = '#/admin/' + adminPath(landingPage()); return; }
         if (sec === 'users') return await viewAdminUsers(b);
         if (sec === 'alur') return await viewWorkflow();
         if (sec === 'audit') return await viewAdminAudit();
-        if (sec === 'dashboard') return await viewAdminDashboard();
+        if (sec === 'dashboard') return await viewAdminDashboard(query);
         if (sec === 'intake') return await viewAdminIntake();
         if (sec === 'lots' && b) return await viewAdminGrade(b);
         if (sec === 'lots') return await viewAdminLots();

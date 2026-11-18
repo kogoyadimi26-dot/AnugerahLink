@@ -18,6 +18,7 @@ const { seed, regionDefaults } = require('./lib/seed');
 const domain = require('./lib/domain');
 const payments = require('./lib/payments');
 const courier = require('./lib/courier');
+const dashboard = require('./lib/dashboard');
 const config = require('./config/business');
 const { ApiError } = require('./lib/validate');
 const auth = require('./lib/auth');
@@ -395,6 +396,11 @@ function buildRoutes(ctx) {
   route('GET', /^\/api\/auth\/me$/, (_p, _b, _q, req) => ({ status: 200, body: { user: auth.publicUser(requirePerm(req, store, null)) }, headers: { 'Cache-Control': 'no-store' } }));
 
   // ---- Admin ----
+  route('GET', /^\/api\/admin\/dashboard$/, (_p, _b, query) => {
+    const r = Number(query.range === undefined ? 30 : query.range);
+    const range = dashboard.RANGES.includes(r) ? r : 30;
+    return { status: 200, body: dashboard.buildDashboard(store.read(), { range, now: new Date().toISOString() }), headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'reports' });
   route('GET', /^\/api\/admin\/summary$/, () => ({ status: 200, body: domain.summary(store.read()), headers: { 'Cache-Control': 'no-store' } }), { perm: 'reports' });
   route('GET', /^\/api\/admin\/config$/, () => ({
     status: 200,
