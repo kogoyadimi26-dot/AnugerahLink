@@ -888,6 +888,7 @@ const ICONS = {
             <p>${esc(x.text)}</p>
           </article>`).join('')}
       </section>` : ''}
+      ${(a.news || []).length ? `<section class="about-news" aria-labelledby="about-news"><h2 id="about-news">Berita</h2>${a.news.map((n) => `<article class="news-card"><p class="news-date">${esc(n.date)}</p><h3>${esc(n.title)}</h3>${n.body.map((t) => `<p>${esc(t)}</p>`).join('')}</article>`).join('')}</section>` : ''}
       <section class="policy" aria-labelledby="policy-title">
         <div class="policy-head">
           <h2 id="policy-title">Klaim dan pengembalian</h2>
