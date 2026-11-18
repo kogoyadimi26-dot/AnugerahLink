@@ -642,7 +642,7 @@
             <td>${tanggal(o.createdAt)}</td>
             <td><span class="pill ${o.status === 'cancelled' ? 'bad' : 'ok'}">${esc(o.statusLabel)}</span></td>
             <td class="num">${rp(o.total)}</td>
-            <td><a class="btn secondary small" href="#/track/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a></td>
+            <td><a class="btn secondary small" href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a></td>
           </tr>`).join('')}</tbody></table></div>`
           : '<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat akan muncul di sini.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>'}`;
     }
