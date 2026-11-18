@@ -1837,7 +1837,7 @@ const ICONS = {
   // Staf: aksi yang butuh isian memakai formulir kecil di dalam kartu, bukan prompt browser.
   const PROP_FIELDS = {
     request_info: [['message', 'Informasi yang dibutuhkan', 'textarea', true]],
-    make_offer: [['lines', 'Lot dan kg, format KODE:KG, contoh: AL-2611-001:200, AL-2611-003:150', 'textarea', true]],
+    make_offer: [['kg', 'Jumlah (kg, 1 ton = 1.000 kg)', 'number', true], ['tier', 'Tingkat', 'select', true], ['lines', 'Atur lot sendiri (opsional): KODE:KG, contoh AL-2611-001:200, AL-2611-003:150', 'textarea', false]],
     decline: [['reason', 'Alasan (opsional)', 'input', false]],
     mark_deposit_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
     mark_balance_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
@@ -1845,11 +1845,17 @@ const ICONS = {
   };
   const PROP_LABEL = { request_info: 'Minta informasi', make_offer: 'Buat penawaran', decline: 'Tolak', mark_deposit_paid: 'DP sudah dibayar', mark_balance_paid: 'Pelunasan diterima', dispatch: 'Catat pengiriman' };
   function propActionForm(p, action) {
-    const fields = PROP_FIELDS[action].map(([name, label, kind, req]) => kind === 'textarea'
-      ? `<label>${esc(label)}<textarea name="${name}" rows="2" ${req ? 'required' : ''}></textarea></label>`
-      : `<label>${esc(label)}<input name="${name}" ${req ? 'required' : ''}></label>`).join('');
+    const asked = (p.form && p.form.quantityKg) || '';
+    const askedTier = ((p.form && p.form.tiers) || [])[0] || '';
+    const fields = PROP_FIELDS[action].map(([name, label, kind, req]) => {
+      if (kind === 'textarea') return `<label>${esc(label)}<textarea name="${name}" rows="2" ${req ? 'required' : ''}></textarea></label>`;
+      if (kind === 'select') return `<label>${esc(label)}<select name="${name}">${PROP_TIERS.map(([v, l]) => `<option value="${v}" ${v === askedTier ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`;
+      const value = name === 'kg' ? ` value="${esc(asked)}"` : '';
+      return `<label>${esc(label)}<input name="${name}" ${kind === 'number' ? 'type="number" min="100" step="100"' : ''}${value} ${req ? 'required' : ''}></label>`;
+    }).join('');
+    const hint = action === 'make_offer' ? `<p class="muted" style="margin:0;font-size:13px">Diminta pembeli: ${kg(asked)} ${askedTier ? '· ' + esc(tierLabel(askedTier)) : ''}. Lot dipilih otomatis dari stok tingkat itu.</p>` : '';
     return `<form class="prop-action-form" data-action="${action}" data-id="${esc(p.id)}" hidden>${fields}
-      <div class="btn-row"><button class="btn small" type="submit">Simpan</button><button class="btn secondary small" type="button" data-prop-cancel>Batal</button></div>
+      ${hint}<div class="btn-row"><button class="btn small" type="submit">Simpan</button><button class="btn secondary small" type="button" data-prop-cancel>Batal</button></div>
       <p class="error" data-prop-error hidden></p></form>`;
   }
   function propStaffButtons(p) {
@@ -1891,9 +1897,15 @@ const ICONS = {
       const raw = formData(f);
       const body = { action: f.dataset.action, ...raw };
       if (f.dataset.action === 'make_offer') {
-        const parsed = parseOfferLines(raw.lines);
-        if (parsed.error) { const box = f.querySelector('[data-prop-error]'); box.hidden = false; box.textContent = parsed.error; return; }
-        body.lines = parsed.lines;
+        if (String(raw.lines || '').trim()) {
+          const parsed = parseOfferLines(raw.lines);
+          if (parsed.error) { const box = f.querySelector('[data-prop-error]'); box.hidden = false; box.textContent = parsed.error; return; }
+          body.lines = parsed.lines;
+        } else {
+          delete body.lines;
+          body.kg = Number(raw.kg);
+          body.tier = raw.tier;
+        }
       }
       send(f.dataset.id, body, f.querySelector('[data-prop-error]'));
     }));
