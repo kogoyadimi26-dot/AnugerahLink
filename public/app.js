@@ -1646,6 +1646,27 @@ const ICONS = {
   const PROP_STATUS = { draft: 'Draf', submitted: 'Diajukan', in_review: 'Ditinjau', need_info: 'Perlu informasi', offered: 'Penawaran dikirim', negotiating: 'Negosiasi', agreed: 'Disepakati', deposit_pending: 'Menunggu DP', deposit_paid: 'DP diterima', preparing: 'Disiapkan', balance_pending: 'Menunggu pelunasan', balance_paid: 'Lunas', shipped: 'Dikirim', completed: 'Selesai', declined: 'Ditolak', expired: 'Kedaluwarsa', cancelled: 'Dibatalkan' };
   const PROP_TIERS = [['reserve', 'Reserve'], ['premium', 'Premium'], ['verified', 'Standar Terverifikasi'], ['local', 'Lokal']];
   const PROP_AGREE = ['accurate', 'verification', 'offerSubject', 'policy', 'privacy'];
+  // Kg yang ditawarkan pada penawaran terakhir dibanding kg yang diminta pembeli.
+  function offeredKg(o) { return (o.lines || []).reduce((a, l) => a + (l.kg || 0), 0); }
+  function qtyNote(p) {
+    const o = (p.offers || [])[(p.offers || []).length - 1];
+    if (!o) return '';
+    const got = offeredKg(o), asked = (p.form && p.form.quantityKg) || 0;
+    if (got >= asked) return '';
+    return `<p class="notice bad" style="margin:8px 0 0;font-size:14px" role="status">Penawaran ${kg(got)} dari ${kg(asked)} yang diminta.</p>`;
+  }
+  function bankBlock(p) {
+    const due = ['deposit_pending', 'balance_pending'].includes(p.status);
+    if (!due) return '';
+    const b = state.config.payment.bank || {};
+    return `<div class="card" style="margin-top:10px;padding:12px 14px"><strong>Transfer ke rekening</strong>
+      <dl style="margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px">
+        <dt>Bank</dt><dd style="margin:0">${esc(b.bankName || '')}</dd>
+        <dt>Atas nama</dt><dd style="margin:0">${esc(b.accountName || '')}</dd>
+        <dt>Nomor rekening</dt><dd style="margin:0">${esc(b.accountNumber || '')}</dd>
+        <dt>Jumlah</dt><dd style="margin:0">${rp(p.status === 'deposit_pending' ? p.deposit.amount : p.balance.amount)}</dd>
+      </dl></div>`;
+  }
   function propCard(p) {
     return `<article class="card prop-card">
       <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
@@ -1653,7 +1674,7 @@ const ICONS = {
       ${p.offers && p.offers.length ? `<p class="muted" style="margin:6px 0 0;font-size:14px">Penawaran terakhir: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
       ${p.deposit ? `<p class="muted" style="margin:6px 0 0;font-size:14px">DP ${rp(p.deposit.amount)}${p.deposit.paidAt ? ' (sudah dibayar)' : ''}</p>` : ''}
       ${p.status === 'offered' ? `<div class="btn-row" style="margin-top:10px"><button class="btn small" type="button" data-prop-respond="accept" data-id="${esc(p.id)}">Terima</button><button class="btn secondary small" type="button" data-prop-respond="counter" data-id="${esc(p.id)}">Ajukan perubahan</button><button class="btn secondary small" type="button" data-prop-respond="decline" data-id="${esc(p.id)}">Tolak</button></div>` : ''}
-      ${propDetail(p)}
+      ${qtyNote(p)}${propDetail(p)}${bankBlock(p)}
       <p class="error" data-prop-error hidden></p>
     </article>`;
   }
@@ -1843,7 +1864,8 @@ const ICONS = {
           <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
           <p style="margin:6px 0 0">${esc(p.buyer.company || p.buyer.name)} · ${esc(p.buyer.email)}</p>
           <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')} · NPWP ${esc(p.form.npwp || '—')}</p>
-          ${p.offers && p.offers.length ? `<p class="muted" style="margin:4px 0 0;font-size:14px">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
+          ${p.offers && p.offers.length ? `<p class="muted" style="margin:4px 0 0;font-size:14px">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)} · ${kg(offeredKg(p.offers[p.offers.length - 1]))}</p>` : ''}
+          ${qtyNote(p)}
           ${propStaffButtons(p)}
           <p class="error" data-prop-error hidden></p>
         </article>`).join('') || '<p class="muted">Belum ada proposal.</p>'}</div>`));

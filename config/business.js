@@ -173,10 +173,11 @@ module.exports = {
 
   // Bank transfer details are placeholders until the owner provides them.
   // The app shows them on the order page and never invents account numbers.
+  // DUMMY untuk uji coba. Ganti dengan rekening asli sebelum ada pesanan nyata.
   payment: {
     method: 'bank_transfer_invoice',
-    bankName: 'TO BE CONFIRMED BY THE TEAM',
-    accountName: 'TO BE CONFIRMED BY THE TEAM',
-    accountNumber: 'TO BE CONFIRMED BY THE TEAM',
+    bankName: 'BANK CONTOH (DUMMY)',
+    accountName: 'PT CONTOH ANUGERAHLINK (DUMMY)',
+    accountNumber: '000-000-0000 (DUMMY)',
   },
 };
