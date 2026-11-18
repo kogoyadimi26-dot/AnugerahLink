@@ -1073,8 +1073,74 @@ const ICONS = {
 
   // ---------- tim (admin) ----------
 
+  // Label menu dan tab: kunci dari server (config.labels). Halaman yang belum punya kunci tetap memakai teks aslinya.
+  const L = (key) => (state.config && state.config.labels && state.config.labels[key]) || key;
+  function applyLabels() {
+    document.querySelectorAll('[data-label]').forEach((el) => { el.textContent = L(el.dataset.label); });
+  }
+  function labelsEditorHtml(lb) {
+    const groups = {};
+    for (const [k, d] of Object.entries(lb.defaults)) (groups[d.where] ||= []).push(k);
+    const history = (lb.history || []).map((h, i) => `
+      <li class="label-hist">
+        <div><span class="muted">${esc(new Date(h.at).toLocaleString('id-ID'))}</span>
+          <ul class="label-changes">${h.changes.map((c) => `<li><code>${esc(c.key)}</code>: “${esc(c.from)}” → “${esc(c.to)}”</li>`).join('')}</ul></div>
+        <button class="btn secondary small" type="button" data-restore="${i}">Pulihkan sebelum perubahan ini</button>
+      </li>`).join('');
+    return `
+      <h2>Label menu dan tab</h2>
+      <p class="muted">Teks menu utama, pintasan produk, dan menu panel tim. Setiap penyimpanan dicatat dan bisa dipulihkan.</p>
+      <form class="card" id="labels-form" novalidate>
+        <div data-form-error class="notice bad" hidden></div>
+        ${Object.entries(groups).map(([where, keys]) => `
+          <fieldset class="about-part"><legend>${esc(where)}</legend>
+            ${keys.map((k) => `<div class="field"><label for="lb-${esc(k)}">Standar: ${esc(lb.defaults[k].text)}</label>
+              <input id="lb-${esc(k)}" name="${esc(k)}" maxlength="40" value="${esc(lb.labels[k])}"></div>`).join('')}
+          </fieldset>`).join('')}
+        <div class="btn-row">
+          <button class="btn" type="submit" data-save>Simpan label</button>
+          <button class="btn secondary" type="button" data-reset-labels>Kembalikan standar</button>
+        </div>
+      </form>
+      ${history ? `<details class="card"><summary>Riwayat perubahan label</summary><ol class="label-history">${history}</ol></details>` : ''}`;
+  }
+  async function saveLabels(body, { confirmText } = {}) {
+    if (confirmText && !confirm(confirmText)) return false;
+    await api('/api/admin/labels', { method: 'PUT', body, admin: true });
+    state.config = await api('/api/config');
+    applyLabels();
+    return true;
+  }
+  function wireLabelsEditor(lb) {
+    const form = document.getElementById('labels-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        const body = Object.fromEntries([...form.elements].filter((el) => el.name).map((el) => [el.name, el.value]));
+        if (await saveLabels(body)) { toast('Label disimpan.'); viewAdminSettings(); }
+      } catch (err) { showFormError(form, err); } finally { busy(btn, false); }
+    });
+    form.querySelector('[data-reset-labels]').addEventListener('click', async () => {
+      try {
+        const body = Object.fromEntries(Object.entries(lb.defaults).map(([k, d]) => [k, d.text]));
+        if (await saveLabels(body, { confirmText: 'Kembalikan semua label ke standar?' })) { toast('Label dikembalikan ke standar.'); viewAdminSettings(); }
+      } catch (err) { toast(err.message || 'Belum bisa dikembalikan.'); }
+    });
+    document.querySelectorAll('[data-restore]').forEach((btn) => btn.addEventListener('click', async () => {
+      const entry = lb.history[Number(btn.dataset.restore)];
+      const body = { ...lb.labels };
+      for (const c of entry.changes) body[c.key] = c.from;
+      try {
+        if (await saveLabels(body, { confirmText: 'Pulihkan label ke nilai sebelum perubahan ini?' })) { toast('Label dipulihkan.'); viewAdminSettings(); }
+      } catch (err) { toast(err.message || 'Belum bisa dipulihkan.'); }
+    }));
+  }
+
   function adminShell(active, body) {
-    const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['proposal', 'Proposal'], ['feedback', 'Feedback'], ['users', 'Pengguna'], ['pembeli', 'Pembeli'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
+    const all = [['dashboard', 'admin.dasbor'], ['alur', 'admin.alur'], ['intake', 'admin.intake'], ['lots', 'admin.lots'], ['orders', 'admin.orders'], ['proposal', 'admin.proposal'], ['feedback', 'admin.feedback'], ['users', 'admin.users'], ['pembeli', 'admin.pembeli'], ['audit', 'admin.audit'], ['settings', 'admin.settings']];
     const pages = allowedPages();
     const links = all.filter(([k]) => pages.includes(k));
     const u = currentUser();
@@ -1086,7 +1152,7 @@ const ICONS = {
             <span class="muted">${u ? esc(u.roleLabel || u.role) : ''}</span>
           </div>
           <nav class="admin-nav" aria-label="Menu panel tim">
-            ${links.map(([k, l]) => `<a href="#/admin/${adminPath(k)}" ${active === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
+            ${links.map(([k, key]) => `<a href="#/admin/${adminPath(k)}" ${active === k ? 'aria-current="page"' : ''}>${esc(L(key))}</a>`).join('')}
           </nav>
           <button class="btn secondary small admin-out" id="admin-out" type="button">Keluar</button>
         </aside>
@@ -2108,6 +2174,7 @@ const ICONS = {
 
   async function viewAdminSettings() {
     const c = await api('/api/admin/config', { admin: true });
+    const lb = await api('/api/admin/labels', { admin: true });
     const ab = await api('/api/admin/about', { admin: true });
     setMain(adminShell('settings', `
       <h2 class="ix-1">Aturan bisnis yang dipakai</h2>
@@ -2124,6 +2191,7 @@ const ICONS = {
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Harga per kg</th><th>Ongkir</th></tr></thead><tbody>
         ${Object.entries(c.tiers).map(([k, t]) => `<tr><td><span class="${tierClass(k)}">${esc(t.label)}</span></td><td class="num">${rp(t.pricePerKg)}</td><td>${esc(t.shippingBy === 'anugerah' ? 'Termasuk (ditanggung AnugerahLink)' : t.shippingBy === 'buyer' ? 'Pembeli membayar ' + rp(t.shippingPerKgExtra) + '/kg' : 'Diambil di Papua')}</td></tr>`).join('')}
       </tbody></table></div>
+      ${labelsEditorHtml(lb)}
       ${priceEditorHtml(c.tiers)}
       <h2 class="ix-1">Halaman Tentang</h2>
       <p class="muted">Ubah teks halaman Tentang. Pakai Tambah, Naik, Turun, atau Hapus untuk mengatur isinya, lalu simpan.</p>
@@ -2133,6 +2201,7 @@ const ICONS = {
     wireSignOut();
     wireThemeEditor();
     wirePriceEditor();
+    wireLabelsEditor(lb);
     wireAboutEditor(ab.defaults);
     wireContentEditor();
   }
@@ -3244,6 +3313,7 @@ const ICONS = {
     try {
       state.config = await api('/api/config');
       applyTheme(state.config.theme);
+      applyLabels();
       const tag = document.querySelector('.footer-tag');
       if (tag && state.config.content) tag.textContent = state.config.content.footerTagline;
     } catch (err) {

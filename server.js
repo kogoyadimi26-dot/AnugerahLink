@@ -15,6 +15,7 @@ const proposals = require('./lib/proposals');
 const documents = require('./lib/documents');
 const quicklogin = require('./lib/quicklogin');
 const about = require('./lib/about');
+const labels = require('./lib/labels');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
 const legal = require('./config/legal');
@@ -189,6 +190,7 @@ function publicConfig(demoOn, settings) {
     demoAccounts: demoOn ? DEMO_USERS.map((u) => ({ name: u.name, email: u.email, role: u.role, roleLabel: auth.ROLES[u.role].label, password: u.password })) : [],
     theme: mergeTheme(require('./config/theme'), settings && settings.theme),
     content: content.contentFor(settings),
+    labels: labels.labelsFor(settings),
     legal,
   };
 }
@@ -585,6 +587,21 @@ function buildRoutes(ctx) {
     const out = about.validateAbout(body);
     store.update((db) => { db.settings = { ...(db.settings || {}), about: out }; });
     return { status: 200, body: { about: about.aboutFor(store.read().settings) }, auditDetail: 'Halaman Tentang diperbarui.' };
+  }, { perm: 'settings' });
+  // Label menu dan tab: setiap penyimpanan mencatat nilai lama dan baru, sehingga bisa dipulihkan.
+  route('GET', /^\/api\/admin\/labels$/, () => {
+    const s = store.read().settings || {};
+    return { status: 200, body: { labels: labels.labelsFor(s), defaults: labels.defaults, history: (s.labelsHistory || []).slice(0, 10) }, headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'settings' });
+  route('PUT', /^\/api\/admin\/labels$/, (_p, body) => {
+    const out = labels.validateLabels(body);
+    const changes = store.update((db) => {
+      const diff = labels.changesOf(labels.labelsFor(db.settings), out);
+      if (!diff.length) return [];
+      db.settings = { ...(db.settings || {}), labels: out, labelsHistory: labels.appendHistory(db.settings && db.settings.labelsHistory, { at: new Date().toISOString(), changes: diff }) };
+      return diff;
+    });
+    return { status: 200, body: { labels: labels.labelsFor(store.read().settings) }, auditDetail: changes.length ? 'Label menu diubah: ' + changes.map((c) => c.key).join(', ') + '.' : 'Label menu tidak berubah.' };
   }, { perm: 'settings' });
   route('PUT', /^\/api\/admin\/content$/, (_p, body) => {
     const out = content.validateContent(body);
