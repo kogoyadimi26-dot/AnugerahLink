@@ -1769,10 +1769,22 @@ const ICONS = {
     balance_paid: [['dispatch', 'Catat pengiriman']],
     shipped: [['complete', 'Tandai selesai']],
   };
+  // Baris penawaran: "KODE:KG" dipisah koma. Awalan "lot" boleh ditulis dan diabaikan.
+  function parseOfferLines(text) {
+    const parts = String(text || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!parts.length) return { error: 'Isi minimal satu lot, contoh: AL-2611-001:200' };
+    const lines = [];
+    for (const part of parts) {
+      const m = part.match(/^(?:lot\s+)?([A-Za-z0-9-]+)\s*:\s*(\d+(?:\.\d+)?)$/i);
+      if (!m) return { error: `Format salah untuk "${part}". Tulis KODE:KG, contoh AL-2611-001:200` };
+      lines.push({ lotCode: m[1].toUpperCase(), kg: Number(m[2]) });
+    }
+    return { lines };
+  }
   // Staf: aksi yang butuh isian memakai formulir kecil di dalam kartu, bukan prompt browser.
   const PROP_FIELDS = {
     request_info: [['message', 'Informasi yang dibutuhkan', 'textarea', true]],
-    make_offer: [['lines', 'Lot dan kg, contoh: AL-2611-001:800, AL-2611-003:200', 'textarea', true]],
+    make_offer: [['lines', 'Lot dan kg, format KODE:KG, contoh: AL-2611-001:200, AL-2611-003:150', 'textarea', true]],
     decline: [['reason', 'Alasan (opsional)', 'input', false]],
     mark_deposit_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
     mark_balance_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
@@ -1825,7 +1837,9 @@ const ICONS = {
       const raw = formData(f);
       const body = { action: f.dataset.action, ...raw };
       if (f.dataset.action === 'make_offer') {
-        body.lines = String(raw.lines || '').split(',').map((x) => { const [lotCode, kgs] = x.split(':').map((y) => y.trim()); return { lotCode, kg: Number(kgs) }; });
+        const parsed = parseOfferLines(raw.lines);
+        if (parsed.error) { const box = f.querySelector('[data-prop-error]'); box.hidden = false; box.textContent = parsed.error; return; }
+        body.lines = parsed.lines;
       }
       send(f.dataset.id, body, f.querySelector('[data-prop-error]'));
     }));
