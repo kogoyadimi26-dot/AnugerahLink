@@ -258,6 +258,8 @@
           ? `<a class="chip${aktifJenis === j.key ? ' is-active' : ''}" href="#/produk${j.key === 'semua' ? '' : '?kategori=' + j.key}"${aktifJenis === j.key ? ' aria-current="page"' : ''}>${esc(j.label)}</a>`
           : `<span class="chip is-soon" aria-disabled="true">${esc(j.label)} <small>segera</small></span>`).join('')}
       </nav>
+      <div class="catalog-layout">
+      <aside class="catalog-side">
       <form class="filters card" id="filters" role="search" aria-label="Saring lot">
         <div class="field"><label for="f-tier">Kelas mutu</label>
           <select id="f-tier" name="tier"><option value="">Semua kelas</option>
@@ -277,6 +279,8 @@
           </select></div>
         <div class="field"><label class="check"><input type="checkbox" name="inStock" value="1" ${query.inStock !== '0' ? 'checked' : ''}> Hanya yang tersedia</label></div>
       </form>
+      </aside>
+      <div class="catalog-main">
       <section class="tier-stock" aria-label="Stok tersedia per tingkat">
         <h2>Stok tersedia per tingkat</h2>
         <div class="tier-stock-row">
@@ -294,7 +298,9 @@
       <p class="muted" role="status">${lots.length} lot ${query.inStock !== '0' ? 'tersedia' : 'terdaftar'}</p>
       ${lots.length
         ? `<div class="grid lots">${lots.map(lotCard).join('')}</div>`
-        : `<div class="card"><p><strong>Belum ada lot yang cocok dengan pilihan Anda.</strong></p><p class="muted">Coba ubah saringan, atau <a href="#/produk">lihat semua lot</a>.</p></div>`}`);
+        : `<div class="card"><p><strong>Belum ada lot yang cocok dengan pilihan Anda.</strong></p><p class="muted">Coba ubah saringan, atau <a href="#/produk">lihat semua lot</a>.</p></div>`}
+      </div>
+      </div>`);
     document.getElementById('filters').addEventListener('change', () => {
       const f = new FormData(document.getElementById('filters'));
       const q = {};
