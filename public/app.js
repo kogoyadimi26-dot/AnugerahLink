@@ -2340,6 +2340,8 @@ const ICONS = {
         if (!adminToken()) return viewAdminLogin();
         const cu = currentUser();
         if (cu && cu.mustChangePassword) return viewChangePassword();
+        // Alamat lama #/admin/users dialihkan ke #/admin/pengguna.
+        if (a === 'users') { location.hash = '#/admin/' + adminPath('users') + location.hash.slice('#/admin/users'.length); return; }
         const pages = allowedPages();
         const sec = ADMIN_KEY[a] || a || landingPage();
         if (!pages.includes(sec)) { location.hash = '#/admin/' + adminPath(landingPage()); return; }
