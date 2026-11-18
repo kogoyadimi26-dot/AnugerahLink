@@ -2502,6 +2502,27 @@ const ICONS = {
     closeMenus();
   });
 
+  // Tema terang atau gelap lewat ikon di header. Pilihan disimpan di browser ini.
+  function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function paintThemeIcon() {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const dark = currentTheme() === 'dark';
+    btn.setAttribute('aria-label', dark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap');
+    btn.setAttribute('title', dark ? 'Tema gelap' : 'Tema terang');
+    btn.dataset.theme = currentTheme();
+  }
+  function setTheme(mode) {
+    document.documentElement.setAttribute('data-theme', mode === 'dark' ? 'dark' : 'light');
+    try { localStorage.setItem('al-theme', mode === 'dark' ? 'dark' : 'light'); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
+    if (window.applyThemeVars) window.applyThemeVars();
+    paintThemeIcon();
+  }
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest ? e.target.closest('#theme-toggle') : null;
+    if (btn) setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+
   // Tautan dengan data-scroll membuka halaman lalu menggulir ke bagian yang dituju.
   let scrollTarget = null;
   document.addEventListener('click', (e) => {
@@ -3029,6 +3050,7 @@ const ICONS = {
     // Pratinjau tema admin hanya berlaku di halaman itu; pindah halaman mengembalikannya.
     window.addEventListener('hashchange', () => { applyTheme(state.config.theme); closeMenus(); route(); paintAccountMenu(); });
     translateChrome();
+    paintThemeIcon();
     paintAccountMenu();
     route();
   }

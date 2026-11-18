@@ -787,3 +787,11 @@ tr.is-selected { background: var(--green-soft) !important; }
 .lang-list .lang-opt { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 7px 10px; border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; }
 .lang-list .lang-opt:hover { background: var(--green-soft); }
 .lang-list .lang-opt.is-current { background: var(--green-soft); color: var(--green); font-weight: 700; }
+
+/* Ikon tema di header: matahari untuk tema terang, bulan untuk tema gelap. */
+.theme-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); background: transparent; color: var(--footer-ink); cursor: pointer; flex: none; }
+.theme-icon:hover { background: rgba(255,255,255,.1); }
+.theme-icon:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+.theme-icon .icon-moon { display: none; }
+.theme-icon[data-theme="dark"] .icon-sun { display: none; }
+.theme-icon[data-theme="dark"] .icon-moon { display: block; }

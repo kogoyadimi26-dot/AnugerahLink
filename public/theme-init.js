@@ -3,8 +3,10 @@
 (function () {
   'use strict';
   var root = document.documentElement;
-  // Tampilan selalu terang, di perangkat apa pun. Pengaturan tema gelap tidak dipakai lagi.
-  root.setAttribute('data-theme', 'light');
+  // Tema: terang secara bawaan. Pilihan pengunjung (terang atau gelap) disimpan di browser ini.
+  var saved = null;
+  try { saved = localStorage.getItem('al-theme'); } catch (e) { saved = null; }
+  root.setAttribute('data-theme', saved === 'dark' ? 'dark' : 'light');
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var cfg = null;
 
