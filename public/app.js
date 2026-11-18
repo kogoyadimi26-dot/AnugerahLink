@@ -101,6 +101,11 @@
     return data;
   }
 
+  // Tautan yang dinonaktifkan (mis. checkout dengan stok kurang) tidak boleh berpindah halaman.
+  document.addEventListener('click', (e) => {
+    const link = e.target && e.target.closest ? e.target.closest('a[aria-disabled="true"]') : null;
+    if (link) e.preventDefault();
+  });
   function setMain(html) {
     main.innerHTML = html;
     main.focus({ preventScroll: true });
@@ -482,7 +487,7 @@
           <tr class="total-row"><td>Total</td><td class="num">${rp(quote.totals.total)}</td></tr>
         </tbody></table>
         <p class="muted" style="font-size:14px">Pembayaran dengan transfer bank.</p>
-        <div class="btn-row"><a class="btn" href="#/bayar" ${quote.stockIssues && quote.stockIssues.length ? 'aria-disabled="true" onclick="return false"' : ''}>Lanjut ke pembayaran</a><a class="btn secondary" href="#/produk">Lanjut belanja</a></div>
+        <div class="btn-row"><a class="btn" href="#/bayar" ${quote.stockIssues && quote.stockIssues.length ? 'aria-disabled="true"' : ''}>Lanjut ke pembayaran</a><a class="btn secondary" href="#/produk">Lanjut belanja</a></div>
       </div>`);
     main.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
       state.cart = state.cart.filter((l) => l.lotCode !== b.dataset.remove);

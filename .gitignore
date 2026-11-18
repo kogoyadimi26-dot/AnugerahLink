@@ -4,3 +4,5 @@ data/db.json
 data/photos/
 data/
 backups/
+.env
+.env.*

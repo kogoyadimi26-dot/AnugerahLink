@@ -284,8 +284,9 @@ test('online payment: start with VA or QRIS, a signed webhook marks the order pa
   const providerRef = `sbx-${pay.json.payment.id}`;
 
   const body = JSON.stringify({ providerRef, amount: total });
-  const sig = require('../lib/payments').signWebhook(Buffer.from(body), secret);
-  const hook = (b, s) => fetch(base + '/api/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature': s }, body: b });
+  const nowTs = Math.floor(Date.now() / 1000);
+  const sig = require('../lib/payments').signWebhook(Buffer.from(body), secret, nowTs);
+  const hook = (b, s, ts = String(nowTs)) => fetch(base + '/api/payments/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Signature': s, 'X-Timestamp': ts }, body: b });
   assert.equal((await hook(body, 'deadbeef')).status, 401, 'wrong signature refused');
   const first = await hook(body, sig);
   assert.equal(first.status, 200);
@@ -295,8 +296,11 @@ test('online payment: start with VA or QRIS, a signed webhook marks the order pa
   const track = await call('GET', `/api/orders/${number}`, { email: 'bayar@test.local' });
   assert.equal(track.json.order.status, 'paid');
   const badBody = JSON.stringify({ providerRef: `sbx-${qris.json.payment.id}`, amount: total - 1 });
-  const badSig = require('../lib/payments').signWebhook(Buffer.from(badBody), secret);
+  const badSig = require('../lib/payments').signWebhook(Buffer.from(badBody), secret, nowTs);
   assert.equal((await hook(badBody, badSig)).status, 400, 'amount mismatch refused');
+  const staleTs = nowTs - 3600;
+  const staleSig = require('../lib/payments').signWebhook(Buffer.from(body), secret, staleTs);
+  assert.equal((await hook(body, staleSig, String(staleTs))).status, 401, 'replayed (stale) message refused');
   delete process.env.PAYMENT_WEBHOOK_SECRET;
 });
 

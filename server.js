@@ -49,9 +49,14 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
+function clientIp(req) {
+  return (req && req.socket && req.socket.remoteAddress) || 'tidak-diketahui';
+}
+
 function baseHeaders(extra = {}) {
   return {
     'Content-Security-Policy': CSP,
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'same-origin',
     'X-Frame-Options': 'DENY',
@@ -150,6 +155,20 @@ function buildRoutes(ctx) {
   const { store, photoDir } = ctx;
   const limiter = ctx.limiter;
   const buyerLimiter = ctx.buyerLimiter;
+  // Pencarian pesanan tamu (nomor + email) dan pendaftaran dibatasi per alamat IP, supaya tidak bisa ditebak secara massal.
+  const lookupLimiter = new LoginLimiter({ rules: { ip: { max: 30, windowMs: 15 * 60000, lockMs: 15 * 60000 } } });
+  const signupLimiter = new LoginLimiter({ rules: { ip: { max: 30, windowMs: 60 * 60000, lockMs: 60 * 60000 } } });
+  const lookupOrder = (req, number, email) => {
+    const ip = clientIp(req);
+    const wait = lookupLimiter.retryAfter('ip', ip);
+    if (wait > 0) throw new ApiError(429, 'too_many_attempts', `Terlalu banyak percobaan. Coba lagi dalam ${Math.ceil(wait / 60)} menit.`);
+    const order = domain.findOrderForBuyer(store.read(), number, email);
+    if (!order) {
+      lookupLimiter.recordFailure('ip', ip);
+      throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
+    }
+    return order;
+  };
   const buyerFrom = (req) => buyers.buyerFromToken(store.read(), bearer(req), new Date().toISOString());
   const needBuyer = (req) => {
     const b = buyerFrom(req);
@@ -218,7 +237,11 @@ function buildRoutes(ctx) {
     if (!v.alreadyVerified) notify.enqueueAccountEmail(db, 'verify', v.email, accountLink('verifikasi', v.token), at);
     return v;
   };
-  route('POST', /^\/api\/buyer\/signup$/, (_p, body) => {
+  route('POST', /^\/api\/buyer\/signup$/, (_p, body, _q, req) => {
+    const ip = clientIp(req);
+    const waitSignup = signupLimiter.retryAfter('ip', ip);
+    if (waitSignup > 0) throw new ApiError(429, 'too_many_attempts', `Terlalu banyak pendaftaran dari jaringan ini. Coba lagi dalam ${Math.ceil(waitSignup / 60)} menit.`);
+    signupLimiter.recordFailure('ip', ip);
     const r = store.update((db) => {
       const out = buyers.signupBuyer(db, body, now());
       sendVerificationEmail(db, out.buyer.id, now());
@@ -339,14 +362,12 @@ function buildRoutes(ctx) {
     const p = store.update((db) => proposals.buyerAction(db, id, b, body.action, body, now()));
     return { status: 200, body: { proposal: proposals.publicProposal(p) } };
   });
-  route('GET', /^\/api\/orders\/(ALO-\d{4}-\d{3})$/, ([number], _b, q) => {
-    const order = domain.findOrderForBuyer(store.read(), number, q.email);
-    if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
+  route('GET', /^\/api\/orders\/(ALO-\d{4}-\d{3})$/, ([number], _b, q, req) => {
+    const order = lookupOrder(req, number, q.email);
     return { status: 200, body: { order: domain.publicOrder(order) }, headers: { 'Cache-Control': 'no-store' } };
   });
-  route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/feedback$/, ([number], body) => {
-    const order = domain.findOrderForBuyer(store.read(), number, body.email);
-    if (!order) throw new ApiError(404, 'not_found', 'Tidak ada pesanan dengan nomor dan email tersebut.');
+  route('POST', /^\/api\/orders\/(ALO-\d{4}-\d{3})\/feedback$/, ([number], body, _q, req) => {
+    const order = lookupOrder(req, number, body.email);
     const created = store.update((db) => {
       const o = db.orders.find((x) => x.id === order.id);
       return domain.createFeedback(db, o, body, now());
@@ -598,7 +619,7 @@ function handlePaymentWebhook(req, res, store) {
         const result = store.update((db) => domain.markPaymentPaid(db, String(n.order_id || ''), n.gross_amount, new Date().toISOString()));
         return send(res, 200, { ok: true, duplicate: result.duplicate });
       }
-      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret)) {
+      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret, req.headers['x-timestamp'])) {
         throw new ApiError(401, 'bad_signature', 'Tanda tangan tidak valid.');
       }
       const body = JSON.parse(raw.toString('utf8'));
@@ -624,7 +645,7 @@ function handleShippingWebhook(req, res, store) {
   req.on('end', () => {
     try {
       const raw = Buffer.concat(chunks);
-      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret)) {
+      if (!payments.verifyWebhook(raw, req.headers['x-signature'], secret, req.headers['x-timestamp'])) {
         throw new ApiError(401, 'bad_signature', 'Tanda tangan tidak valid.');
       }
       let body;
