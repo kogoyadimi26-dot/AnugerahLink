@@ -1,6 +1,6 @@
 # Large order (2 ton and above): design and plan
 
-Status: draft. Most decisions recorded in section 11. Threshold still open. No code yet.
+Status: draft. All decisions recorded in section 11. No code yet. Build starts when the plan PR is merged.
 Date: 18 November 2026
 
 ## 1. Problem
@@ -27,7 +27,14 @@ Out of scope for this phase:
 
 ## 4. Threshold and routing
 
-The threshold is not yet decided. See section 11. The working assumption is **1,000 kg and above** for the proposal, from the owner's note. The threshold is one value in `config/business.js` (`largeOrderMinKg`), so the owner can change it.
+**Decided: option B.**
+
+| Quantity | Path |
+|---|---|
+| 30 kg to 999 kg | Online checkout, pay as now. The online limit rises from 300 kg to 999 kg (`maxOrderKg`). |
+| 1,000 kg and above | Large-order proposal (this plan). |
+
+The proposal threshold is one value in `config/business.js` (`largeOrderMinKg: 1000`), so the owner can change it.
 
 ## 5. End-to-end flow
 
@@ -135,7 +142,7 @@ Owner answers are marked **Owner**. Where the owner left it open, the default fo
 
 | # | Question | Decision | Basis |
 |---|---|---|---|
-| 1 | Threshold | **Open.** Owner note: orders under a ton go through the normal flow. Owner also asked whether 300 kg should stay the online limit. Needs one answer (see below). | Owner |
+| 1 | Threshold | **Option B.** Online up to 999 kg (limit raised from 300 kg). Proposal from 1,000 kg. | Owner |
 | 2 | Reserve 2 tons across listed lots now? | **Yes**, subject to a stock check at the time of the offer. Lots reserved for the offer period only. | Owner |
 | 3 | Bulk price or same tier price? | **Same price per tier.** No volume discount in phase 1. A discount can be added later if the margin still holds. | Default: protects the margin at Rp42,450/kg |
 | 4 | Deposit | **30 percent** of the order value at agreement. Refundable only if AnugerahLink cancels. Not refundable if the buyer cancels after reservation. | Default: common in green coffee trade |
@@ -147,14 +154,9 @@ Owner answers are marked **Owner**. Where the owner left it open, the default fo
 | 10 | SLA | 2 business days to review, 7 days for the offer, 5 days for the deposit. | Default |
 | 11 | Who approves offers | Staff prepare; owner approves any offer above Rp100 million or with credit. | Default |
 
-### Open question for the owner
+### Threshold
 
-**Threshold.** The owner wrote "not even a ton goes normal" and also asked whether 300 kg should stay the online limit. Two readings:
-
-- **A:** Online checkout up to 300 kg (as now). Proposal for 1 ton and above. Orders from 300 kg to under 1 ton are not allowed online and need a proposal too.
-- **B:** Online checkout up to just under 1 ton (raise the limit from 300 kg). Proposal for 1 ton and above.
-
-Reading B matches "not even a ton goes normal". It means raising `maxOrderKg` from 300 to 999 kg, which changes the existing checkout rule.
+**Decided: option B.** Online checkout up to 999 kg, as now but with the limit raised from 300 kg. Proposal from 1,000 kg. Decided by the owner on 18 November 2026.
 
 ## 12. Build phases
 
@@ -169,7 +171,7 @@ Each phase ships as its own PR with tests passing, following the normal branch a
 
 ## 13. Tests to write (when built)
 
-- Quantity below the threshold (section 4) is rejected from the large-order path.
+- Quantity below 1,000 kg is rejected from the large-order path.
 - Each status transition is allowed only from the states above (for example `shipped` cannot happen before `balance_paid`).
 - Agreed terms cannot change without a new version and new acceptance on both sides.
 - Lots reserved for an offer are not sold to another buyer while the offer is valid.
