@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 const payments = require('../lib/payments');
 const notify = require('../lib/notify');
 
@@ -37,7 +38,7 @@ async function call(method, p, { body, token } = {}) {
 
 // Pesanan dikirim lewat alur staf biasa, dengan nomor resi.
 async function shippedOrder(email, waybill) {
-  const token = (await call('POST', '/api/buyer/signup', { body: { name: 'Kurir Uji', email, password: 'kata-sandi-kurir-1', phone: '081233334444', company: 'Kafe Kurir', buyerType: 'specialty_cafe', consent: true } })).json.token;
+  const token = (await signupAndLogin(call, { name: 'Kurir Uji', email, password: 'kata-sandi-kurir-1', phone: '081233334444', company: 'Kafe Kurir', buyerType: 'specialty_cafe', consent: true })).token;
   const lot = (await call('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
   const o = (await call('POST', '/api/orders', { token, body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: 'Kurir Uji', company: 'Kafe Kurir', buyerType: 'specialty_cafe', phone: '081233334444', email, city: 'Jayapura' } } })).json.order;
   const id = (await call('GET', '/api/admin/orders', { token: STAFF })).json.orders.find((x) => x.number === o.number).id;

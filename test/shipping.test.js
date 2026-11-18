@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 const { dispatchOutbox, providerStatus } = require('../lib/notify');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-kirim-'));
@@ -34,9 +35,7 @@ async function call(method, p, { body, token } = {}) {
 // Pesanan butuh akun pembeli. Daftar bila belum ada, lalu masuk.
 async function buyerToken(email, name) {
   const password = 'kata-sandi-kirim-1';
-  const signup = await call('POST', '/api/buyer/signup', { body: { name, email, password, phone: '081298765432', company: '', buyerType: 'roaster', consent: true } });
-  if (signup.status === 201) return signup.json.token;
-  return (await call('POST', '/api/buyer/login', { body: { email, password } })).json.token;
+  return (await signupAndLogin(call, { name, email, password, phone: '081298765432', company: '', buyerType: 'roaster', consent: true })).token;
 }
 
 async function paidOrder() {

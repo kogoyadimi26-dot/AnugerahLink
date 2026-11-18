@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 
 let TOKEN;
 const OWNER = { email: 'owner@test.local', password: 'owner-test-123' };
@@ -79,9 +80,7 @@ test('admin routes refuse missing or wrong tokens', async () => {
 // Pesanan butuh akun pembeli. Daftar bila belum ada, lalu masuk, dan kembalikan token.
 async function buyerSession(email, name = 'Uji Pembeli') {
   const password = 'kata-sandi-uji-1';
-  const signup = await call('POST', '/api/buyer/signup', { body: { name, email, password, phone: '081234567890', company: '', buyerType: 'specialty_cafe', consent: true } });
-  if (signup.status === 201) return signup.json.token;
-  return (await call('POST', '/api/buyer/login', { body: { email, password } })).json.token;
+  return (await signupAndLogin(call, { name, email, password, phone: '081234567890', company: '', buyerType: 'specialty_cafe', consent: true })).token;
 }
 
 test('full buyer flow: quote, order, track, reject wrong email', async () => {

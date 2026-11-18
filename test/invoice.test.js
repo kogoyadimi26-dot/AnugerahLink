@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 const { invoicePdf } = require('../lib/invoice');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-faktur-'));
@@ -18,7 +19,7 @@ test.before(async () => {
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${app.server.address().port}`;
   STAFF = (await json('POST', '/api/auth/login', { body: OWNER })).json.token;
-  BUYER_TOKEN = (await json('POST', '/api/buyer/signup', { body: BUYER })).json.token;
+  BUYER_TOKEN = (await signupAndLogin(json, BUYER)).token;
   const lot = (await json('GET', '/api/lots')).json.lots.find((l) => l.availableKg >= 30);
   ORDER = (await json('POST', '/api/orders', { token: BUYER_TOKEN, body: { lines: [{ lotCode: lot.code, kg: 30 }], consent: true, customer: { name: BUYER.name, company: BUYER.company, buyerType: 'roaster', phone: BUYER.phone, email: BUYER.email, city: 'Jayapura', street: 'Jl. Sentani 12', npwp: '01.234.567.8-901.000' } } })).json.order;
 });
@@ -70,7 +71,7 @@ test('a buyer downloads only their own invoices', async () => {
   assert.equal(own.status, 200);
   const none = await pdf(`/api/buyer/orders/${ORDER.number}/invoice`);
   assert.equal(none.status, 401);
-  const other = (await json('POST', '/api/buyer/signup', { body: { ...BUYER, email: 'lain@kafe.test' } })).json.token;
+  const other = (await signupAndLogin(json, { ...BUYER, email: 'lain@kafe.test' })).token;
   assert.equal((await pdf(`/api/buyer/orders/${ORDER.number}/invoice`, other)).status, 404);
 });
 

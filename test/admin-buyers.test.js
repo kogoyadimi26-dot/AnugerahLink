@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-admin-pembeli-'));
 const OWNER = { email: 'pemilik-pembeli-staf@test.local', password: 'kata-sandi-pemilik-123' };
@@ -36,7 +37,7 @@ let BUYER_ID;
 test('daftar pembeli hanya bisa dilihat staf yang sudah masuk', async () => {
   assert.equal((await call('GET', '/api/admin/buyers')).status, 401);
   const signup = await call('POST', '/api/buyer/signup', { body: BUYER });
-  assert.equal(signup.status, 201);
+  assert.equal(signup.status, 202);
   const list = await call('GET', '/api/admin/buyers', { token: STAFF });
   assert.equal(list.status, 200);
   const row = list.json.buyers.find((b) => b.email === BUYER.email);

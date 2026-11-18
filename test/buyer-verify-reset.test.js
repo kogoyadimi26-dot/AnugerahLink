@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-verify-'));
 let app; let base;
@@ -40,8 +41,8 @@ function latestToken(email, event) {
 
 test('signup mengirim email konfirmasi dengan tautan yang berisi token', async () => {
   const r = await call('POST', '/api/buyer/signup', { body: SIGNUP });
-  assert.equal(r.status, 201);
-  assert.equal(r.json.buyer.emailVerified, false);
+  assert.equal(r.status, 202);
+  assert.equal(Boolean(app.store.read().buyers.find((b) => b.email === SIGNUP.email).emailVerifiedAt), false);
   const item = app.store.read().outbox.find((m) => m.to === SIGNUP.email && m.event === 'verify');
   assert.ok(item, 'email konfirmasi harus masuk antrean');
   assert.match(item.body, /#\/akun\/verifikasi\?token=[0-9a-f]{64}/);
@@ -78,7 +79,7 @@ test('kirim ulang konfirmasi butuh masuk dan dibatasi satu menit sekali', async 
 
 test('kirim ulang dibatasi untuk akun yang belum terverifikasi', async () => {
   const NEW = { ...SIGNUP, email: 'lusi@kafe.test', name: 'Lusi Kafe' };
-  const token = (await call('POST', '/api/buyer/signup', { body: NEW })).json.token;
+  const token = (await signupAndLogin(call, NEW)).token;
   // Signup baru saja mengirim email, jadi kirim ulang langsung harus ditolak.
   assert.equal((await call('POST', '/api/buyer/verify/send', { token, body: {} })).status, 429);
   // Setelah satu menit, kirim ulang diizinkan lalu kembali dibatasi.

@@ -39,7 +39,7 @@ const TYPES = {
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self'",
   "img-src 'self' data: https://api.sandbox.midtrans.com https://api.midtrans.com",
   "connect-src 'self'",
   "font-src 'self'",
@@ -117,9 +117,52 @@ function bearer(req) {
   return h.startsWith('Bearer ') ? h.slice(7) : '';
 }
 
+// Token sesi disimpan di cookie HttpOnly (tidak bisa dibaca skrip halaman).
+// Klien skrip tetap bisa memakai header Authorization: Bearer.
+const SESSION_COOKIES = { staff: 'al_staff', buyer: 'al_buyer' };
+const COOKIE_SECURE = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === '1';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function cookieValue(req, name) {
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return '';
+}
+
+function sessionToken(req, kind) {
+  return bearer(req) || cookieValue(req, SESSION_COOKIES[kind]);
+}
+
+function sessionCookie(kind, token, maxAgeSeconds) {
+  return `${SESSION_COOKIES[kind]}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${COOKIE_SECURE ? '; Secure' : ''}`;
+}
+
+function clearSessionCookies() {
+  return Object.values(SESSION_COOKIES).map((name) => `${name}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${COOKIE_SECURE ? '; Secure' : ''}`);
+}
+
+// Pemeriksaan untuk setiap permintaan yang mengubah data:
+// - Origin, bila dikirim, harus sama dengan host (menolak permintaan dari situs lain).
+// - Permintaan yang memakai cookie harus membawa X-Requested-With (tidak bisa dikirim lintas situs tanpa CORS).
+function enforceCsrf(req) {
+  const origin = req.headers.origin;
+  if (origin) {
+    let host = '';
+    try { host = new URL(origin).host; } catch { host = ''; }
+    if (host !== req.headers.host) throw new ApiError(403, 'bad_origin', 'Permintaan ditolak.');
+  }
+  if (SAFE_METHODS.has(req.method)) return;
+  const usesCookie = !bearer(req) && Boolean(cookieValue(req, SESSION_COOKIES.staff) || cookieValue(req, SESSION_COOKIES.buyer));
+  if (usesCookie && req.headers['x-requested-with'] !== 'fetch') {
+    throw new ApiError(403, 'csrf', 'Permintaan ditolak. Muat ulang halaman lalu coba lagi.');
+  }
+}
+
 // Pengguna yang sudah masuk dan punya izin "perm". perm null: cukup sudah masuk.
 function requirePerm(req, store, perm) {
-  const user = auth.userFromToken(store.read(), bearer(req), new Date().toISOString());
+  const user = auth.userFromToken(store.read(), sessionToken(req, 'staff'), new Date().toISOString());
   if (!user) throw new ApiError(401, 'unauthorised', 'Silakan masuk terlebih dahulu.');
   if (perm && !auth.can(user.role, perm)) throw new ApiError(403, 'forbidden', 'Peran Anda tidak punya akses ke halaman ini.');
   return user;
@@ -156,8 +199,8 @@ function buildRoutes(ctx) {
   const limiter = ctx.limiter;
   const buyerLimiter = ctx.buyerLimiter;
   // Pencarian pesanan tamu (nomor + email) dan pendaftaran dibatasi per alamat IP, supaya tidak bisa ditebak secara massal.
-  const lookupLimiter = new LoginLimiter({ rules: { ip: { max: 30, windowMs: 15 * 60000, lockMs: 15 * 60000 } } });
-  const signupLimiter = new LoginLimiter({ rules: { ip: { max: 30, windowMs: 60 * 60000, lockMs: 60 * 60000 } } });
+  const lookupLimiter = new LoginLimiter({ store, rules: { ip: { max: 30, windowMs: 15 * 60000, lockMs: 15 * 60000 } } });
+  const signupLimiter = new LoginLimiter({ store, rules: { ip: { max: 30, windowMs: 60 * 60000, lockMs: 60 * 60000 } } });
   const lookupOrder = (req, number, email) => {
     const ip = clientIp(req);
     const wait = lookupLimiter.retryAfter('ip', ip);
@@ -169,7 +212,7 @@ function buildRoutes(ctx) {
     }
     return order;
   };
-  const buyerFrom = (req) => buyers.buyerFromToken(store.read(), bearer(req), new Date().toISOString());
+  const buyerFrom = (req) => buyers.buyerFromToken(store.read(), sessionToken(req, 'buyer'), new Date().toISOString());
   const needBuyer = (req) => {
     const b = buyerFrom(req);
     if (!b) throw new ApiError(401, 'unauthorized', 'Silakan masuk ke akun Anda.');
@@ -242,12 +285,26 @@ function buildRoutes(ctx) {
     const waitSignup = signupLimiter.retryAfter('ip', ip);
     if (waitSignup > 0) throw new ApiError(429, 'too_many_attempts', `Terlalu banyak pendaftaran dari jaringan ini. Coba lagi dalam ${Math.ceil(waitSignup / 60)} menit.`);
     signupLimiter.recordFailure('ip', ip);
-    const r = store.update((db) => {
-      const out = buyers.signupBuyer(db, body, now());
-      sendVerificationEmail(db, out.buyer.id, now());
-      return out;
+    // Jawaban sama untuk email baru dan email yang sudah terdaftar: tidak ada yang bisa menebak email mana yang punya akun.
+    let created = null;
+    store.update((db) => {
+      try {
+        created = buyers.signupBuyer(db, body, now());
+        sendVerificationEmail(db, created.buyer.id, now());
+      } catch (err) {
+        if (!(err instanceof ApiError && err.code === 'email_taken')) throw err;
+        // Samakan waktu tanggapan dengan pendaftaran baru, lalu beri tahu pemilik email.
+        auth.hashPassword(String(body.password || ''));
+        notify.enqueueAccountEmail(db, 'exists', String(body.email || '').trim().toLowerCase(), '', now());
+      }
     });
-    return { status: 201, body: { token: r.token, buyer: buyers.publicBuyer(r.buyer) }, headers: { 'Cache-Control': 'no-store' } };
+    const headers = { 'Cache-Control': 'no-store' };
+    if (created) headers['Set-Cookie'] = sessionCookie('buyer', created.token, buyers.BUYER_SESSION_DAYS * 86400);
+    return {
+      status: 202,
+      body: { ok: true, message: 'Terima kasih. Jika email ini belum terdaftar, akun sudah dibuat dan Anda sudah masuk. Jika sudah terdaftar, masuk dengan kata sandi Anda.' },
+      headers,
+    };
   });
   route('POST', /^\/api\/buyer\/login$/, (_p, body, _q, req) => {
     const email = String(body.email || '').trim().toLowerCase();
@@ -265,11 +322,11 @@ function buildRoutes(ctx) {
       throw err;
     }
     buyerLimiter.recordSuccess('email', email);
-    return { status: 200, body: { token: r.token, buyer: buyers.publicBuyer(r.buyer) }, headers: { 'Cache-Control': 'no-store' } };
+    return { status: 200, body: { token: r.token, buyer: buyers.publicBuyer(r.buyer) }, headers: { 'Cache-Control': 'no-store', 'Set-Cookie': sessionCookie('buyer', r.token, buyers.BUYER_SESSION_DAYS * 86400) } };
   });
   route('POST', /^\/api\/buyer\/logout$/, (_p, _b, _q, req) => {
-    store.update((db) => buyers.logoutBuyer(db, bearer(req)));
-    return { status: 200, body: { ok: true } };
+    store.update((db) => buyers.logoutBuyer(db, sessionToken(req, 'buyer')));
+    return { status: 200, body: { ok: true }, headers: { 'Set-Cookie': clearSessionCookies() } };
   });
   route('GET', /^\/api\/buyer\/me$/, (_p, _b, _q, req) => ({ status: 200, body: { buyer: buyers.publicBuyer(needBuyer(req)) }, headers: { 'Cache-Control': 'no-store' } }));
   route('PATCH', /^\/api\/buyer\/me$/, (_p, body, _q, req) => {
@@ -291,7 +348,7 @@ function buildRoutes(ctx) {
     return { status: 200, body: { ok: true }, headers: { 'Cache-Control': 'no-store' } };
   });
   // Permintaan atur ulang dibatasi terpisah dari percobaan masuk: 5 permintaan per IP per jam.
-  const resetLimiter = new LoginLimiter({ rules: { ip: { max: 5, windowMs: 60 * 60000, lockMs: 60 * 60000 } } });
+  const resetLimiter = new LoginLimiter({ store, rules: { ip: { max: 5, windowMs: 60 * 60000, lockMs: 60 * 60000 } } });
   route('POST', /^\/api\/buyer\/password\/forgot$/, (_p, body, _q, req) => {
     const ip = (req && req.socket && req.socket.remoteAddress) || 'tidak-diketahui';
     const wait = resetLimiter.retryAfter('ip', ip);
@@ -429,12 +486,12 @@ function buildRoutes(ctx) {
       throw err;
     }
     limiter.recordSuccess('email', email);
-    return { status: 200, body: result, headers: { 'Cache-Control': 'no-store' } };
+    return { status: 200, body: result, headers: { 'Cache-Control': 'no-store', 'Set-Cookie': sessionCookie('staff', result.token, auth.SESSION_HOURS * 3600) } };
   });
   route('POST', /^\/api\/auth\/logout$/, (_p, _b, _q, req) => {
-    const token = bearer(req);
+    const token = sessionToken(req, 'staff');
     if (token) store.update((db) => auth.logout(db, token));
-    return { status: 200, body: { ok: true } };
+    return { status: 200, body: { ok: true }, headers: { 'Set-Cookie': clearSessionCookies() } };
   });
   route('POST', /^\/api\/auth\/password$/, (_p, body, _q, req) => {
     const user = requirePerm(req, store, null);
@@ -714,7 +771,7 @@ function createApp({ dataFile, owner, demo = false }) {
   if (migrated) store.update((db) => domain.ensurePassportHashes(db));
 
   const photoDir = path.join(path.dirname(dataFile), 'photos');
-  const routes = buildRoutes({ store, photoDir, demo, limiter: new LoginLimiter(), buyerLimiter: new LoginLimiter() });
+  const routes = buildRoutes({ store, photoDir, demo, limiter: new LoginLimiter({ store }), buyerLimiter: new LoginLimiter({ store }) });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -795,6 +852,7 @@ function createApp({ dataFile, owner, demo = false }) {
     }
     const query = Object.fromEntries(url.searchParams.entries());
     try {
+      enforceCsrf(req);
       const match = routes.find((rt) => rt.method === req.method && rt.pattern.test(pathname));
       if (!match) {
         const pathExists = routes.some((rt) => rt.pattern.test(pathname));

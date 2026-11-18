@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createApp } = require('../server');
+const { signupAndLogin } = require('./support/signup');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'al-pembeli-'));
 const OWNER = { email: 'pemilik-pembeli@test.local', password: 'kata-sandi-pemilik-123' };
@@ -37,10 +38,13 @@ test('sign up needs consent, a valid password and a unique email', async () => {
   assert.equal((await call('POST', '/api/buyer/signup', { body: { ...SIGNUP, consent: false } })).status, 400);
   assert.equal((await call('POST', '/api/buyer/signup', { body: { ...SIGNUP, password: 'pendek' } })).status, 400);
   const ok = await call('POST', '/api/buyer/signup', { body: SIGNUP });
-  assert.equal(ok.status, 201);
-  assert.ok(ok.json.token && ok.json.buyer.email === SIGNUP.email);
+  assert.equal(ok.status, 202);
+  assert.equal(ok.json.token, undefined, 'signup does not return a session token');
   assert.equal(JSON.stringify(ok.json).includes('passwordHash'), false, 'password hash never leaves the server');
-  assert.equal((await call('POST', '/api/buyer/signup', { body: SIGNUP })).status, 409);
+  assert.equal((await call('POST', '/api/buyer/login', { body: { email: SIGNUP.email, password: SIGNUP.password } })).status, 200);
+  const again = await call('POST', '/api/buyer/signup', { body: SIGNUP });
+  assert.equal(again.status, 202, 'a taken email gets the same answer as a new one');
+  assert.equal(JSON.stringify(again.json), JSON.stringify(ok.json), 'the response does not reveal whether the email exists');
 });
 
 test('sign in works with the right password only; buyer routes need a buyer token', async () => {
@@ -80,8 +84,8 @@ test('orders placed while signed in are linked to the buyer and only the buyer s
   const mine = await call('GET', '/api/buyer/orders', { token });
   assert.ok(mine.json.orders.some((o) => o.number === placed.json.order.number));
 
-  const other = await call('POST', '/api/buyer/signup', { body: { ...SIGNUP, email: 'lain@kafe.test', name: 'Lain Kafe' } });
-  const seen = await call('GET', '/api/buyer/orders', { token: other.json.token });
+  const other = await signupAndLogin(call, { ...SIGNUP, email: 'lain@kafe.test', name: 'Lain Kafe' });
+  const seen = await call('GET', '/api/buyer/orders', { token: other.token });
   assert.equal(seen.json.orders.length, 0, 'another buyer cannot see this order');
 });
 

@@ -63,6 +63,7 @@
     badge.textContent = String(n);
   }
 
+  // Penanda saja (bukan token): menandakan staf sudah masuk. Token sesungguhnya ada di cookie HttpOnly.
   function adminToken() { try { return sessionStorage.getItem('al-admin') || ''; } catch { return ''; } }
   function currentUser() { try { return JSON.parse(sessionStorage.getItem('al-user') || 'null'); } catch { return null; } }
   const ROLE_PAGES = { admin: ['dashboard', 'alur', 'intake', 'lots', 'orders', 'proposal', 'feedback', 'users', 'pembeli', 'audit', 'settings'], grader: ['alur', 'lots'], field_agent: ['intake', 'lots'] };
@@ -73,20 +74,19 @@
     return false;
   }
   function allowedPages() { const u = currentUser(); return (u && ROLE_PAGES[u.role]) || []; }
-  function setAdminToken(t) { try { sessionStorage.setItem('al-admin', t); } catch { /* abaikan */ } }
+  function setAdminToken(t) { try { if (t) sessionStorage.setItem('al-admin', '1'); else sessionStorage.removeItem('al-admin'); } catch { /* abaikan */ } }
   function clearAdminToken() { try { sessionStorage.removeItem('al-admin'); sessionStorage.removeItem('al-user'); } catch { /* abaikan */ } }
 
   function session(key) { try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { return null; } }
   function setSession(key, v) { try { sessionStorage.setItem(key, JSON.stringify(v)); } catch { /* abaikan */ } }
 
   async function api(path, { method = 'GET', body, admin = false } = {}) {
-    const headers = { Accept: 'application/json' };
+    // Token sesi ada di cookie HttpOnly; browser mengirimkannya sendiri. Header ini menandai permintaan dari halaman kita (lihat enforceCsrf).
+    const headers = { Accept: 'application/json', 'X-Requested-With': 'fetch' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    if (admin) headers.Authorization = 'Bearer ' + adminToken();
-    else if (buyerToken() && isBuyerPath(path)) headers.Authorization = 'Bearer ' + buyerToken();
     let res;
     try {
-      res = await fetch(path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+      res = await fetch(path, { method, headers, credentials: 'same-origin', body: body !== undefined ? JSON.stringify(body) : undefined });
     } catch {
       throw { message: 'Koneksi ke server terputus. Periksa internet Anda, lalu coba lagi.', fields: {} };
     }
@@ -218,7 +218,7 @@
       <section aria-labelledby="featured">
         <h2 id="featured">Lot tersedia sekarang</h2>
         ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi ya.</p></div>'}
-        <p style="margin-top:16px"><a href="#/produk">Lihat semua lot</a></p>
+        <p class="ix-18"><a href="#/produk">Lihat semua lot</a></p>
       </section>
       <section aria-labelledby="how">
         <h2 id="how">Cara kami bekerja</h2>
@@ -331,15 +331,15 @@
     const startKg = inCart ? inCart.kg : lot.minOrderKg;
     const maxKg = Math.max(lot.minOrderKg, Math.min(lot.availableKg, lot.maxOrderKg || lot.availableKg));
     setMain(`
-      <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/produk">Katalog</a> / ${esc(lot.code)}</nav>
-      <div class="grid" style="grid-template-columns:1fr;margin-top:12px">
+      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/produk">Katalog</a> / ${esc(lot.code)}</nav>
+      <div class="grid ix-74">
         <article class="card">
-          <div class="btn-row" style="justify-content:space-between"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
-          <h1 style="margin-top:12px">${esc(lot.title)}</h1>
-          ${lot.coverPhotoId ? `<img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(lot.coverPhotoId)}" alt="Foto ${esc(lot.title)}" style="width:100%;max-height:360px;object-fit:cover;border-radius:var(--radius-lg);margin-bottom:12px">` : ''}
-          ${lot.story ? `<p class="lead" style="white-space:pre-line">${esc(lot.story)}</p>` : ''}
-          <p class="muted" style="margin-bottom:8px">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</p>
-          <dl class="kv" style="margin:16px 0">
+          <div class="btn-row ix-9"><span class="${tierClass(lot.tier)}">${esc(lot.tierLabel)}</span><span class="code muted">${esc(lot.code)}</span></div>
+          <h1 class="ix-16">${esc(lot.title)}</h1>
+          ${lot.coverPhotoId ? `<img src="/api/lots/${encodeURIComponent(lot.code)}/photos/${encodeURIComponent(lot.coverPhotoId)}" alt="Foto ${esc(lot.title)}" class="ix-73">` : ''}
+          ${lot.story ? `<p class="lead ix-72">${esc(lot.story)}</p>` : ''}
+          <p class="muted ix-71">Cupping ${esc(lot.cupScore)} · ${esc(lot.regionName)}</p>
+          <dl class="kv ix-13">
             <dt>Kelompok tani</dt><dd>${esc(lot.groupName)}</dd>
             <dt>Kabupaten</dt><dd>${esc(lot.regency)}</dd>
             <dt>Proses</dt><dd>${processHtml(lot.process, lot.processInfo)}</dd>
@@ -347,10 +347,10 @@
             <dt>Panen</dt><dd>${tanggal(lot.harvestDate)}</dd>
             <dt>Stok</dt><dd>${lot.soldOut ? '<span class="pill bad">Habis terjual</span>' : kg(lot.availableKg) + (lot.lowStock ? ' <span class="pill warn">Stok menipis</span>' : '')}</dd>
           </dl>
-          <p class="price num" style="font-size:24px;font-weight:700">${rp(lot.pricePerKg)} <span class="muted" style="font-size:15px;font-weight:400">per kg</span></p>
-          <p class="muted" style="font-size:14px">Minimum ${lot.minOrderKg} kg.</p>
+          <p class="price num ix-70">${rp(lot.pricePerKg)} <span class="muted ix-69">per kg</span></p>
+          <p class="muted ix-29">Minimum ${lot.minOrderKg} kg.</p>
           ${lot.soldOut ? '' : `
-          <form id="add-form" style="margin-top:16px">
+          <form id="add-form" class="ix-18">
             <div class="field"><label for="kg">Jumlah (kg)</label>
               <div class="stepper">
                 <button type="button" class="btn secondary" data-step="-${lot.stepKg}" aria-label="Kurangi">−</button>
@@ -404,11 +404,11 @@
     const r = p.record;
     const match = p.recordMatchesHash;
     setMain(`
-      <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/produk">Katalog</a> / Traceability</nav>
-      <h1 style="margin-top:12px">Traceability lot: ${esc(r.code)}</h1>
-      <div class="grid" style="grid-template-columns:1fr">
+      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/produk">Katalog</a> / Traceability</nav>
+      <h1 class="ix-16">Traceability lot: ${esc(r.code)}</h1>
+      <div class="grid ix-3">
         <section class="card" aria-labelledby="origin">
-          <h2 id="origin" style="margin-top:0">Asal</h2>
+          <h2 id="origin" class="ix-1">Asal</h2>
           <dl class="kv">
             <dt>Wilayah</dt><dd>${esc(r.regionName)}</dd>
             <dt>Kabupaten</dt><dd>${esc(r.regency)}</dd>
@@ -418,7 +418,7 @@
           </dl>
         </section>
         <section class="card" aria-labelledby="grading">
-          <h2 id="grading" style="margin-top:0">Penilaian</h2>
+          <h2 id="grading" class="ix-1">Penilaian</h2>
           <dl class="kv">
             <dt>Grade</dt><dd>${esc(r.grade)}</dd>
             <dt>Skor cupping</dt><dd>${esc(r.cupScore)}</dd>
@@ -430,20 +430,20 @@
           </dl>
         </section>
         <section class="card" aria-labelledby="record">
-          <h2 id="record" style="margin-top:0">Pemeriksaan catatan</h2>
+          <h2 id="record" class="ix-1">Pemeriksaan catatan</h2>
           ${match === true
             ? '<p class="notice ok">Data sesuai dengan hash saat diterbitkan.</p>'
             : match === false
               ? '<p class="notice bad">Data tidak sesuai dengan hash saat diterbitkan. Tanyakan ke tim.</p>'
               : '<p class="notice">Kode verifikasi untuk lot ini belum tersedia. Akan muncul setelah penilaian selesai.</p>'}
-          <p class="muted" style="font-size:14px">Hash dihitung dari data di atas.</p>
+          <p class="muted ix-29">Hash dihitung dari data di atas.</p>
           <p><span class="muted">Kode hash catatan (SHA-256)</span></p>
           <p class="hash">${esc(p.hash)}</p>
-          <p style="margin-top:8px"><a href="#/periksa?code=${encodeURIComponent(r.code)}&hash=${encodeURIComponent(p.hash)}">Periksa catatan ini</a></p>
-          <p class="muted" style="font-size:14px">Diterbitkan ${tanggal(p.publishedAt)}. ${p.status === 'withdrawn' ? '<span class="pill warn">Ditarik dari penjualan</span>' : ''}</p>
+          <p class="ix-6"><a href="#/periksa?code=${encodeURIComponent(r.code)}&hash=${encodeURIComponent(p.hash)}">Periksa catatan ini</a></p>
+          <p class="muted ix-29">Diterbitkan ${tanggal(p.publishedAt)}. ${p.status === 'withdrawn' ? '<span class="pill warn">Ditarik dari penjualan</span>' : ''}</p>
         </section>
       </div>
-      <div class="btn-row" style="margin-top:16px">
+      <div class="btn-row ix-18">
         ${p.availableKg > 0 && p.status === 'listed' ? `<a class="btn" href="${lotHref(r.code)}">Beli lot ini</a>` : ''}
         <a class="btn secondary" href="#/produk">Kembali ke katalog</a>
       </div>`);
@@ -475,18 +475,18 @@
               <td><span class="${tierClass(l.tier)}">${esc(l.tierLabel)}</span></td>
               <td class="num">${kg(l.kg)}</td>
               <td class="num">${rp(l.pricePerKg)}</td>
-              <td class="num">${rp(l.lineTotal)}${l.shippingTotal ? `<br><span class="muted" style="font-size:13px">+ ${rp(l.shippingTotal)} ongkir</span>` : ''}</td>
+              <td class="num">${rp(l.lineTotal)}${l.shippingTotal ? `<br><span class="muted ix-28">+ ${rp(l.shippingTotal)} ongkir</span>` : ''}</td>
               <td><button class="btn danger small" data-remove="${esc(l.lotCode)}">Hapus</button></td>
             </tr>`).join('')}
         </tbody>
       </table></div>
-      <div class="card" style="margin-top:16px;max-width:420px;margin-left:auto">
+      <div class="card ix-68">
         <table class="summary-lines"><tbody>
           <tr><td>Subtotal</td><td class="num">${rp(quote.totals.subtotal)}</td></tr>
           <tr><td>Ongkir</td><td class="num">${quote.totals.shipping ? rp(quote.totals.shipping) : 'Termasuk atau diambil'}</td></tr>
           <tr class="total-row"><td>Total</td><td class="num">${rp(quote.totals.total)}</td></tr>
         </tbody></table>
-        <p class="muted" style="font-size:14px">Pembayaran dengan transfer bank.</p>
+        <p class="muted ix-29">Pembayaran dengan transfer bank.</p>
         <div class="btn-row"><a class="btn" href="#/bayar" ${quote.stockIssues && quote.stockIssues.length ? 'aria-disabled="true"' : ''}>Lanjut ke pembayaran</a><a class="btn secondary" href="#/produk">Lanjut belanja</a></div>
       </div>`);
     main.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
@@ -508,16 +508,16 @@
     setMain(`
       <h1>Buat akun atau masuk untuk memesan</h1>
       <p class="muted">Keranjang Anda tetap tersimpan. Akun dipakai untuk melacak pesanan, mengunduh faktur, dan mengirim umpan balik.</p>
-      <div class="grid" style="grid-template-columns:1fr">
+      <div class="grid ix-3">
         <form id="gate-login" class="card" novalidate>
-          <h2 style="margin-top:0">Sudah punya akun</h2>
+          <h2 class="ix-1">Sudah punya akun</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
           <div class="field"><label for="gl-email">Email</label><input id="gl-email" name="email" type="email" required autocomplete="email"></div>
           <div class="field"><label for="gl-pw">Kata sandi</label><input id="gl-pw" name="password" type="password" required autocomplete="current-password"></div>
           <div class="btn-row"><button class="btn" type="submit" data-save>Masuk dan lanjut</button></div>
         </form>
         <form id="gate-signup" class="card" novalidate>
-          <h2 style="margin-top:0">Belum punya akun</h2>
+          <h2 class="ix-1">Belum punya akun</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
           <div class="form-grid">
             <div class="field"><label for="gs-name">Nama kontak</label><input id="gs-name" name="name" required minlength="2" maxlength="80" autocomplete="name"></div>
@@ -531,13 +531,13 @@
           <div class="btn-row"><button class="btn" type="submit" data-save>Buat akun dan lanjut</button></div>
         </form>
       </div>
-      <p class="muted" style="margin-top:12px"><a href="#/keranjang">Kembali ke keranjang</a></p>`);
+      <p class="muted ix-16"><a href="#/keranjang">Kembali ke keranjang</a></p>`);
     const login = document.getElementById('gate-login');
     login.addEventListener('submit', async (e) => {
       e.preventDefault();
       login.querySelector('[data-form-error]').hidden = true;
       const btn = login.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
-      try { const r = await api('/api/buyer/login', { method: 'POST', body: formData(login) }); setBuyerToken(r.token); viewCheckout(); }
+      try { await api('/api/buyer/login', { method: 'POST', body: formData(login) }); setBuyerToken('1'); viewCheckout(); }
       catch (err) { showFormError(login, err); busy(btn, false); }
     });
     const signup = document.getElementById('gate-signup');
@@ -547,7 +547,11 @@
       const f = formData(signup);
       f.consent = signup.elements.consent.checked;
       const btn = signup.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
-      try { const r = await api('/api/buyer/signup', { method: 'POST', body: f }); setBuyerToken(r.token); toast('Akun dibuat. Silakan lanjut memesan.'); viewCheckout(); }
+      try {
+        const r = await api('/api/buyer/signup', { method: 'POST', body: f });
+        if (await buyerSignedIn()) { toast('Akun dibuat. Silakan lanjut memesan.'); viewCheckout(); }
+        else { toast(r.message); signup.reset(); busy(btn, false); }
+      }
       catch (err) { showFormError(signup, err); busy(btn, false); }
     });
   }
@@ -560,7 +564,7 @@
       <p class="muted">Pilih cara bayar dan isi data singkat. Data tambahan bisa diisi di bagian bawah bila perlu.</p>
       <form id="checkout" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
-        <h2 style="margin-top:0">1. Cara bayar</h2>
+        <h2 class="ix-1">1. Cara bayar</h2>
         <div class="pay-options" role="radiogroup" aria-label="Cara bayar">
           ${CARA_BAYAR.map(([v, l, d], i) => `<label class="pay-option"><input type="radio" name="payMethod" value="${v}" ${i === 0 ? 'checked' : ''}><span><strong>${esc(l)}</strong><small class="muted">${esc(d)}</small></span></label>`).join('')}
         </div>
@@ -575,9 +579,9 @@
           <div class="field"><label for="c-city">Kota pengiriman <span class="muted">(wajib)</span></label>
             <input id="c-city" name="city" required autocomplete="address-level2"></div>
         </div>
-        <details class="more" style="margin-top:8px">
+        <details class="more ix-6">
           <summary>Data tambahan (opsional)</summary>
-          <div class="form-grid" style="margin-top:12px">
+          <div class="form-grid ix-16">
             <div class="field"><label for="c-type">Jenis pembeli</label>
               <select id="c-type" name="buyerType">${JENIS_PEMBELI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}</select></div>
             <div class="field"><label for="c-company">Nama kafe atau perusahaan</label>
@@ -590,7 +594,7 @@
               <textarea id="c-notes" name="notes" maxlength="500"></textarea></div>
           </div>
         </details>
-        <div class="field" style="margin-top:16px"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
+        <div class="field ix-18"><label class="check"><input type="checkbox" name="consent" required> Saya setuju dengan <a href="#/kebijakan-privasi">kebijakan privasi</a> dan <a href="#/syarat">syarat penggunaan</a>.</label></div>
         <div class="btn-row"><button class="btn" type="submit" id="place">Bayar sekarang</button><a class="btn secondary" href="#/keranjang">Kembali ke keranjang</a></div>
       </form>`);
     const form = document.getElementById('checkout');
@@ -645,16 +649,16 @@
       <h1>Pesanan diterima</h1>
       <div class="notice ok">Pesanan <strong>${esc(number)}</strong> sudah dibuat. Stok dicadangkan untuk Anda selama kami mengonfirmasi pembayaran.</div>
       <div class="card">
-        <h2 style="margin-top:0">Bayar dengan transfer bank</h2>
+        <h2 class="ix-1">Bayar dengan transfer bank</h2>
         <dl class="kv">
           <dt>Bank</dt><dd>${esc(state.config.payment.bank.bankName)}</dd>
           <dt>Atas nama</dt><dd>${esc(state.config.payment.bank.accountName)}</dd>
           <dt>Nomor rekening</dt><dd>${esc(state.config.payment.bank.accountNumber)}</dd>
           <dt>Referensi</dt><dd>${esc(number)}</dd>
         </dl>
-        <p class="muted" style="font-size:14px;margin-top:12px">Gunakan nomor pesanan sebagai referensi.</p>
+        <p class="muted ix-67">Gunakan nomor pesanan sebagai referensi.</p>
       </div>
-      <div class="btn-row" style="margin-top:16px">
+      <div class="btn-row ix-18">
         ${last && last.email ? `<a class="btn" href="#/lacak/${encodeURIComponent(number)}">Lacak pesanan ini</a>` : '<a class="btn" href="#/lacak">Lacak pesanan ini</a>'}
         <a class="btn secondary" href="#/produk">Lanjut belanja</a>
       </div>`);
@@ -686,9 +690,9 @@
     setMain(`
       <h1>Lacak pesanan Anda</h1>
       ${list}
-      <h2 style="margin-top:24px">${me ? 'Lacak pesanan lain' : 'Lacak dengan nomor pesanan'}</h2>
+      <h2 class="ix-55">${me ? 'Lacak pesanan lain' : 'Lacak dengan nomor pesanan'}</h2>
       <p class="muted">Masukkan nomor pesanan (ALO-…) dan email yang dipakai saat memesan.</p>
-      <form id="track" class="card" style="max-width:520px" novalidate>
+      <form id="track" class="card ix-66" novalidate>
         <div class="notice bad" data-form-error hidden role="alert"></div>
         <div class="field"><label for="t-number">Nomor pesanan</label><input id="t-number" name="number" required placeholder="ALO-2611-001" pattern="ALO-\\d{4}-\\d{3}" autocomplete="off"></div>
         <div class="field"><label for="t-email">Email yang dipakai saat memesan</label><input id="t-email" name="email" type="email" required value="${esc(email)}" autocomplete="email"></div>
@@ -725,12 +729,12 @@
     const done = (s) => cancelled ? false : steps.indexOf(s) <= steps.indexOf(o.status);
     setSession('al-email', email);
     setMain(`
-      <nav aria-label="Navigasi" class="muted" style="font-size:14px"><a href="#/lacak">Lacak pesanan</a> / ${esc(o.number)}</nav>
-      <h1 style="margin-top:12px">Pesanan ${esc(o.number)}</h1>
+      <nav aria-label="Navigasi" class="muted ix-29"><a href="#/lacak">Lacak pesanan</a> / ${esc(o.number)}</nav>
+      <h1 class="ix-16">Pesanan ${esc(o.number)}</h1>
       <p><span class="pill ${cancelled ? 'bad' : 'ok'}">${esc(o.statusLabel)}</span> <span class="muted">Dibuat ${tanggal(o.createdAt)}</span></p>
-      <div class="grid" style="grid-template-columns:1fr">
+      <div class="grid ix-3">
         <section class="card" aria-labelledby="timeline">
-          <h2 id="timeline" style="margin-top:0">Status</h2>
+          <h2 id="timeline" class="ix-1">Status</h2>
           <ol class="timeline">
             ${steps.map((s) => {
               const isCurrent = s === o.status;
@@ -740,29 +744,29 @@
             }).join('')}
             ${cancelled ? `<li class="cancelled current">Dibatalkan ${tanggal(o.updatedAt)}</li>` : ''}
           </ol>
-          <p style="margin-top:12px"><a href="/api/orders/${encodeURIComponent(o.number)}/invoice?email=${encodeURIComponent(query.email || '')}">Unduh faktur (PDF)</a></p>
-          ${o.shipment && (o.shipment.courier || o.shipment.waybill) ? `<p style="margin-top:12px"><strong>Pengiriman:</strong> ${esc(o.shipment.courier || 'Kurir')}${o.shipment.waybill ? ' · No. resi <span class="num">' + esc(o.shipment.waybill) + '</span>' : ''}</p>` : ''}
-          ${o.payment.reference ? `<p class="muted" style="margin-top:12px">Referensi pembayaran: ${esc(o.payment.reference)}</p>` : '<p class="muted" style="margin-top:12px">Pembayaran belum diterima.</p>'}
+          <p class="ix-16"><a href="/api/orders/${encodeURIComponent(o.number)}/invoice?email=${encodeURIComponent(query.email || '')}">Unduh faktur (PDF)</a></p>
+          ${o.shipment && (o.shipment.courier || o.shipment.waybill) ? `<p class="ix-16"><strong>Pengiriman:</strong> ${esc(o.shipment.courier || 'Kurir')}${o.shipment.waybill ? ' · No. resi <span class="num">' + esc(o.shipment.waybill) + '</span>' : ''}</p>` : ''}
+          ${o.payment.reference ? `<p class="muted ix-16">Referensi pembayaran: ${esc(o.payment.reference)}</p>` : '<p class="muted ix-16">Pembayaran belum diterima.</p>'}
         </section>
         ${o.delivery && o.delivery.status !== 'dibatalkan' ? `
         <section class="card" aria-labelledby="eta">
-          <h2 id="eta" style="margin-top:0">Estimasi tiba</h2>
+          <h2 id="eta" class="ix-1">Estimasi tiba</h2>
           ${o.delivery.status === 'belum_dikirim'
             ? '<p class="muted">Estimasi tiba akan muncul setelah pesanan dikirim.</p>'
-            : `<p class="num" style="font-size:18px;margin:0 0 8px">${tanggal(o.delivery.earliest)} &ndash; ${tanggal(o.delivery.latest)}</p>
+            : `<p class="num ix-65">${tanggal(o.delivery.earliest)} &ndash; ${tanggal(o.delivery.latest)}</p>
                <p><span class="pill ${o.delivery.status === 'terlambat' ? 'bad' : 'ok'}">${esc(o.delivery.label)}</span></p>
-               ${o.delivery.status === 'terlambat' ? '<p class="muted" style="margin-top:8px">Mohon maaf atas keterlambatannya. Tim kami sedang memantau pengiriman dan akan mengabari Anda.</p>' : ''}`}
+               ${o.delivery.status === 'terlambat' ? '<p class="muted ix-6">Mohon maaf atas keterlambatannya. Tim kami sedang memantau pengiriman dan akan mengabari Anda.</p>' : ''}`}
           ${o.shipment && o.shipment.events && o.shipment.events.length ? `
-          <h3 style="margin:16px 0 6px;font-size:15px">Riwayat kurir</h3>
-          <ol class="timeline">${o.shipment.events.map((e) => `<li class="done">${esc(e.label)}${e.location ? ' · ' + esc(e.location) : ''} · <span class="muted">${tanggal(e.at)}</span>${e.note ? `<br><span class="muted" style="font-size:13px">${esc(e.note)}</span>` : ''}</li>`).join('')}</ol>` : ''}
+          <h3 class="ix-64">Riwayat kurir</h3>
+          <ol class="timeline">${o.shipment.events.map((e) => `<li class="done">${esc(e.label)}${e.location ? ' · ' + esc(e.location) : ''} · <span class="muted">${tanggal(e.at)}</span>${e.note ? `<br><span class="muted ix-28">${esc(e.note)}</span>` : ''}</li>`).join('')}</ol>` : ''}
         </section>` : ''}
         <section class="card" aria-labelledby="items">
-          <h2 id="items" style="margin-top:0">Barang</h2>
+          <h2 id="items" class="ix-1">Barang</h2>
           <div class="table-wrap"><table>
             <thead><tr><th>Lot</th><th>Kategori</th><th class="num">Kg</th><th class="num">Total</th></tr></thead>
             <tbody>${o.lines.map((l) => `<tr><td>${esc(l.lotCode)}</td><td>${esc(l.tierLabel)}</td><td class="num">${kg(l.kg)}</td><td class="num">${rp(l.lineTotal + l.shippingTotal)}</td></tr>`).join('')}</tbody>
           </table></div>
-          <table class="summary-lines" style="margin-top:12px"><tbody>
+          <table class="summary-lines ix-16"><tbody>
             <tr><td>Subtotal</td><td class="num">${rp(o.subtotal)}</td></tr>
             <tr><td>Ongkir</td><td class="num">${o.shipping ? rp(o.shipping) : 'Termasuk atau diambil'}</td></tr>
             <tr class="total-row"><td>Total</td><td class="num">${rp(o.total)}</td></tr>
@@ -770,38 +774,38 @@
         </section>
       </div>
       ${o.status === 'requested' || o.status === 'confirmed' ? `
-      <section class="card" aria-labelledby="bayar" style="margin-top:16px">
-        <h2 id="bayar" style="margin-top:0">Bayar sekarang</h2>
+      <section class="card ix-18" aria-labelledby="bayar">
+        <h2 id="bayar" class="ix-1">Bayar sekarang</h2>
         ${(o.payments || []).filter((p) => p.status === 'pending').map((p) => p.instructions.kind === 'va' ? `
-          <div class="notice ok" style="margin-bottom:12px">
-            <p style="margin:0 0 4px"><strong>${esc(p.methodLabel)}</strong>. Transfer ke nomor berikut:</p>
-            <p class="hash" style="font-size:18px;margin:6px 0">${esc(p.instructions.vaNumber)}</p>
-            <p class="help" style="margin:0">Jumlah ${rp(p.amount)}. Berlaku sampai ${tanggal(p.instructions.expiresAt)}.</p>
+          <div class="notice ok ix-36">
+            <p class="ix-62"><strong>${esc(p.methodLabel)}</strong>. Transfer ke nomor berikut:</p>
+            <p class="hash ix-63">${esc(p.instructions.vaNumber)}</p>
+            <p class="help ix-10">Jumlah ${rp(p.amount)}. Berlaku sampai ${tanggal(p.instructions.expiresAt)}.</p>
           </div>` : `
-          <div class="notice ok" style="margin-bottom:12px">
-            <p style="margin:0 0 4px"><strong>QRIS</strong>. Pindai kode berikut dengan aplikasi bank atau dompet digital Anda:</p>
-            ${p.instructions.qrUrl ? `<img src="${esc(p.instructions.qrUrl)}" alt="Kode QRIS untuk pembayaran" width="220" height="220" style="display:block;margin:8px 0;background:#fff;padding:8px;border-radius:12px">` : `<p class="hash" style="margin:6px 0">${esc(p.instructions.payload || '')}</p>`}
-            <p class="help" style="margin:0">Jumlah ${rp(p.amount)}.</p>
+          <div class="notice ok ix-36">
+            <p class="ix-62"><strong>QRIS</strong>. Pindai kode berikut dengan aplikasi bank atau dompet digital Anda:</p>
+            ${p.instructions.qrUrl ? `<img src="${esc(p.instructions.qrUrl)}" alt="Kode QRIS untuk pembayaran" width="220" height="220" class="ix-61">` : `<p class="hash ix-60">${esc(p.instructions.payload || '')}</p>`}
+            <p class="help ix-10">Jumlah ${rp(p.amount)}.</p>
           </div>`).join('')}
-        <p class="muted" style="font-size:14px">Pilih cara bayar:</p>
+        <p class="muted ix-29">Pilih cara bayar:</p>
         <div class="btn-row">
           <button class="btn secondary small" type="button" data-pay="va_bca">Virtual Account BCA</button>
           <button class="btn secondary small" type="button" data-pay="va_bni">Virtual Account BNI</button>
           <button class="btn secondary small" type="button" data-pay="qris">QRIS</button>
         </div>
-        <p class="help" style="margin-top:10px">Pembayaran dikonfirmasi otomatis begitu masuk. Transfer bank manual tetap bisa dilakukan dengan nomor referensi pesanan.</p>
+        <p class="help ix-23">Pembayaran dikonfirmasi otomatis begitu masuk. Transfer bank manual tetap bisa dilakukan dengan nomor referensi pesanan.</p>
       </section>` : ''}
       ${o.canConfirmReceipt || o.canReportProblem || o.problems.length ? `
-      <section class="card" aria-labelledby="receipt" style="margin-top:16px">
-        <h2 id="receipt" style="margin-top:0">Pengiriman Anda</h2>
-        ${o.problems.length ? `<div class="notice">${o.problems.map((p) => `<p style="margin:0 0 6px"><strong>Masalah dilaporkan ${tanggal(p.createdAt)}:</strong> ${esc(p.message)} <span class="pill">${esc(p.status)}</span></p>`).join('')}</div>` : ''}
+      <section class="card ix-18" aria-labelledby="receipt">
+        <h2 id="receipt" class="ix-1">Pengiriman Anda</h2>
+        ${o.problems.length ? `<div class="notice">${o.problems.map((p) => `<p class="ix-59"><strong>Masalah dilaporkan ${tanggal(p.createdAt)}:</strong> ${esc(p.message)} <span class="pill">${esc(p.status)}</span></p>`).join('')}</div>` : ''}
         ${o.canConfirmReceipt ? `
           <p>Setelah kopi tiba dan sudah Anda periksa, konfirmasi penerimaan. Ini menyelesaikan pesanan dan membuka umpan balik.</p>
           <div class="btn-row"><button class="btn" id="confirm-receipt" type="button">Saya sudah menerima pesanan ini</button></div>` : ''}
         ${o.canReportProblem ? `
-          <details style="margin-top:12px">
+          <details class="ix-16">
             <summary>Laporkan masalah dengan pengiriman ini</summary>
-            <form id="problem-form" style="margin-top:12px" novalidate>
+            <form id="problem-form" class="ix-16" novalidate>
               <div class="notice" data-form-error hidden role="alert"></div>
               <div class="field"><label for="p-msg">Apa yang bermasalah?</label>
                 <textarea id="p-msg" name="message" minlength="10" maxlength="1000" required placeholder="Contoh: 2 karung basah, contoh kopi terasa asam"></textarea>
@@ -810,7 +814,7 @@
             </form>
           </details>` : ''}
       </section>` : ''}
-      ${o.feedbackOpen ? `<div class="btn-row" style="margin-top:16px"><a class="btn" href="#/umpan-balik/${encodeURIComponent(o.number)}">Bagikan umpan balik tentang pesanan Anda</a></div>` : ''}`);
+      ${o.feedbackOpen ? `<div class="btn-row ix-18"><a class="btn" href="#/umpan-balik/${encodeURIComponent(o.number)}">Bagikan umpan balik tentang pesanan Anda</a></div>` : ''}`);
 
     main.querySelectorAll('button[data-pay]').forEach((b) => b.addEventListener('click', async () => {
       busy(b, true, 'Membuat tagihan…');
@@ -986,14 +990,14 @@ const ICONS = {
   function viewAdminLogin() {
     setMain(`
       <h1>Masuk tim</h1>
-      <form id="login" class="card" style="max-width:420px" novalidate>
+      <form id="login" class="card ix-53" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="field"><label for="login-email">Email</label><input id="login-email" name="email" type="email" required autocomplete="username"></div>
         <div class="field"><label for="login-pass">Kata sandi</label><input id="login-pass" name="password" type="password" required autocomplete="current-password"></div>
         <button class="btn" type="submit" id="login-btn">Masuk</button>
       </form>
       ${(state.config.demoAccounts || []).length ? `
-      <section class="card" style="max-width:420px;margin-top:16px" aria-label="Akun demo">
+      <section class="card ix-58" aria-label="Akun demo">
         <p class="notice">Akun demo untuk uji coba. Jangan dipakai untuk data sungguhan.</p>
         <div class="btn-row">${state.config.demoAccounts.map((d, i) => `<button class="btn secondary small" type="button" data-demo="${i}">Masuk sebagai ${esc(d.roleLabel)} (demo)</button>`).join('')}</div>
       </section>` : ''}`);
@@ -1028,9 +1032,9 @@ const ICONS = {
     const { buyers } = await api(`/api/admin/buyers?q=${encodeURIComponent(query)}`, { admin: true });
     const when = (iso) => (iso ? tanggal(iso) : '—');
     setMain(adminShell('pembeli', `
-      <h2 style="margin-top:0">Akun pembeli</h2>
-      <form id="buyer-search" class="btn-row" style="margin-bottom:16px">
-        <input type="search" name="q" value="${esc(query)}" placeholder="Cari nama, email, atau perusahaan" aria-label="Cari pembeli" style="max-width:360px">
+      <h2 class="ix-1">Akun pembeli</h2>
+      <form id="buyer-search" class="btn-row ix-57">
+        <input type="search" name="q" value="${esc(query)}" placeholder="Cari nama, email, atau perusahaan" aria-label="Cari pembeli" class="ix-56">
         <button class="btn secondary small" type="submit">Cari</button>
       </form>
       <p class="muted">${buyers.length} akun${buyers.length >= 200 ? ' (200 terbaru)' : ''}. Kata sandi tidak pernah ditampilkan.</p>
@@ -1038,11 +1042,11 @@ const ICONS = {
         <thead><tr><th>Pembeli</th><th>Kontak</th><th>Status email</th><th class="num">Pesanan</th><th>Aktivitas</th><th></th></tr></thead>
         <tbody>
           ${buyers.map((b) => `<tr>
-            <td><strong>${esc(b.name)}</strong>${b.company ? `<br><span class="muted" style="font-size:13px">${esc(b.company)}</span>` : ''}</td>
-            <td>${esc(b.email)}${b.phone ? `<br><span class="muted" style="font-size:13px">${esc(b.phone)}</span>` : ''}</td>
-            <td>${b.emailVerified ? '<span class="pill ok">Terverifikasi</span>' : '<span class="pill warn">Belum</span>'}${b.resetPending ? '<br><span class="muted" style="font-size:13px">Atur ulang menunggu</span>' : ''}</td>
+            <td><strong>${esc(b.name)}</strong>${b.company ? `<br><span class="muted ix-28">${esc(b.company)}</span>` : ''}</td>
+            <td>${esc(b.email)}${b.phone ? `<br><span class="muted ix-28">${esc(b.phone)}</span>` : ''}</td>
+            <td>${b.emailVerified ? '<span class="pill ok">Terverifikasi</span>' : '<span class="pill warn">Belum</span>'}${b.resetPending ? '<br><span class="muted ix-28">Atur ulang menunggu</span>' : ''}</td>
             <td class="num">${b.orderCount}</td>
-            <td><span class="muted" style="font-size:13px">Daftar ${when(b.createdAt)}<br>Masuk ${when(b.lastSignInAt)}</span></td>
+            <td><span class="muted ix-28">Daftar ${when(b.createdAt)}<br>Masuk ${when(b.lastSignInAt)}</span></td>
             <td><div class="btn-row">
               ${b.emailVerified ? '' : `<button class="btn secondary small" type="button" data-bverify="${esc(b.id)}">Tandai terverifikasi</button>`}
               <button class="btn secondary small" type="button" data-breset="${esc(b.id)}">Kirim tautan atur ulang</button>
@@ -1077,12 +1081,12 @@ const ICONS = {
     const sel = selectedId ? users.find((u) => u.id === selectedId) : null;
     const when = (iso) => (iso ? tanggal(iso) : 'Belum pernah');
     setMain(adminShell('users', `
-      <h2 style="margin-top:0">Staf dan pengguna</h2>
+      <h2 class="ix-1">Staf dan pengguna</h2>
       <div class="table-wrap"><table>
         <thead><tr><th>Nama</th><th>Email</th><th>Peran</th><th>Status</th><th>Terakhir masuk</th><th></th></tr></thead>
         <tbody>
           ${users.map((u) => `
-            <tr ${sel && sel.id === u.id ? 'style="background:var(--green-soft)"' : ''}>
+            <tr ${sel && sel.id === u.id ? 'class="is-selected"' : ''}>
               <td>${esc(u.name)}${me && me.id === u.id ? ' <span class="muted">(Anda)</span>' : ''}</td>
               <td>${esc(u.email)}</td>
               <td>${esc(u.roleLabel || u.role)}</td>
@@ -1092,8 +1096,8 @@ const ICONS = {
             </tr>`).join('')}
         </tbody></table></div>
       ${sel ? `
-      <section class="card" style="margin-top:20px" aria-labelledby="edit-user">
-        <h2 id="edit-user" style="margin-top:0">Kelola ${esc(sel.name)}</h2>
+      <section class="card ix-5" aria-labelledby="edit-user">
+        <h2 id="edit-user" class="ix-1">Kelola ${esc(sel.name)}</h2>
         <form id="edit-form" novalidate>
           <div class="notice" data-form-error hidden role="alert"></div>
           <div class="form-grid">
@@ -1105,8 +1109,8 @@ const ICONS = {
           </div>
           <div class="btn-row"><button class="btn" type="submit" id="e-save">Simpan perubahan</button><a class="btn secondary" href="#/admin/pengguna">Tutup</a></div>
         </form>
-        <h3 style="margin-top:24px">Riwayat ${esc(sel.name)}</h3>
-        <div id="activity" class="muted" style="font-size:14px">Memuat…</div>
+        <h3 class="ix-55">Riwayat ${esc(sel.name)}</h3>
+        <div id="activity" class="muted ix-29">Memuat…</div>
       </section>` : ''}
       <h2>Tambah pengguna</h2>
       <form id="new-user" class="card" novalidate>
@@ -1125,7 +1129,7 @@ const ICONS = {
       const act = await api(`/api/admin/users/${encodeURIComponent(sel.id)}/activity`, { admin: true });
       const box = document.getElementById('activity');
       if (box) box.innerHTML = act.entries.length
-        ? `<ul style="padding-left:18px;margin:0">${act.entries.map((x) => `<li>${tanggal(x.at)} · ${esc(x.action)} · ${esc(x.status)}</li>`).join('')}</ul>`
+        ? `<ul class="ix-54">${act.entries.map((x) => `<li>${tanggal(x.at)} · ${esc(x.action)} · ${esc(x.status)}</li>`).join('')}</ul>`
         : 'Belum ada riwayat.';
       document.getElementById('edit-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1165,7 +1169,7 @@ const ICONS = {
     setMain(`
       <h1>Buat kata sandi baru</h1>
       <p class="muted">Admin telah mengatur ulang kata sandi Anda. Silakan buat kata sandi baru untuk melanjutkan.</p>
-      <form id="change-pass" class="card" style="max-width:420px" novalidate>
+      <form id="change-pass" class="card ix-53" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="field"><label for="cp-cur">Kata sandi sementara</label><input id="cp-cur" name="current" type="password" required autocomplete="current-password"></div>
         <div class="field"><label for="cp-new">Kata sandi baru</label><input id="cp-new" name="password" type="password" required minlength="10" autocomplete="new-password"><p class="help">Minimal 10 karakter.</p></div>
@@ -1208,21 +1212,21 @@ const ICONS = {
         return '';
       };
       return `
-        <section class="card" aria-labelledby="st-${key}" style="min-width:0">
+        <section class="card ix-52" aria-labelledby="st-${key}">
           <h3 id="st-${key}">${esc(title)} <span class="pill">${items.length}</span></h3>
-          <p class="help" style="margin-bottom:12px">${esc(hint)}</p>
+          <p class="help ix-36">${esc(hint)}</p>
           ${items.length ? items.map((l) => `
-            <div style="border-top:1px solid var(--line);padding:10px 0">
-              <div><strong>${esc(l.code)}</strong> <span class="muted" style="font-size:14px">${esc(l.groupName)}</span></div>
-              <div class="muted" style="font-size:13px;margin:2px 0 8px">${l.tier ? esc(tierLabel(l.tier)) + ' · Cupping ' + esc(l.cupScore || '—') : 'Belum dinilai'}${l.verifiedBy ? ' · Diverifikasi ' + esc(l.verifiedBy.name) : ''}</div>
+            <div class="ix-51">
+              <div><strong>${esc(l.code)}</strong> <span class="muted ix-29">${esc(l.groupName)}</span></div>
+              <div class="muted ix-50">${l.tier ? esc(tierLabel(l.tier)) + ' · Cupping ' + esc(l.cupScore || '—') : 'Belum dinilai'}${l.verifiedBy ? ' · Diverifikasi ' + esc(l.verifiedBy.name) : ''}</div>
               <div class="btn-row">${actions(l)}</div>
-            </div>`).join('') : '<p class="muted" style="font-size:14px">Tidak ada lot.</p>'}
+            </div>`).join('') : '<p class="muted ix-29">Tidak ada lot.</p>'}
         </section>`;
     }).join('');
     setMain(adminShell('alur', `
-      <h2 style="margin-top:0">Alur kerja lot</h2>
-      <p class="muted" style="font-size:14px">Setiap lot melewati empat tahap. Nilai, verifikasi, lalu terbitkan. Penerbitan dilakukan orang yang berbeda dari yang memverifikasi.</p>
-      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">${cols}</div>`));
+      <h2 class="ix-1">Alur kerja lot</h2>
+      <p class="muted ix-29">Setiap lot melewati empat tahap. Nilai, verifikasi, lalu terbitkan. Penerbitan dilakukan orang yang berbeda dari yang memverifikasi.</p>
+      <div class="grid ix-49">${cols}</div>`));
     wireSignOut();
     main.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
       try { await api(`/api/admin/lots/${encodeURIComponent(b.dataset.verify)}/verify`, { method: 'POST', admin: true }); toast('Lot diverifikasi'); viewWorkflow(); }
@@ -1238,8 +1242,8 @@ const ICONS = {
   async function viewAdminAudit() {
     const { entries } = await api('/api/admin/audit', { admin: true });
     setMain(adminShell('audit', `
-      <h2 style="margin-top:0">Riwayat perubahan</h2>
-      <p class="muted" style="font-size:14px">200 entri terakhir. Mencatat siapa dan kapan, bukan isi data.</p>
+      <h2 class="ix-1">Riwayat perubahan</h2>
+      <p class="muted ix-29">200 entri terakhir. Mencatat siapa dan kapan, bukan isi data.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Waktu</th><th>Pengguna</th><th>Peran</th><th>Tindakan</th><th>Hasil</th></tr></thead>
         <tbody>
@@ -1293,7 +1297,7 @@ const ICONS = {
       acc += len;
       return el;
     }).join('') : '';
-    const legend = mix.map((m) => `<li><span class="dash-swatch" style="background:${TIER_COLOR[m.tier] || '#999'}"></span><span class="dash-leg-name">${esc(m.label)}</span><span class="dash-leg-kg num">${kg(m.kg)}</span><strong class="num dash-leg-pct">${m.pct}%</strong></li>`).join('');
+    const legend = mix.map((m) => `<li><span class="dash-swatch" data-bg="${TIER_COLOR[m.tier] || '#999'}"></span><span class="dash-leg-name">${esc(m.label)}</span><span class="dash-leg-kg num">${kg(m.kg)}</span><strong class="num dash-leg-pct">${m.pct}%</strong></li>`).join('');
     return `<div class="dash-donut-wrap">
       <svg viewBox="0 0 120 120" class="dash-donut" role="img" aria-label="Persentase kg terjual per tingkat">
         <g transform="rotate(-90 60 60)"><circle r="44" cx="60" cy="60" fill="none" stroke="var(--green-soft)" stroke-width="16"/>${arcs}</g>
@@ -1316,12 +1320,12 @@ const ICONS = {
       ? `<section class="dash-insights">${d.insights.slice(0, 3).map((i) => `<div class="dash-insight ${i.severity}"><span class="dash-dot" aria-hidden="true"></span>${esc(i.text)}</div>`).join('')}</section>`
       : '';
     const maxPipe = Math.max(1, ...d.pipeline.stages.map((p) => p.count));
-    const funnel = d.pipeline.stages.map((p) => `<div class="dash-stage"><span class="dash-stage-name">${esc(p.label)}</span><span class="dash-stage-bar"><span style="width:${Math.round((p.count / maxPipe) * 100)}%"></span></span><span class="dash-stage-n">${p.count}</span><span class="dash-stage-v">${rp(p.value)}</span></div>`).join('')
+    const funnel = d.pipeline.stages.map((p) => `<div class="dash-stage"><span class="dash-stage-name">${esc(p.label)}</span><span class="dash-stage-bar"><span data-w="${Math.round((p.count / maxPipe) * 100)}%"></span></span><span class="dash-stage-n">${p.count}</span><span class="dash-stage-v">${rp(p.value)}</span></div>`).join('')
       + (d.pipeline.cancelled.count ? `<p class="dash-note">Dibatalkan ${d.pipeline.cancelled.count} pesanan</p>` : '');
     const stock = d.stock.map((t) => `<div class="dash-stock-row">
       <span class="${tierClass(t.tier)} nowrap">${esc(t.label)}</span>
       <span class="dash-stock-kg num">${kg(t.available)}</span>
-      <div class="dash-stock-meta"><div class="dash-st"><span style="width:${Math.round((t.sellThrough || 0) * 100)}%"></span></div>
+      <div class="dash-stock-meta"><div class="dash-st"><span data-w="${Math.round((t.sellThrough || 0) * 100)}%"></span></div>
         <span class="dash-note">${t.sellThrough === null ? 'Belum ada stok' : Math.round(t.sellThrough * 100) + '% terjual'}${t.weeksCover === null ? '' : ' · ±' + t.weeksCover + ' minggu'}</span></div></div>`).join('');
     const actionsCard = d.actions.length
       ? `<section class="card dash-panel"><h2 class="dash-h">Perlu tindakan</h2><div class="dash-actions">${d.actions.map((a) => `<a class="dash-action ${a.severity}" href="${a.href}"><strong class="num">${a.count}</strong><span>${esc(a.label)}</span></a>`).join('')}</div></section>`
@@ -1367,11 +1371,11 @@ const ICONS = {
         </section>
       </div>
       ${actionsCard ? `<div class="dash-row">${actionsCard}</div>` : ''}
-      <section class="card dash-panel" style="margin-top:16px">
+      <section class="card dash-panel ix-18">
         <h2 class="dash-h">Pesanan terbaru</h2>
         ${recent}
       </section>
-      ${lateCard ? `<div style="margin-top:16px">${lateCard}</div>` : ''}
+      ${lateCard ? `<div class="ix-18">${lateCard}</div>` : ''}
       <details class="dash-details">
         <summary>Ekonomi per kg dibeli</summary>
         <div class="dash-table"><table><tbody>
@@ -1424,7 +1428,7 @@ const ICONS = {
     const { groups } = await api('/api/admin/groups', { admin: true });
     const regions = state.regions || [];
     setMain(adminShell('intake', `
-      <h2 style="margin-top:0">Catat pembelian dari kelompok tani</h2>
+      <h2 class="ix-1">Catat pembelian dari kelompok tani</h2>
       <form id="intake" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="form-grid">
@@ -1437,11 +1441,11 @@ const ICONS = {
           <div class="field"><label for="i-kg">Kg diterima</label><input id="i-kg" name="kgIn" type="number" min="1" step="1" required></div>
           <div class="field"><label for="i-price">Harga beli per kg (Rp)</label><input id="i-price" name="buyPricePerKg" type="number" min="1000" step="1000" value="${esc(state.config.buyPricePerKg || 120000)}"></div>
           <div class="field"><label for="i-process">Proses</label><input id="i-process" name="process" placeholder="Dicuci, natural, honey"></div>
-          <div class="field wide"><h3 style="margin:8px 0 4px">Pemeriksaan sampel</h3></div>
+          <div class="field wide"><h3 class="ix-48">Pemeriksaan sampel</h3></div>
           <div class="field"><label for="i-sample">Nomor sampel</label><input id="i-sample" name="sampleId" required placeholder="S-2611-001"></div>
           <div class="field"><label for="i-moist">Kadar air %</label><input id="i-moist" name="moisturePct" type="number" min="5" max="20" step="0.1" required><p class="help">Ideal 10 sampai 12.</p></div>
           <div class="field"><label for="i-defect">Cacat per 300 g</label><input id="i-defect" name="defectCount" type="number" min="0" max="300" step="1" required><p class="help">Hitung cacat dari sampel 300 g.</p></div>
-          <div class="field wide"><h3 style="margin:8px 0 4px">Bukti pemeriksaan</h3></div>
+          <div class="field wide"><h3 class="ix-48">Bukti pemeriksaan</h3></div>
           <div class="field wide"><label class="check"><input type="checkbox" name="scaleCalibrated"> Timbangan sudah dikalibrasi hari ini</label></div>
           <div class="field wide"><label class="check"><input type="checkbox" name="farmerPresent"> Petani hadir saat menimbang</label></div>
           <div class="field wide"><label class="check"><input type="checkbox" name="retainedSample"> Sampel disimpan (300 g, diberi label)</label></div>
@@ -1508,8 +1512,8 @@ const ICONS = {
     const { lots } = await api('/api/admin/lots', { admin: true });
     const shown = lots.filter((l) => jenis === 'semua' || jenisLot(l) === jenis);
     setMain(adminShell('lots', `
-      <h2 style="margin-top:0">Lot</h2>
-      <p class="muted" style="font-size:14px">Nilai lot, lalu terbitkan.</p>
+      <h2 class="ix-1">Lot</h2>
+      <p class="muted ix-29">Nilai lot, lalu terbitkan.</p>
       <nav class="chips" aria-label="Jenis produk">
         ${JENIS_PRODUK.map((j) => j.aktif
           ? `<button type="button" class="chip${jenis === j.key ? ' is-active' : ''}" data-jenis="${esc(j.key)}" aria-pressed="${jenis === j.key}">${esc(j.label)} <small>${(j.key === 'semua' ? lots : lots.filter((l) => jenisLot(l) === j.key)).length}</small></button>`
@@ -1522,7 +1526,7 @@ const ICONS = {
             <tr>
               <td>${esc(l.code)}${l.sample ? ' <span class="demo">contoh</span>' : ''}</td>
               <td>${esc(l.groupName)}</td>
-              <td><span class="pill">${esc(LOT_STATUS[l.status] || l.status)}</span>${l.intakeCheck ? `<br><span class="muted" style="font-size:13px">${esc(CHECK_TEKS[l.intakeCheck.result])}${l.intakeCheck.gradeKey ? ' · Grade ' + esc(l.intakeCheck.gradeKey) : ''} · ${rp(l.intakeCheck.amountDue)}</span>` : ''}</td>
+              <td><span class="pill">${esc(LOT_STATUS[l.status] || l.status)}</span>${l.intakeCheck ? `<br><span class="muted ix-28">${esc(CHECK_TEKS[l.intakeCheck.result])}${l.intakeCheck.gradeKey ? ' · Grade ' + esc(l.intakeCheck.gradeKey) : ''} · ${rp(l.intakeCheck.amountDue)}</span>` : ''}</td>
               <td>${l.tier ? `<span class="${tierClass(l.tier)}">${esc(tierLabel(l.tier))}</span>` : '—'}</td>
               <td class="num">${l.tier && state.config.tiers[l.tier] ? rp(state.config.tiers[l.tier].pricePerKg) : '—'}</td>
               <td class="num">${l.cupScore || '—'}</td>
@@ -1558,7 +1562,7 @@ const ICONS = {
     const lot = lots.find((l) => l.id === id);
     if (!lot) { setMain(adminShell('lots', '<p class="notice bad">Lot tidak ditemukan.</p>')); wireSignOut(); return; }
     setMain(adminShell('lots', `
-      <h2 style="margin-top:0">Nilai ${esc(lot.code)} <span class="muted" style="font-size:16px">${esc(lot.groupName)} · ${kg(lot.kgIn)} diterima</span></h2>
+      <h2 class="ix-1">Nilai ${esc(lot.code)} <span class="muted ix-47">${esc(lot.groupName)} · ${kg(lot.kgIn)} diterima</span></h2>
       <form id="grade" class="card" novalidate>
         <div class="notice" data-form-error hidden role="alert"></div>
         <div class="form-grid">
@@ -1575,13 +1579,13 @@ const ICONS = {
         </div>
         <div class="btn-row"><button class="btn" type="submit" id="g-save">Simpan penilaian</button><a class="btn secondary" href="#/admin/lot">Kembali ke lot</a></div>
       </form>
-      ${(lot.photos || []).length ? `<h3 style="margin-top:20px">Foto pemeriksaan</h3><div class="btn-row">${lot.photos.map((p) => `<figure style="margin:0"><img data-photo="${esc(p.id)}" alt="Foto ${p.kind === 'sample' ? 'sampel' : 'karung'}" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)"><figcaption class="help">${p.kind === 'sample' ? 'Sampel' : 'Karung'}</figcaption></figure>`).join('')}</div>` : ''}
+      ${(lot.photos || []).length ? `<h3 class="ix-5">Foto pemeriksaan</h3><div class="btn-row">${lot.photos.map((p) => `<figure class="ix-10"><img data-photo="${esc(p.id)}" alt="Foto ${p.kind === 'sample' ? 'sampel' : 'karung'}" class="ix-25"><figcaption class="help">${p.kind === 'sample' ? 'Sampel' : 'Karung'}</figcaption></figure>`).join('')}</div>` : ''}
       ${listingEditorHtml(lot)}`));
     wireSignOut();
     wireListingEditor(lot);
     main.querySelectorAll('img[data-photo]').forEach(async (img) => {
       try {
-        const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.photo)}`, { headers: { Authorization: 'Bearer ' + adminToken() } });
+        const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.photo)}`, { headers: { 'X-Requested-With': 'fetch' } });
         if (res.ok) img.src = URL.createObjectURL(await res.blob());
       } catch { /* foto tidak tersedia */ }
     });
@@ -1609,8 +1613,8 @@ const ICONS = {
     const [{ orders }, box] = await Promise.all([api('/api/admin/orders', { admin: true }), api('/api/admin/outbox', { admin: true })]);
     const statuses = ['requested', 'confirmed', 'paid', 'shipped', 'delivered', 'cancelled'];
     setMain(adminShell('orders', `
-      <h2 style="margin-top:0">Pesanan</h2>
-      <p class="muted" style="font-size:14px">Isi referensi transfer sebelum menandai dibayar.</p>
+      <h2 class="ix-1">Pesanan</h2>
+      <p class="muted ix-29">Isi referensi transfer sebelum menandai dibayar.</p>
       <div class="ord-list">
         ${orders.map((o) => `
           <article class="ord-card">
@@ -1641,10 +1645,10 @@ const ICONS = {
           </article>`).join('') || '<p class="muted">Belum ada pesanan.</p>'}
       </div>
       <h2>Pesan ke pelanggan</h2>
-      <p class="muted" style="font-size:14px">Email: ${box.providers.email ? 'terhubung' : 'belum diatur, pesan menunggu'} · WhatsApp: ${box.providers.whatsapp ? 'terhubung' : 'belum diatur, pesan menunggu'}</p>
+      <p class="muted ix-29">Email: ${box.providers.email ? 'terhubung' : 'belum diatur, pesan menunggu'} · WhatsApp: ${box.providers.whatsapp ? 'terhubung' : 'belum diatur, pesan menunggu'}</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Pesanan</th><th>Kanal</th><th>Kepada</th><th>Status</th><th>Waktu</th></tr></thead>
-        <tbody>${box.items.map((m) => `<tr><td>${esc(m.orderNumber)}</td><td>${esc(m.channel === 'email' ? 'Email' : 'WhatsApp')}</td><td>${esc(m.to)}</td><td><span class="pill ${m.status === 'sent' ? 'ok' : m.status === 'failed' ? 'bad' : 'warn'}">${esc({ queued: 'Menunggu', sent: 'Terkirim', failed: 'Gagal' }[m.status] || m.status)}</span>${m.lastError ? `<br><span class="muted" style="font-size:12px">${esc(m.lastError)}</span>` : ''}</td><td>${tanggal(m.createdAt)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada pesan.</td></tr>'}</tbody></table></div>`));
+        <tbody>${box.items.map((m) => `<tr><td>${esc(m.orderNumber)}</td><td>${esc(m.channel === 'email' ? 'Email' : 'WhatsApp')}</td><td>${esc(m.to)}</td><td><span class="pill ${m.status === 'sent' ? 'ok' : m.status === 'failed' ? 'bad' : 'warn'}">${esc({ queued: 'Menunggu', sent: 'Terkirim', failed: 'Gagal' }[m.status] || m.status)}</span>${m.lastError ? `<br><span class="muted ix-46">${esc(m.lastError)}</span>` : ''}</td><td>${tanggal(m.createdAt)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada pesan.</td></tr>'}</tbody></table></div>`));
     wireSignOut();
     main.querySelectorAll('button[data-sim]').forEach((b) => b.addEventListener('click', async () => {
       try { await api(`/api/admin/payments/${encodeURIComponent(b.dataset.sim)}/simulate`, { method: 'POST', admin: true }); toast('Pembayaran simulasi diterima'); viewAdminOrders(); }
@@ -1677,27 +1681,27 @@ const ICONS = {
     if (!o) return '';
     const got = offeredKg(o), asked = (p.form && p.form.quantityKg) || 0;
     if (got >= asked) return '';
-    return `<p class="notice bad" style="margin:8px 0 0;font-size:14px" role="status">Penawaran ${kg(got)} dari ${kg(asked)} yang diminta.</p>`;
+    return `<p class="notice bad ix-45" role="status">Penawaran ${kg(got)} dari ${kg(asked)} yang diminta.</p>`;
   }
   function bankBlock(p) {
     const due = ['deposit_pending', 'balance_pending'].includes(p.status);
     if (!due) return '';
     const b = state.config.payment.bank || {};
-    return `<div class="card" style="margin-top:10px;padding:12px 14px"><strong>Transfer ke rekening</strong>
-      <dl style="margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px">
-        <dt>Bank</dt><dd style="margin:0">${esc(b.bankName || '')}</dd>
-        <dt>Atas nama</dt><dd style="margin:0">${esc(b.accountName || '')}</dd>
-        <dt>Nomor rekening</dt><dd style="margin:0">${esc(b.accountNumber || '')}</dd>
-        <dt>Jumlah</dt><dd style="margin:0">${rp(p.status === 'deposit_pending' ? p.deposit.amount : p.balance.amount)}</dd>
+    return `<div class="card ix-44"><strong>Transfer ke rekening</strong>
+      <dl class="ix-43">
+        <dt>Bank</dt><dd class="ix-10">${esc(b.bankName || '')}</dd>
+        <dt>Atas nama</dt><dd class="ix-10">${esc(b.accountName || '')}</dd>
+        <dt>Nomor rekening</dt><dd class="ix-10">${esc(b.accountNumber || '')}</dd>
+        <dt>Jumlah</dt><dd class="ix-10">${rp(p.status === 'deposit_pending' ? p.deposit.amount : p.balance.amount)}</dd>
       </dl></div>`;
   }
   function propCard(p) {
     return `<article class="card prop-card">
       <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
-      <p class="muted" style="margin:6px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')}</p>
-      ${p.offers && p.offers.length ? `<p class="muted" style="margin:6px 0 0;font-size:14px">Penawaran terakhir: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
-      ${p.deposit ? `<p class="muted" style="margin:6px 0 0;font-size:14px">DP ${rp(p.deposit.amount)}${p.deposit.paidAt ? ' (sudah dibayar)' : ''}</p>` : ''}
-      ${p.status === 'offered' ? `<div class="btn-row" style="margin-top:10px"><button class="btn small" type="button" data-prop-respond="accept" data-id="${esc(p.id)}">Terima</button><button class="btn secondary small" type="button" data-prop-respond="counter" data-id="${esc(p.id)}">Ajukan perubahan</button><button class="btn secondary small" type="button" data-prop-respond="decline" data-id="${esc(p.id)}">Tolak</button></div>` : ''}
+      <p class="muted ix-42">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')}</p>
+      ${p.offers && p.offers.length ? `<p class="muted ix-42">Penawaran terakhir: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
+      ${p.deposit ? `<p class="muted ix-42">DP ${rp(p.deposit.amount)}${p.deposit.paidAt ? ' (sudah dibayar)' : ''}</p>` : ''}
+      ${p.status === 'offered' ? `<div class="btn-row ix-23"><button class="btn small" type="button" data-prop-respond="accept" data-id="${esc(p.id)}">Terima</button><button class="btn secondary small" type="button" data-prop-respond="counter" data-id="${esc(p.id)}">Ajukan perubahan</button><button class="btn secondary small" type="button" data-prop-respond="decline" data-id="${esc(p.id)}">Tolak</button></div>` : ''}
       ${qtyNote(p)}${propDetail(p)}${bankBlock(p)}
       <p class="error" data-prop-error hidden></p>
     </article>`;
@@ -1709,16 +1713,16 @@ const ICONS = {
     const latest = offers[offers.length - 1];
     const lines = (latest.lines || []).map((l) => `<tr><td>${esc(l.lotCode)}</td><td class="prop-tier-col">${esc(tierLabel(l.tier))}</td><td class="num">${kg(l.kg)}</td><td class="num">${rp(l.pricePerKg)}</td><td class="num">${rp(l.amount)}</td></tr>`).join('');
     const deliveryLabel = latest.deliveryTerms === 'collect_jayapura' ? 'Ambil di Jayapura' : 'Diantar ke alamat tujuan';
-    const agreed = p.agreedOffer ? `<p class="muted" style="margin:6px 0 0;font-size:13px">Disepakati: penawaran v${p.agreedOffer.version}, kode ${esc(String(p.agreedOffer.hash).slice(0, 16))}…</p>` : '';
-    const history = offers.length > 1 ? `<p class="muted" style="margin:6px 0 0;font-size:13px">Versi sebelumnya: ${offers.slice(0, -1).map((o) => 'v' + o.version + ' (' + esc(o.status) + ')').join(', ')}</p>` : '';
+    const agreed = p.agreedOffer ? `<p class="muted ix-41">Disepakati: penawaran v${p.agreedOffer.version}, kode ${esc(String(p.agreedOffer.hash).slice(0, 16))}…</p>` : '';
+    const history = offers.length > 1 ? `<p class="muted ix-41">Versi sebelumnya: ${offers.slice(0, -1).map((o) => 'v' + o.version + ' (' + esc(o.status) + ')').join(', ')}</p>` : '';
     return `<details class="prop-detail" open>
       <summary>Detail penawaran v${latest.version}</summary>
-      <div class="table-wrap" style="margin-top:8px"><table>
+      <div class="table-wrap ix-6"><table>
         <thead><tr><th>Lot</th><th class="prop-tier-col">Tingkat</th><th class="num">Jumlah</th><th class="num">Harga/kg</th><th class="num">Subtotal</th></tr></thead>
         <tbody>${lines}</tbody>
       </table></div>
-      <p style="margin:10px 0 0;font-weight:700;color:var(--heading)">Total: ${rp(latest.total)}</p>
-      <ul class="muted" style="margin:10px 0 0;padding-left:18px;font-size:14px;display:grid;gap:4px">
+      <p class="ix-40">Total: ${rp(latest.total)}</p>
+      <ul class="muted ix-39">
         <li>Syarat pengiriman: ${esc(deliveryLabel)}</li>
         <li>Berlaku sampai: ${tanggal(latest.validUntil)}</li>
         <li>DP ${esc(String((p.deposit && p.deposit.pct) || 30))}%${p.deposit ? ': ' + rp(p.deposit.amount) : ' (dihitung saat disepakati)'}</li>
@@ -1741,11 +1745,11 @@ const ICONS = {
     setMain(`
       <h1>Pesanan besar</h1>
       <p class="muted">Untuk pesanan 1.000 kg ke atas. Isi proposal, kami tinjau dan verifikasi, lalu kami kirim penawaran tertulis untuk disetujui kedua pihak.</p>
-      <h2 style="margin-top:28px">Proposal saya</h2>
+      <h2 class="ix-38">Proposal saya</h2>
       <div class="prop-list">${list.filter((p) => p !== draft).map(propCard).join('') || '<p class="muted">Belum ada proposal yang diajukan.</p>'}</div>
-      <h2 style="margin-top:32px">${draft ? 'Lanjutkan proposal' : 'Ajukan proposal baru'}</h2>
-      ${draft && draft.status === 'need_info' && draft.infoRequest ? `<div class="notice" role="status" style="margin-bottom:12px">Kami perlu informasi: <strong>${esc(draft.infoRequest.message)}</strong>. Perbarui kolom di bawah, lalu kirim ulang.</div>` : ''}
-      <form id="prop-form" class="card" style="padding:20px;display:grid;gap:14px">
+      <h2 class="ix-37">${draft ? 'Lanjutkan proposal' : 'Ajukan proposal baru'}</h2>
+      ${draft && draft.status === 'need_info' && draft.infoRequest ? `<div class="notice ix-36" role="status">Kami perlu informasi: <strong>${esc(draft.infoRequest.message)}</strong>. Perbarui kolom di bawah, lalu kirim ulang.</div>` : ''}
+      <form id="prop-form" class="card ix-35">
         <div class="prop-grid">
           ${field('company', 'Nama perusahaan', 'required maxlength="120"')}
           ${field('npwp', 'NPWP', 'required maxlength="30"')}
@@ -1760,7 +1764,7 @@ const ICONS = {
           ${field('packaging', 'Kemasan (opsional)', 'maxlength="120"')}
           ${field('minScore', 'Skor cupping minimal (opsional)', 'type="number" min="70" max="95"')}
         </div>
-        <fieldset style="border:0;padding:0;margin:0"><legend style="font-weight:600">Tingkat yang diminati</legend>
+        <fieldset class="ix-34"><legend class="ix-32">Tingkat yang diminati</legend>
           <div class="btn-row">${PROP_TIERS.map(([v, l]) => `<label class="check"><input type="checkbox" name="tiers" value="${v}" ${tierOn(v)}> ${l}</label>`).join('')}</div>
         </fieldset>
         <div class="prop-grid">
@@ -1768,7 +1772,7 @@ const ICONS = {
           <label>Ongkir ditanggung<select name="freightBy"><option value="buyer" ${sel('freightBy', 'buyer')}>Pembeli</option><option value="anugerah" ${sel('freightBy', 'anugerah')}>AnugerahLink (dihitung terpisah)</option></select></label>
           <label>Kegunaan (opsional)<input name="intendedUse" maxlength="240" value="${val('intendedUse')}"></label>
         </div>
-        <fieldset style="border:0;padding:0;margin:0;display:grid;gap:8px"><legend style="font-weight:600">Persetujuan</legend>
+        <fieldset class="ix-33"><legend class="ix-32">Persetujuan</legend>
           <label class="check"><input type="checkbox" data-agree="accurate"> Data yang saya isi benar.</label>
           <label class="check"><input type="checkbox" data-agree="verification"> Saya setuju perusahaan saya diverifikasi.</label>
           <label class="check"><input type="checkbox" data-agree="offerSubject"> Penawaran tunduk pada ketersediaan lot dan kesepakatan tertulis kedua pihak.</label>
@@ -1871,7 +1875,7 @@ const ICONS = {
       const value = name === 'kg' ? ` value="${esc(asked)}"` : '';
       return `<label>${esc(label)}<input name="${name}" ${kind === 'number' ? 'type="number" min="100" step="100"' : ''}${value} ${req ? 'required' : ''}></label>`;
     }).join('');
-    const hint = action === 'make_offer' ? `<p class="muted" style="margin:0;font-size:13px">Diminta pembeli: ${kg(asked)} ${askedTier ? '· ' + esc(tierLabel(askedTier)) : ''}. Lot dipilih otomatis dari stok tingkat itu.</p>` : '';
+    const hint = action === 'make_offer' ? `<p class="muted ix-31">Diminta pembeli: ${kg(asked)} ${askedTier ? '· ' + esc(tierLabel(askedTier)) : ''}. Lot dipilih otomatis dari stok tingkat itu.</p>` : '';
     return `<form class="prop-action-form" data-action="${action}" data-id="${esc(p.id)}" hidden>${fields}
       ${hint}<div class="btn-row"><button class="btn small" type="submit">Simpan</button><button class="btn secondary small" type="button" data-prop-cancel>Batal</button></div>
       <p class="error" data-prop-error hidden></p></form>`;
@@ -1882,19 +1886,19 @@ const ICONS = {
       : `<button class="btn small" type="button" data-prop-action="${a}" data-id="${esc(p.id)}">${esc(l)}</button>`).join('');
     const decline = ['submitted', 'in_review', 'need_info', 'negotiating'].includes(p.status) ? `<button class="btn secondary small" type="button" data-prop-toggle="decline">Tolak</button>` : '';
     const forms = Object.keys(PROP_FIELDS).filter((a) => (PROP_NEXT[p.status] || []).some(([x]) => x === a) || (a === 'decline' && decline)).map((a) => propActionForm(p, a)).join('');
-    return `<div class="btn-row" style="margin-top:10px">${buttons}${decline}</div>${forms}`;
+    return `<div class="btn-row ix-23">${buttons}${decline}</div>${forms}`;
   }
   async function viewAdminProposals() {
     const { proposals: list } = await api('/api/admin/proposals', { admin: true });
     setMain(adminShell('proposal', `
-      <h2 style="margin-top:0">Proposal pesanan besar</h2>
-      <p class="muted" style="font-size:14px">Tinjau, verifikasi, lalu catat setiap langkah. Setiap perubahan tercatat di riwayat proposal dan memicu pesan ke pembeli.</p>
+      <h2 class="ix-1">Proposal pesanan besar</h2>
+      <p class="muted ix-29">Tinjau, verifikasi, lalu catat setiap langkah. Setiap perubahan tercatat di riwayat proposal dan memicu pesan ke pembeli.</p>
       <div class="prop-list">${list.map((p) => `
         <article class="card prop-card">
           <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
-          <p style="margin:6px 0 0">${esc(p.buyer.company || p.buyer.name)} · ${esc(p.buyer.email)}</p>
-          <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')} · NPWP ${esc(p.form.npwp || '—')}</p>
-          ${p.offers && p.offers.length ? `<p class="muted" style="margin:4px 0 0;font-size:14px">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)} · ${kg(offeredKg(p.offers[p.offers.length - 1]))}</p>` : ''}
+          <p class="ix-30">${esc(p.buyer.company || p.buyer.name)} · ${esc(p.buyer.email)}</p>
+          <p class="muted ix-11">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')} · NPWP ${esc(p.form.npwp || '—')}</p>
+          ${p.offers && p.offers.length ? `<p class="muted ix-11">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)} · ${kg(offeredKg(p.offers[p.offers.length - 1]))}</p>` : ''}
           ${qtyNote(p)}
           ${propStaffButtons(p)}
           <p class="error" data-prop-error hidden></p>
@@ -1933,15 +1937,15 @@ const ICONS = {
     const [{ feedback }, { groups }] = await Promise.all([api('/api/admin/feedback', { admin: true }), api('/api/admin/groups', { admin: true })]);
     const tags = [['pass-to-farmer', 'Teruskan ke petani'], ['internal-quality', 'Mutu internal'], ['internal-logistics', 'Logistik internal'], ['discard', 'Buang']];
     setMain(adminShell('feedback', `
-      <h2 style="margin-top:0">Feedback</h2>
-      <p class="muted" style="font-size:14px">Hanya "Teruskan ke petani" yang masuk laporan.</p>
+      <h2 class="ix-1">Feedback</h2>
+      <p class="muted ix-29">Hanya "Teruskan ke petani" yang masuk laporan.</p>
       <div class="table-wrap"><table>
         <thead><tr><th>Pesanan · Lot</th><th>Rasa</th><th>Masalah</th><th>Pesan ulang</th><th>Tag</th></tr></thead>
         <tbody>
           ${feedback.map((f) => `
             <tr>
               <td>${esc(f.orderNumber)}<br>${esc(f.lotCode)}</td>
-              <td>${esc(f.taste || '—')}${f.notes ? '<br><span class="muted" style="font-size:13px">' + esc(f.notes) + '</span>' : ''}</td>
+              <td>${esc(f.taste || '—')}${f.notes ? '<br><span class="muted ix-28">' + esc(f.notes) + '</span>' : ''}</td>
               <td>${esc(f.issues)}</td>
               <td>${esc(f.reorder)}</td>
               <td><select data-tag="${esc(f.id)}" aria-label="Tag untuk ${esc(f.lotCode)}"><option value="">Belum ditandai</option>${tags.map(([t, l]) => `<option value="${t}" ${f.tag === t ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></td>
@@ -1953,7 +1957,7 @@ const ICONS = {
         <select id="rep-group">${groups.map((g) => `<option value="${esc(g.id)}">${esc(g.name)}</option>`).join('')}</select>
         <button class="btn secondary small" type="submit">Tampilkan laporan</button>
       </form>
-      <div id="report-out" style="margin-top:12px"></div>`));
+      <div id="report-out" class="ix-16"></div>`));
     wireSignOut();
     main.querySelectorAll('select[data-tag]').forEach((sel) => sel.addEventListener('change', async () => {
       try { await api(`/api/admin/feedback/${encodeURIComponent(sel.dataset.tag)}`, { method: 'PATCH', admin: true, body: { tag: sel.value } }); toast('Tag tersimpan'); }
@@ -1965,7 +1969,7 @@ const ICONS = {
       const rep = await api(`/api/admin/farmer-report/${encodeURIComponent(id)}`, { admin: true });
       document.getElementById('report-out').innerHTML = `
         <div class="card">
-          <h3 style="margin-top:0">${esc(rep.group)}</h3>
+          <h3 class="ix-1">${esc(rep.group)}</h3>
           <h4>Lot Anda</h4>
           <div class="table-wrap"><table><thead><tr><th>Lot</th><th>Grade</th><th class="num">Cupping</th><th>Kategori</th><th class="num">Kg terjual</th></tr></thead>
           <tbody>${rep.lots.map((l) => `<tr><td>${esc(l.code)}</td><td>${esc(l.grade)}</td><td class="num">${esc(l.cupScore)}</td><td>${esc(tierLabel(l.tier))}</td><td class="num">${kg(l.soldKg)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada lot yang dinilai.</td></tr>'}</tbody></table></div>
@@ -1978,7 +1982,7 @@ const ICONS = {
   async function viewAdminSettings() {
     const c = await api('/api/admin/config', { admin: true });
     setMain(adminShell('settings', `
-      <h2 style="margin-top:0">Aturan bisnis yang dipakai</h2>
+      <h2 class="ix-1">Aturan bisnis yang dipakai</h2>
       <div class="table-wrap"><table><tbody>
         <tr><td>Harga beli per kg</td><td class="num">${rp(c.buyPricePerKg)}</td></tr>
         <tr><td>Kehilangan sortir dan pengeringan</td><td class="num">${Math.round(c.sortingLossPct * 100)}%</td></tr>
@@ -2022,7 +2026,7 @@ const ICONS = {
         <div data-form-error class="notice bad" hidden></div>
         ${block('light', 'Mode terang')}
         ${block('dark', 'Mode gelap')}
-        <div class="field" style="max-width:320px"><label for="t-radius">Sudut kotak dan tombol</label>
+        <div class="field ix-4"><label for="t-radius">Sudut kotak dan tombol</label>
           <select id="t-radius" name="radius">${Object.keys(SUDUT).map((k) => `<option value="${k}"${k === sudutNow ? ' selected' : ''}>${esc(SUDUT_LABEL[k])}</option>`).join('')}</select>
         </div>
         <div class="btn-row">
@@ -2181,12 +2185,12 @@ const ICONS = {
           <textarea id="l-story" name="story" maxlength="1000" ${dis}>${esc(lot.story || '')}</textarea>
           <p class="help">Maksimal 1000 karakter. Tulis fakta dari kebun: asal, panen, dan cara proses.</p></div>
         <div class="field"><span class="label">Foto katalog</span>
-          <div class="btn-row" style="align-items:flex-start">
-            ${photos.map((p) => `<figure style="margin:0;width:160px"><img data-listing="${esc(p.id)}" alt="Foto katalog" style="width:160px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:var(--surface)">
-              <figcaption style="margin-top:6px"><label><input type="radio" name="cover" value="${esc(p.id)}" ${lot.coverPhotoId === p.id ? 'checked' : ''} ${dis}> Sampul</label>
-              ${can ? `<button type="button" class="btn danger small" data-del="${esc(p.id)}" style="margin-top:6px">Hapus</button>` : ''}</figcaption></figure>`).join('') || '<p class="muted">Belum ada foto katalog.</p>'}
+          <div class="btn-row ix-27">
+            ${photos.map((p) => `<figure class="ix-26"><img data-listing="${esc(p.id)}" alt="Foto katalog" class="ix-25">
+              <figcaption class="ix-24"><label><input type="radio" name="cover" value="${esc(p.id)}" ${lot.coverPhotoId === p.id ? 'checked' : ''} ${dis}> Sampul</label>
+              ${can ? `<button type="button" class="btn danger small ix-24" data-del="${esc(p.id)}">Hapus</button>` : ''}</figcaption></figure>`).join('') || '<p class="muted">Belum ada foto katalog.</p>'}
           </div>
-          ${can ? '<input type="file" id="l-file" accept="image/jpeg,image/png" style="margin-top:10px">' : ''}
+          ${can ? '<input type="file" id="l-file" accept="image/jpeg,image/png" class="ix-23">' : ''}
           <p class="help">JPG atau PNG, maksimal 2 MB. Pilih satu foto sebagai sampul.</p></div>
         <div class="btn-row">${can ? '<button class="btn" type="submit" data-save>Simpan tampilan</button>' : ''}</div>
       </form>`;
@@ -2197,7 +2201,7 @@ const ICONS = {
     if (!form) return;
     form.querySelectorAll('img[data-listing]').forEach(async (img) => {
       try {
-        const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.listing)}`, { headers: { Authorization: 'Bearer ' + adminToken() } });
+        const res = await fetch(`/api/admin/photos/${encodeURIComponent(img.dataset.listing)}`, { headers: { 'X-Requested-With': 'fetch' } });
         if (res.ok) img.src = URL.createObjectURL(await res.blob());
       } catch { /* foto tidak tersedia */ }
     });
@@ -2250,14 +2254,15 @@ const ICONS = {
       <h1>${esc(page.title)}</h1>
       ${legal.reviewed ? '' : '<p class="notice">Draf. Teks ini sedang ditinjau dan belum berlaku.</p>'}
       <p class="muted">Berlaku sejak ${esc(legal.updatedAt)} · versi ${esc(legal.version)}</p>
-      <div class="card" style="max-width:820px">
-        ${page.sections.map((s) => `<h2 style="margin-top:20px;font-size:1.125rem">${esc(s.h)}</h2>${s.p.map((t) => `<p>${esc(t)}</p>`).join('')}`).join('')}
+      <div class="card ix-22">
+        ${page.sections.map((s) => `<h2 class="ix-21">${esc(s.h)}</h2>${s.p.map((t) => `<p>${esc(t)}</p>`).join('')}`).join('')}
       </div>`);
   }
 
   // ---------- akun pembeli ----------
   const BUYER_PATHS = ['/api/buyer', '/api/orders'];
   function isBuyerPath(path) { return BUYER_PATHS.some((b) => path === b || path.startsWith(b + '/') || path.startsWith(b + '?')); }
+  // Penanda saja (bukan token): menandakan pembeli sudah masuk.
   function buyerToken() { try { return localStorage.getItem('al-buyer') || ''; } catch { return ''; } }
   // Pemeriksaan publik catatan lot: siapa pun bisa memasukkan kode lot dan hash untuk memastikan datanya tidak berubah.
   function viewVerify(query) {
@@ -2266,13 +2271,13 @@ const ICONS = {
     setMain(`
       <h1>Periksa catatan lot</h1>
       <p class="muted">Masukkan kode lot dan kode hash dari paspor. Kami hitung ulang data lot dan membandingkannya dengan catatan saat diterbitkan.</p>
-      <form id="verify-form" class="card" style="max-width:640px" novalidate>
+      <form id="verify-form" class="card ix-20" novalidate>
         <div class="notice bad" data-form-error hidden role="alert"></div>
         <div class="field"><label for="v-code">Kode lot</label><input id="v-code" name="code" required placeholder="AL-2611-001" value="${esc(code)}" autocomplete="off"></div>
-        <div class="field"><label for="v-hash">Kode hash (SHA-256)</label><input id="v-hash" name="hash" required value="${esc(hash)}" autocomplete="off" style="font-family:ui-monospace,monospace"></div>
+        <div class="field"><label for="v-hash">Kode hash (SHA-256)</label><input id="v-hash" name="hash" required value="${esc(hash)}" autocomplete="off" class="ix-19"></div>
         <button class="btn" type="submit" data-save>Periksa</button>
       </form>
-      <div id="verify-result" style="margin-top:16px"></div>`);
+      <div id="verify-result" class="ix-18"></div>`);
     const form = document.getElementById('verify-form');
     const out = document.getElementById('verify-result');
     const show = async () => {
@@ -2299,7 +2304,7 @@ const ICONS = {
   }
 
   function authPage(title, inner) {
-    setMain(`<section class="card" style="max-width:520px;margin:24px auto 0"><h1 style="margin-top:0">${esc(title)}</h1>${inner}</section>`);
+    setMain(`<section class="card ix-17"><h1 class="ix-1">${esc(title)}</h1>${inner}</section>`);
   }
 
   async function viewVerifyEmail(token) {
@@ -2324,7 +2329,7 @@ const ICONS = {
         <div class="field"><label for="fg-email">Email</label><input id="fg-email" name="email" type="email" required autocomplete="email"></div>
         <div class="btn-row"><button class="btn" type="submit" data-save>Kirim tautan</button></div>
       </form>
-      <p class="muted" style="margin-top:12px"><a href="#/akun">Kembali ke masuk</a></p>`);
+      <p class="muted ix-16"><a href="#/akun">Kembali ke masuk</a></p>`);
     const form = document.getElementById('forgot-form');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2365,7 +2370,12 @@ const ICONS = {
     });
   }
 
-  function setBuyerToken(t) { try { if (t) localStorage.setItem('al-buyer', t); else localStorage.removeItem('al-buyer'); } catch { /* abaikan */ } }
+  function setBuyerToken(t) { try { if (t) localStorage.setItem('al-buyer', '1'); else localStorage.removeItem('al-buyer'); } catch { /* abaikan */ } }
+  // Pendaftaran tidak mengembalikan token. Bila akun baru dibuat, server sudah memasang cookie sesi; cek lewat /api/buyer/me.
+  async function buyerSignedIn() {
+    try { const me = (await api('/api/buyer/me')).buyer; setBuyerToken(me ? '1' : ''); return Boolean(me); }
+    catch { setBuyerToken(''); return false; }
+  }
 
   function addressFieldsHtml(a) {
     return `
@@ -2387,11 +2397,11 @@ const ICONS = {
     try { me = (await api('/api/buyer/me')).buyer; } catch { setBuyerToken(''); return viewBuyerAuth(); }
     const [{ orders }, { proposals }] = await Promise.all([api('/api/buyer/orders'), api('/api/buyer/proposals')]);
     setMain(`
-      <div class="btn-row" style="justify-content:space-between;align-items:flex-end">
-        <div><h1 style="margin-bottom:4px">Akun saya</h1><p class="muted" style="margin:0">Halo, ${esc(me.name)}. ${esc(me.email)}</p></div>
+      <div class="btn-row ix-15">
+        <div><h1 class="ix-14">Akun saya</h1><p class="muted ix-10">Halo, ${esc(me.name)}. ${esc(me.email)}</p></div>
         <button class="btn secondary small" type="button" id="buyer-out">Keluar</button>
       </div>
-      ${me.emailVerified ? '' : `<div class="notice" role="status" style="margin:16px 0"><div class="btn-row" style="justify-content:space-between;align-items:center"><span>Email Anda belum dikonfirmasi. Cek kotak masuk, atau kirim ulang tautannya.</span><button class="btn secondary small" type="button" id="resend-verify">Kirim ulang</button></div></div>`}
+      ${me.emailVerified ? '' : `<div class="notice ix-13" role="status"><div class="btn-row ix-12"><span>Email Anda belum dikonfirmasi. Cek kotak masuk, atau kirim ulang tautannya.</span><button class="btn secondary small" type="button" id="resend-verify">Kirim ulang</button></div></div>`}
       <h2>Pesanan saya</h2>
       ${orders.length ? `<div class="table-wrap"><table><thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead><tbody>
         ${orders.map((o) => `<tr><td>${esc(o.number)}</td><td>${tanggal(o.createdAt)}</td><td>${esc(o.statusLabel)}</td><td class="num">${rp(o.total)}</td><td><a href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a> · <button type="button" class="btn secondary small" data-invoice="${esc(o.number)}">Faktur PDF</button></td></tr>`).join('')}
@@ -2399,19 +2409,19 @@ const ICONS = {
       <h2>Proposal saya</h2>
       ${proposals.length ? `<div class="prop-list">${proposals.map((p) => `<article class="card prop-card">
         <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.statusLabel || p.status)}</span></div>
-        <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))}${p.offers && p.offers.length ? ' · Penawaran terakhir ' + rp(p.offers[p.offers.length - 1].total) : ''}</p>
-        <div class="btn-row" style="margin-top:8px"><a class="btn secondary small" href="#/proposal">Lihat proposal</a></div>
-      </article>`).join('')}</div>` : '<div class="card"><p class="muted" style="margin:0">Belum ada proposal pesanan besar. <a href="#/proposal">Ajukan pesanan 1 ton atau lebih</a>.</p></div>'}
+        <p class="muted ix-11">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))}${p.offers && p.offers.length ? ' · Penawaran terakhir ' + rp(p.offers[p.offers.length - 1].total) : ''}</p>
+        <div class="btn-row ix-6"><a class="btn secondary small" href="#/proposal">Lihat proposal</a></div>
+      </article>`).join('')}</div>` : '<div class="card"><p class="muted ix-10">Belum ada proposal pesanan besar. <a href="#/proposal">Ajukan pesanan 1 ton atau lebih</a>.</p></div>'}
       <h2>Alamat tersimpan</h2>
       <div class="grid">${me.addresses.map((a) => `
-        <div class="card"><div class="btn-row" style="justify-content:space-between"><strong>${esc(a.label)}</strong>${a.isDefault ? '<span class="pill ok">Utama</span>' : ''}</div>
-          <p style="margin:8px 0 0">${esc(a.recipient)} · ${esc(a.phone)}</p>
-          <p class="muted" style="margin:4px 0">${esc(a.street)}, ${esc(a.city)}${a.province ? ', ' + esc(a.province) : ''}${a.postal ? ' ' + esc(a.postal) : ''}</p>
-          <div class="btn-row" style="margin-top:8px">
+        <div class="card"><div class="btn-row ix-9"><strong>${esc(a.label)}</strong>${a.isDefault ? '<span class="pill ok">Utama</span>' : ''}</div>
+          <p class="ix-8">${esc(a.recipient)} · ${esc(a.phone)}</p>
+          <p class="muted ix-7">${esc(a.street)}, ${esc(a.city)}${a.province ? ', ' + esc(a.province) : ''}${a.postal ? ' ' + esc(a.postal) : ''}</p>
+          <div class="btn-row ix-6">
             ${a.isDefault ? '' : `<button class="btn secondary small" type="button" data-default="${esc(a.id)}">Jadikan utama</button>`}
             <button class="btn danger small" type="button" data-remove="${esc(a.id)}">Hapus</button>
           </div></div>`).join('') || '<p class="muted">Belum ada alamat tersimpan.</p>'}</div>
-      <h3 style="margin-top:20px">Tambah alamat</h3>
+      <h3 class="ix-5">Tambah alamat</h3>
       <form id="addr-form" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
         ${addressFieldsHtml({})}
         <div class="btn-row"><button class="btn" type="submit" data-save>Simpan alamat</button></div></form>
@@ -2440,7 +2450,7 @@ const ICONS = {
       <h2>Hapus akun</h2>
       <form id="buyer-delete" class="card" novalidate><div class="notice bad" data-form-error hidden role="alert"></div>
         <p>Akun dan data pribadi Anda dihapus. Pesanan tetap tercatat tanpa nama, email, dan telepon. Tindakan ini tidak bisa dibatalkan.</p>
-        <div class="field" style="max-width:320px"><label for="bd-pw">Kata sandi untuk konfirmasi</label><input id="bd-pw" name="password" type="password" required autocomplete="current-password"></div>
+        <div class="field ix-4"><label for="bd-pw">Kata sandi untuk konfirmasi</label><input id="bd-pw" name="password" type="password" required autocomplete="current-password"></div>
         <div class="btn-row"><button class="btn danger" type="submit" data-save>Hapus akun saya</button></div></form>`);
     wireAccount(me);
   }
@@ -2479,7 +2489,7 @@ const ICONS = {
     }));
     document.getElementById('buyer-export').addEventListener('click', async () => {
       try {
-        const res = await fetch('/api/buyer/export', { headers: { Authorization: 'Bearer ' + buyerToken() } });
+        const res = await fetch('/api/buyer/export', { headers: { 'X-Requested-With': 'fetch' } });
         if (!res.ok) throw new Error('Data belum bisa diunduh.');
         const url = URL.createObjectURL(await res.blob());
         const a = document.createElement('a'); a.href = url; a.download = 'data-saya.json';
@@ -2521,7 +2531,7 @@ const ICONS = {
   // Unduh faktur. Pembeli memakai token akun; tamu memakai email di tautan.
   async function downloadInvoice(number, path, withToken) {
     try {
-      const res = await fetch(path, { headers: withToken ? { Authorization: 'Bearer ' + buyerToken() } : {} });
+      const res = await fetch(path, { headers: { 'X-Requested-With': 'fetch' } });
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error((j.error && j.error.message) || 'Faktur belum bisa diunduh.'); }
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement('a');
@@ -2547,14 +2557,14 @@ const ICONS = {
     setMain(`
       <h1>Akun pembeli</h1>
       <p class="muted">Masuk untuk memesan, menyimpan alamat, dan melihat riwayat pesanan. Memilih lot dan mengisi keranjang tetap bebas tanpa akun.</p>
-      <div class="grid" style="grid-template-columns:1fr">
-        <form id="buyer-login" class="card" novalidate><h2 style="margin-top:0">Masuk</h2>
+      <div class="grid ix-3">
+        <form id="buyer-login" class="card" novalidate><h2 class="ix-1">Masuk</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
           <div class="field"><label for="bl-email">Email</label><input id="bl-email" name="email" type="email" required autocomplete="email"></div>
           <div class="field"><label for="bl-pw">Kata sandi</label><input id="bl-pw" name="password" type="password" required autocomplete="current-password"></div>
           <div class="btn-row"><button class="btn" type="submit" data-save>Masuk</button></div>
-          <p class="muted" style="margin:12px 0 0"><a href="#/akun/lupa">Lupa kata sandi?</a></p></form>
-        <form id="buyer-signup" class="card" novalidate><h2 style="margin-top:0">Daftar</h2>
+          <p class="muted ix-2"><a href="#/akun/lupa">Lupa kata sandi?</a></p></form>
+        <form id="buyer-signup" class="card" novalidate><h2 class="ix-1">Daftar</h2>
           <div class="notice bad" data-form-error hidden role="alert"></div>
           <div class="form-grid">
             <div class="field"><label for="bs-name">Nama kontak</label><input id="bs-name" name="name" required minlength="2" maxlength="80" autocomplete="name"></div>
@@ -2572,7 +2582,7 @@ const ICONS = {
       e.preventDefault();
       login.querySelector('[data-form-error]').hidden = true;
       const btn = login.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
-      try { const r = await api('/api/buyer/login', { method: 'POST', body: formData(login) }); setBuyerToken(r.token); goAccount(); }
+      try { await api('/api/buyer/login', { method: 'POST', body: formData(login) }); setBuyerToken('1'); goAccount(); }
       catch (err) { showFormError(login, err); busy(btn, false); }
     });
     const signup = document.getElementById('buyer-signup');
@@ -2582,7 +2592,11 @@ const ICONS = {
       const f = formData(signup);
       f.consent = signup.elements.consent.checked;
       const btn = signup.querySelector('[data-save]'); busy(btn, true, 'Memproses…');
-      try { const r = await api('/api/buyer/signup', { method: 'POST', body: f }); setBuyerToken(r.token); toast('Akun dibuat. Selamat datang!'); goAccount(); }
+      try {
+        const r = await api('/api/buyer/signup', { method: 'POST', body: f });
+        if (await buyerSignedIn()) { toast('Akun dibuat. Selamat datang!'); goAccount(); }
+        else { toast(r.message); signup.reset(); busy(btn, false); }
+      }
       catch (err) { showFormError(signup, err); busy(btn, false); }
     });
   }
@@ -2709,20 +2723,8 @@ const ICONS = {
 
   // Terapkan tema dari config/theme.js sebagai variabel CSS.
   function applyTheme(t) {
-    const vars = (m) => `--green:${m.primary};--green-2:${m.primaryHover};--green-soft:${m.primarySoft};` +
-      `--gold:${m.accent};--gold-hi:${m.accentStrong};--gold-soft:${m.accentSoft};--gold-ink:${m.accentInk};` +
-      `--brown:${m.brown};--bg:${m.background};--surface:${m.surface};--ink:${m.text};--ink-muted:${m.textMuted};` +
-      `--line:${m.border};--brand:${m.primary};--on-primary:${m.onPrimary};--accent:${m.success};--danger:${m.danger};` +
-      `--heading:${m.heading};--hero-from:${m.heroFrom};--hero-to:${m.heroTo};--hero-ink:${m.heroInk};` +
-      `--footer-bg:${m.footerBg};--footer-ink:${m.footerInk};`;
-    const radius = `--radius-sm:${t.radius.sm};--radius:${t.radius.md};--radius-lg:${t.radius.lg};--font:${t.font};`;
-    const css = `:root{${vars(t.light)}${radius}}` +
-      `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${vars(t.dark)}}}` +
-      `:root[data-theme="dark"]{${vars(t.dark)}}`;
-    let el = document.getElementById('theme-vars');
-    if (!el) { el = document.createElement('style'); el.id = 'theme-vars'; document.head.appendChild(el); }
-    el.textContent = css;
-    try { localStorage.setItem('al-theme-css', css); } catch { /* abaikan */ }
+    window.applyThemeVars(t);
+    try { localStorage.setItem('al-theme-cfg', JSON.stringify(t)); localStorage.removeItem('al-theme-css'); } catch { /* abaikan */ }
   }
 
   // Pilihan tema per pengunjung: Sistem (ikut perangkat), Terang, atau Gelap. Disimpan di browser ini saja.
@@ -2734,6 +2736,7 @@ const ICONS = {
     if (mode === 'system') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', mode);
     try { localStorage.setItem('al-theme', mode); } catch { /* penyimpanan diblokir: pilihan berlaku untuk halaman ini saja */ }
+    window.applyThemeVars();
     paintThemeToggle();
   }
   function paintThemeToggle() {
@@ -2799,4 +2802,20 @@ const ICONS = {
   }
 
   boot();
+})();
+
+// Lebar dan warna dinamis dipasang lewat CSSOM (bukan atribut style), supaya CSP tanpa 'unsafe-inline' tetap berlaku.
+(function paintDynamicStyles() {
+  const paint = (el) => {
+    if (el.dataset && el.dataset.w) el.style.width = el.dataset.w;
+    if (el.dataset && el.dataset.bg) el.style.background = el.dataset.bg;
+  };
+  const scan = (root) => {
+    paint(root);
+    if (root.querySelectorAll) root.querySelectorAll("[data-w],[data-bg]").forEach(paint);
+  };
+  scan(document);
+  new MutationObserver((muts) => {
+    for (const m of muts) for (const n of m.addedNodes) if (n.nodeType === 1) scan(n);
+  }).observe(document.documentElement, { childList: true, subtree: true });
 })();
