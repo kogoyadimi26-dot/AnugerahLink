@@ -863,7 +863,7 @@ const ICONS = {
       <section class="about-hero">
         <p class="eyebrow">${esc(a.eyebrow)}</p>
         <h1>${esc(a.title)}</h1>
-        <p class="lead">${esc(a.lead)}</p>
+        ${a.lead ? `<p class="lead">${esc(a.lead)}</p>` : ''}
         <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a></div>
       </section>
       ${a.mission ? `<section class="about-mission" aria-labelledby="about-mission"><h2 id="about-mission">Misi kami</h2><p>${esc(a.mission)}</p></section>` : ''}
@@ -879,14 +879,14 @@ const ICONS = {
             </article>`).join('')}
         </div>
       </section>
-      <section class="pillars" aria-label="Keunggulan kami">
+      ${(a.pillars || []).length ? `<section class="pillars" aria-label="Keunggulan kami">
         ${a.pillars.map((x) => `
           <article class="pillar">
             <span class="pillar-icon">${ICONS[x.icon] || ''}</span>
             <h3>${esc(x.title)}</h3>
             <p>${esc(x.text)}</p>
           </article>`).join('')}
-      </section>
+      </section>` : ''}
       <section class="policy" aria-labelledby="policy-title">
         <div class="policy-head">
           <h2 id="policy-title">Klaim dan pengembalian</h2>
