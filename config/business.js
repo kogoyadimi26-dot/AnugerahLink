@@ -31,9 +31,11 @@ module.exports = {
 
   // Ordering rules
   minOrderKg: 30,
-  // Maksimal kg per lot dalam satu pesanan. 300 kg dipertahankan untuk pilot (bukan dari dokumen; keputusan perencanaan).
-  // Tinjau ulang bila lot sering lebih dari 300 kg atau pembeli minta satu lot penuh.
-  maxOrderKg: 300,
+  // Maksimal kg per lot dalam satu pesanan online: 999 kg (keputusan pemilik, 18 November 2026).
+  // Pesanan 1.000 kg ke atas memakai proposal.
+  maxOrderKg: 999,
+  // Pesanan dari angka ini ke atas memakai proposal (lihat docs/app/LARGE_ORDER_PLAN.md), bukan checkout online.
+  largeOrderMinKg: 1000,
   stepKg: 1,
   lowStockKg: 60,
 

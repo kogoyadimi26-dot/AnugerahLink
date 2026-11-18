@@ -391,3 +391,9 @@ test('intake records the three field checks', () => {
   const lot = domain.createIntake(db, { groupId: 'g-1', harvestDate: '2026-11-10', kgIn: 100, sampleId: 'S-23', moisturePct: 11, defectCount: 5, scaleCalibrated: true, farmerPresent: 'true', retainedSample: false }, NOW);
   assert.deepEqual(lot.intakeCheck.evidence, { scaleCalibrated: true, farmerPresent: true, retainedSample: false });
 });
+
+test('online limit is 999 kg and the proposal threshold starts at 1,000 kg', () => {
+  assert.equal(config.maxOrderKg, 999);
+  assert.equal(config.largeOrderMinKg, 1000);
+  assert.ok(config.maxOrderKg < config.largeOrderMinKg);
+});
