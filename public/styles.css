@@ -747,3 +747,6 @@ tr.is-selected { background: var(--green-soft) !important; }
 .lot-tile-links a { color: var(--green); }
 
 .lot-tile-media, .lot-tile-media:hover { text-decoration: none; }
+
+/* Tautan menu utama tidak bergaris bawah, di tema terang maupun gelap. */
+.nav a, .nav a:hover, .nav a:focus-visible { text-decoration: none; }
