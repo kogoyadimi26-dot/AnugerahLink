@@ -697,11 +697,11 @@ tr.is-selected { background: var(--green-soft) !important; }
 
 /* Beranda hidup: carousel lot terbaru, ticker fakta dari data, stok yang diperbarui, dan strip panen baru. */
 .hero-live { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 40px; align-items: center; }
-.hero-carousel { position: relative; max-width: 440px; width: 100%; justify-self: end; }
+.hero-carousel { position: relative; max-width: 340px; width: 100%; justify-self: end; }
 .hero-slide { display: grid; background: #fff; color: var(--ink); border: 1px solid rgb(0 0 0 / 0.06); border-radius: 16px; overflow: hidden; text-decoration: none; box-shadow: 0 10px 28px rgb(0 0 0 / 0.14); }
 .hero-slide[hidden] { display: none; }
-.hero-slide img { width: 100%; height: 190px; object-fit: cover; display: block; background: #f3f1ea; }
-.hero-slide-fallback { height: 190px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
+.hero-slide img { width: 100%; height: 160px; object-fit: cover; display: block; background: #f3f1ea; }
+.hero-slide-fallback { height: 160px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
 .hero-slide-body { display: grid; gap: 6px; padding: 14px 18px 18px; }
 .hero-slide-body strong { font-size: 17px; line-height: 1.3; }
 .hero-slide-body .muted { font-size: 14px; }
