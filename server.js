@@ -826,6 +826,9 @@ if (require.main === module) {
     if (store.read().orders.some((o) => !o.lateNotifiedAt && o.status === 'shipped')) {
       store.update((db) => notify.notifyLateOrders(db, at));
     }
+    if ((store.read().proposals || []).some((p) => ['offered', 'deposit_pending'].includes(p.status))) {
+      store.update((db) => proposals.expireDue(db, at));
+    }
     notify.dispatchOutbox(store).catch((err) => console.error('[notify] gagal mengirim:', err.message));
   }, 60000).unref();
   server.listen(port, () => console.log(`AnugerahLink running at http://localhost:${port}`));

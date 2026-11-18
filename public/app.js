@@ -1643,13 +1643,19 @@ const ICONS = {
     if (!buyerToken()) return viewBuyerAuth();
     let list;
     try { ({ proposals: list } = await api('/api/buyer/proposals')); } catch { setBuyerToken(''); return viewBuyerAuth(); }
-    const field = (name, label, extra = '') => `<label>${label}<input name="${name}" ${extra}></label>`;
+    const draft = list.find((p) => p.status === 'draft' || p.status === 'need_info') || null;
+    const d = (draft && draft.form) || {};
+    const val = (k) => (d[k] === undefined || d[k] === null ? '' : esc(d[k]));
+    const field = (name, label, extra = '') => `<label>${label}<input name="${name}" value="${val(name)}" ${extra}></label>`;
+    const tierOn = (v) => ((d.tiers || []).includes(v) ? 'checked' : '');
+    const sel = (name, value) => (d[name] === value ? 'selected' : '');
     setMain(`
       <h1>Pesanan besar</h1>
       <p class="muted">Untuk pesanan 1.000 kg ke atas. Isi proposal, kami tinjau dan verifikasi, lalu kami kirim penawaran tertulis untuk disetujui kedua pihak.</p>
       <h2 style="margin-top:28px">Proposal saya</h2>
-      <div class="prop-list">${list.map(propCard).join('') || '<p class="muted">Belum ada proposal.</p>'}</div>
-      <h2 style="margin-top:32px">Ajukan proposal baru</h2>
+      <div class="prop-list">${list.filter((p) => p !== draft).map(propCard).join('') || '<p class="muted">Belum ada proposal yang diajukan.</p>'}</div>
+      <h2 style="margin-top:32px">${draft ? 'Lanjutkan proposal' : 'Ajukan proposal baru'}</h2>
+      ${draft && draft.status === 'need_info' && draft.infoRequest ? `<div class="notice" role="status" style="margin-bottom:12px">Kami perlu informasi: <strong>${esc(draft.infoRequest.message)}</strong>. Perbarui kolom di bawah, lalu kirim ulang.</div>` : ''}
       <form id="prop-form" class="card" style="padding:20px;display:grid;gap:14px">
         <div class="prop-grid">
           ${field('company', 'Nama perusahaan', 'required maxlength="120"')}
@@ -1666,12 +1672,12 @@ const ICONS = {
           ${field('minScore', 'Skor cupping minimal (opsional)', 'type="number" min="70" max="95"')}
         </div>
         <fieldset style="border:0;padding:0;margin:0"><legend style="font-weight:600">Tingkat yang diminati</legend>
-          <div class="btn-row">${PROP_TIERS.map(([v, l]) => `<label class="check"><input type="checkbox" name="tiers" value="${v}"> ${l}</label>`).join('')}</div>
+          <div class="btn-row">${PROP_TIERS.map(([v, l]) => `<label class="check"><input type="checkbox" name="tiers" value="${v}" ${tierOn(v)}> ${l}</label>`).join('')}</div>
         </fieldset>
         <div class="prop-grid">
-          <label>Syarat pengiriman<select name="deliveryTerms"><option value="delivered">Diantar ke alamat tujuan</option><option value="collect_jayapura">Ambil di Jayapura</option></select></label>
-          <label>Ongkir ditanggung<select name="freightBy"><option value="buyer">Pembeli</option><option value="anugerah">AnugerahLink (dihitung terpisah)</option></select></label>
-          <label>Kegunaan (opsional)<input name="intendedUse" maxlength="240"></label>
+          <label>Syarat pengiriman<select name="deliveryTerms"><option value="delivered" ${sel('deliveryTerms', 'delivered')}>Diantar ke alamat tujuan</option><option value="collect_jayapura" ${sel('deliveryTerms', 'collect_jayapura')}>Ambil di Jayapura</option></select></label>
+          <label>Ongkir ditanggung<select name="freightBy"><option value="buyer" ${sel('freightBy', 'buyer')}>Pembeli</option><option value="anugerah" ${sel('freightBy', 'anugerah')}>AnugerahLink (dihitung terpisah)</option></select></label>
+          <label>Kegunaan (opsional)<input name="intendedUse" maxlength="240" value="${val('intendedUse')}"></label>
         </div>
         <fieldset style="border:0;padding:0;margin:0;display:grid;gap:8px"><legend style="font-weight:600">Persetujuan</legend>
           <label class="check"><input type="checkbox" data-agree="accurate"> Data yang saya isi benar.</label>
@@ -1681,11 +1687,10 @@ const ICONS = {
           <label class="check"><input type="checkbox" data-agree="privacy"> Saya setuju kebijakan privasi untuk data usaha.</label>
         </fieldset>
         <p class="error" data-form-error hidden></p>
-        <div><button class="btn" type="submit">Kirim proposal</button></div>
+        <div class="btn-row"><button class="btn secondary" type="button" id="prop-save">Simpan draf</button><button class="btn" type="submit">Kirim proposal</button></div>
       </form>`);
     main.querySelectorAll('[data-prop-respond]').forEach((b) => b.addEventListener('click', async () => {
-      const card = b.closest('.prop-card');
-      const errBox = card.querySelector('[data-prop-error]');
+      const errBox = b.closest('.prop-card').querySelector('[data-prop-error]');
       errBox.hidden = true;
       const action = b.dataset.propRespond;
       const body = { action };
@@ -1695,18 +1700,37 @@ const ICONS = {
       catch (err) { errBox.hidden = false; errBox.textContent = err.message; }
     }));
     const form = document.getElementById('prop-form');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const payload = () => {
       const raw = formData(form);
       const tiers = [...form.querySelectorAll('input[name="tiers"]:checked')].map((x) => x.value);
-      const agreements = Object.fromEntries(PROP_AGREE.map((k) => [k, form.querySelector(`[data-agree="${k}"]`).checked]));
       const body = { company: raw.company, npwp: raw.npwp, licence: raw.licence, contactName: raw.contactName, phone: raw.phone, email: raw.email, address: raw.address, city: raw.city, quantityKg: Number(raw.quantityKg), needBy: raw.needBy, packaging: raw.packaging, intendedUse: raw.intendedUse, deliveryTerms: raw.deliveryTerms, freightBy: raw.freightBy, tiers };
       if (raw.minScore) body.minScore = Number(raw.minScore);
+      return body;
+    };
+    // Simpan draf: buat atau perbarui, tanpa mengajukan.
+    let draftId = draft ? draft.id : null;
+    const save = async () => {
+      const body = payload();
+      const out = draftId
+        ? await api(`/api/buyer/proposals/${draftId}`, { method: 'PATCH', body })
+        : await api('/api/buyer/proposals', { method: 'POST', body });
+      draftId = out.proposal.id;
+      return out;
+    };
+    document.getElementById('prop-save').addEventListener('click', async (e) => {
+      const btn = e.currentTarget; busy(btn, true, 'Menyimpan…');
+      try { await save(); toast('Draf disimpan.'); }
+      catch (err) { showFormError(form, err); }
+      finally { busy(btn, false); }
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const agreements = Object.fromEntries(PROP_AGREE.map((k) => [k, form.querySelector(`[data-agree="${k}"]`).checked]));
       const btn = form.querySelector('button[type="submit"]');
       busy(btn, true);
       try {
-        const created = (await api('/api/buyer/proposals', { method: 'POST', body })).proposal;
-        await api(`/api/buyer/proposals/${created.id}/submit`, { method: 'POST', body: { agreements } });
+        await save();
+        await api(`/api/buyer/proposals/${draftId}/submit`, { method: 'POST', body: { agreements } });
         toast('Proposal sudah dikirim. Kami akan menghubungi Anda setelah peninjauan.');
         viewProposal();
       } catch (err) { showFormError(form, err); }
@@ -1727,40 +1751,65 @@ const ICONS = {
     balance_paid: [['dispatch', 'Catat pengiriman']],
     shipped: [['complete', 'Tandai selesai']],
   };
+  // Staf: aksi yang butuh isian memakai formulir kecil di dalam kartu, bukan prompt browser.
+  const PROP_FIELDS = {
+    request_info: [['message', 'Informasi yang dibutuhkan', 'textarea', true]],
+    make_offer: [['lines', 'Lot dan kg, contoh: AL-2611-001:800, AL-2611-003:200', 'textarea', true]],
+    decline: [['reason', 'Alasan (opsional)', 'input', false]],
+    mark_deposit_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
+    mark_balance_paid: [['reference', 'Nomor referensi transfer (opsional)', 'input', false]],
+    dispatch: [['courier', 'Kurir', 'input', true], ['waybill', 'Nomor resi', 'input', true]],
+  };
+  const PROP_LABEL = { request_info: 'Minta informasi', make_offer: 'Buat penawaran', decline: 'Tolak', mark_deposit_paid: 'DP sudah dibayar', mark_balance_paid: 'Pelunasan diterima', dispatch: 'Catat pengiriman' };
+  function propActionForm(p, action) {
+    const fields = PROP_FIELDS[action].map(([name, label, kind, req]) => kind === 'textarea'
+      ? `<label>${esc(label)}<textarea name="${name}" rows="2" ${req ? 'required' : ''}></textarea></label>`
+      : `<label>${esc(label)}<input name="${name}" ${req ? 'required' : ''}></label>`).join('');
+    return `<form class="prop-action-form" data-action="${action}" data-id="${esc(p.id)}" hidden style="display:grid;gap:8px;margin-top:10px">${fields}
+      <div class="btn-row"><button class="btn small" type="submit">Simpan</button><button class="btn secondary small" type="button" data-prop-cancel>Batal</button></div>
+      <p class="error" data-prop-error hidden></p></form>`;
+  }
+  function propStaffButtons(p) {
+    const buttons = (PROP_NEXT[p.status] || []).map(([a, l]) => PROP_FIELDS[a]
+      ? `<button class="btn small" type="button" data-prop-toggle="${a}">${esc(l)}</button>`
+      : `<button class="btn small" type="button" data-prop-action="${a}" data-id="${esc(p.id)}">${esc(l)}</button>`).join('');
+    const decline = ['submitted', 'in_review', 'need_info', 'negotiating'].includes(p.status) ? `<button class="btn secondary small" type="button" data-prop-toggle="decline">Tolak</button>` : '';
+    const forms = Object.keys(PROP_FIELDS).filter((a) => (PROP_NEXT[p.status] || []).some(([x]) => x === a) || (a === 'decline' && decline)).map((a) => propActionForm(p, a)).join('');
+    return `<div class="btn-row" style="margin-top:10px">${buttons}${decline}</div>${forms}`;
+  }
   async function viewAdminProposals() {
     const { proposals: list } = await api('/api/admin/proposals', { admin: true });
     setMain(adminShell('proposal', `
       <h2 style="margin-top:0">Proposal pesanan besar</h2>
-      <p class="muted" style="font-size:14px">Tinjau, verifikasi, lalu catat setiap langkah. Setiap perubahan tercatat di riwayat proposal.</p>
+      <p class="muted" style="font-size:14px">Tinjau, verifikasi, lalu catat setiap langkah. Setiap perubahan tercatat di riwayat proposal dan memicu pesan ke pembeli.</p>
       <div class="prop-list">${list.map((p) => `
         <article class="card prop-card">
           <div class="prop-head"><strong>${esc(p.reference)}</strong><span class="pill">${esc(PROP_STATUS[p.status] || p.status)}</span></div>
           <p style="margin:6px 0 0">${esc(p.buyer.company || p.buyer.name)} · ${esc(p.buyer.email)}</p>
           <p class="muted" style="margin:4px 0 0;font-size:14px">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))} · ${esc(p.form.city || '')} · NPWP ${esc(p.form.npwp || '—')}</p>
           ${p.offers && p.offers.length ? `<p class="muted" style="margin:4px 0 0;font-size:14px">Penawaran v${p.offers[p.offers.length - 1].version}: ${rp(p.offers[p.offers.length - 1].total)}</p>` : ''}
-          <div class="btn-row" style="margin-top:10px">
-            ${(PROP_NEXT[p.status] || []).map(([a, l]) => `<button class="btn small" type="button" data-prop-action="${a}" data-id="${esc(p.id)}">${esc(l)}</button>`).join('')}
-            ${['submitted', 'in_review', 'need_info', 'negotiating'].includes(p.status) ? `<button class="btn secondary small" type="button" data-prop-action="decline" data-id="${esc(p.id)}">Tolak</button>` : ''}
-          </div>
+          ${propStaffButtons(p)}
+          <p class="error" data-prop-error hidden></p>
         </article>`).join('') || '<p class="muted">Belum ada proposal.</p>'}</div>`));
     wireSignOut();
-    main.querySelectorAll('[data-prop-action]').forEach((b) => b.addEventListener('click', async () => {
-      const action = b.dataset.propAction;
-      const body = { action };
-      try {
-        if (action === 'request_info') { const message = prompt('Informasi apa yang dibutuhkan?'); if (!message) return; body.message = message; }
-        if (action === 'make_offer') {
-          const raw = prompt('Lot dan kg, pisahkan dengan koma. Contoh: AL-2611-001:800, AL-2611-003:200');
-          if (!raw) return;
-          body.lines = raw.split(',').map((x) => { const [lotCode, kgs] = x.split(':').map((y) => y.trim()); return { lotCode, kg: Number(kgs) }; });
-        }
-        if (action === 'decline') body.reason = prompt('Alasan penolakan (opsional):') || '';
-        if (action === 'mark_deposit_paid' || action === 'mark_balance_paid') body.reference = prompt('Nomor referensi transfer (opsional):') || '';
-        if (action === 'dispatch') { body.courier = prompt('Kurir:') || ''; body.waybill = prompt('Nomor resi:') || ''; }
-        await api(`/api/admin/proposals/${b.dataset.id}/action`, { method: 'POST', admin: true, body });
-        toast('Proposal diperbarui.');
-        viewAdminProposals();
-      } catch (err) { toast(err.message); }
+    main.querySelectorAll('[data-prop-toggle]').forEach((b) => b.addEventListener('click', () => {
+      const card = b.closest('.prop-card');
+      card.querySelectorAll('.prop-action-form').forEach((f) => { f.hidden = f.dataset.action !== b.dataset.propToggle ? true : !f.hidden; });
+    }));
+    main.querySelectorAll('[data-prop-cancel]').forEach((b) => b.addEventListener('click', () => { b.closest('form').hidden = true; }));
+    const send = async (id, body, errEl) => {
+      try { await api(`/api/admin/proposals/${id}/action`, { method: 'POST', admin: true, body }); toast('Proposal diperbarui.'); viewAdminProposals(); }
+      catch (err) { errEl.hidden = false; errEl.textContent = err.message; }
+    };
+    main.querySelectorAll('[data-prop-action]').forEach((b) => b.addEventListener('click', () => send(b.dataset.id, { action: b.dataset.propAction }, b.closest('.prop-card').querySelector('[data-prop-error]'))));
+    main.querySelectorAll('.prop-action-form').forEach((f) => f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const raw = formData(f);
+      const body = { action: f.dataset.action, ...raw };
+      if (f.dataset.action === 'make_offer') {
+        body.lines = String(raw.lines || '').split(',').map((x) => { const [lotCode, kgs] = x.split(':').map((y) => y.trim()); return { lotCode, kg: Number(kgs) }; });
+      }
+      send(f.dataset.id, body, f.querySelector('[data-prop-error]'));
     }));
   }
 

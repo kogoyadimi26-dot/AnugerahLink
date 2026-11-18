@@ -219,3 +219,39 @@ test('publicProposal hides nothing buyer needs and keeps the timeline', () => {
   assert.equal(pub.statusLabel, proposals.statusLabel('submitted'));
   assert.ok(Array.isArray(pub.timeline));
 });
+
+test('each step queues an email and a WhatsApp message to the buyer', () => {
+  const db = baseDb();
+  const p = submitted(db);
+  const submittedMsgs = db.outbox.filter((m) => m.orderNumber === p.reference);
+  assert.equal(submittedMsgs.map((m) => m.channel).sort().join(','), 'email,whatsapp');
+  assert.ok(submittedMsgs.every((m) => m.event === 'proposal_submitted'));
+  proposals.staffAction(db, p.id, 'start_review', {}, NOW);
+  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  const offerMsg = db.outbox.find((m) => m.event === 'proposal_offered' && m.channel === 'email');
+  assert.match(offerMsg.body, /Penawaran v1/);
+  assert.match(offerMsg.body, /Rp250\.000\.000/);
+});
+
+test('request for info, then the buyer edits the draft and resubmits to review', () => {
+  const db = baseDb();
+  const p = submitted(db);
+  proposals.staffAction(db, p.id, 'start_review', {}, NOW);
+  proposals.staffAction(db, p.id, 'request_info', { message: 'Kirim salinan NIB.' }, NOW);
+  const msg = db.outbox.find((m) => m.event === 'proposal_need_info');
+  assert.match(msg.body, /Kirim salinan NIB/);
+  proposals.updateDraft(db, p.id, buyer, { licence: 'NIB-999' }, LATER);
+  proposals.submitProposal(db, p.id, buyer, { agreements }, LATER);
+  assert.equal(p.status, 'in_review');
+  assert.equal(p.form.licence, 'NIB-999');
+});
+
+test('expiry sweep expires an offer and queues the expired message', () => {
+  const db = baseDb();
+  const p = submitted(db);
+  proposals.staffAction(db, p.id, 'start_review', {}, NOW);
+  proposals.staffAction(db, p.id, 'make_offer', { lines: [{ lotCode: 'L1', kg: 1000 }] }, NOW);
+  proposals.expireDue(db, '2026-11-27T03:00:00.000Z');
+  assert.equal(p.status, 'expired');
+  assert.ok(db.outbox.some((m) => m.event === 'proposal_expired'));
+});
