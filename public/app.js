@@ -2396,6 +2396,18 @@ const ICONS = {
     }
   }
 
+  // Tautan dengan data-scroll membuka halaman lalu menggulir ke bagian yang dituju.
+  let scrollTarget = null;
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest ? e.target.closest('a[data-scroll]') : null;
+    if (!link) return;
+    scrollTarget = link.dataset.scroll;
+    if (location.hash === link.getAttribute('href')) {
+      const el = document.getElementById(scrollTarget);
+      if (el) el.scrollIntoView({ block: 'start' });
+    }
+  });
+
   // Menu header tertutup saat klik di luar, saat Esc, dan saat pindah halaman.
   function closeMenus() { document.querySelectorAll('details.menu[open]').forEach((d) => { d.open = false; }); }
   document.addEventListener('click', (e) => {
@@ -2551,7 +2563,7 @@ const ICONS = {
         <p class="muted ix-11">${kg(p.form.quantityKg)} · ${esc((p.form.tiers || []).join(', '))}${p.offers && p.offers.length ? ' · Penawaran terakhir ' + rp(p.offers[p.offers.length - 1].total) : ''}</p>
         <div class="btn-row ix-6"><a class="btn secondary small" href="#/proposal">Lihat proposal</a></div>
       </article>`).join('')}</div>` : '<div class="card"><p class="muted ix-10">Belum ada proposal pesanan besar. <a href="#/proposal">Ajukan pesanan 1 ton atau lebih</a>.</p></div>'}
-      <h2>Alamat tersimpan</h2>
+      <h2 id="alamat-tersimpan">Alamat tersimpan</h2>
       <div class="grid">${me.addresses.map((a) => `
         <div class="card"><div class="btn-row ix-9"><strong>${esc(a.label)}</strong>${a.isDefault ? '<span class="pill ok">Utama</span>' : ''}</div>
           <p class="ix-8">${esc(a.recipient)} · ${esc(a.phone)}</p>
@@ -2575,7 +2587,7 @@ const ICONS = {
         </div>
         <div class="btn-row"><button class="btn" type="submit" data-save>Simpan profil</button></div></form>
       <h2>Data saya</h2>
-      <div class="card">
+      <div class="card" id="unduh-data">
         <p>Anda berhak melihat dan mengunduh data Anda, dan menghapus akun. Riwayat transaksi tetap disimpan tanpa identitas untuk kewajiban pencatatan.</p>
         <div class="btn-row"><button class="btn secondary" type="button" id="buyer-export">Unduh data saya</button></div>
       </div>
@@ -2592,6 +2604,10 @@ const ICONS = {
         <div class="field ix-4"><label for="bd-pw">Kata sandi untuk konfirmasi</label><input id="bd-pw" name="password" type="password" required autocomplete="current-password"></div>
         <div class="btn-row"><button class="btn danger" type="submit" data-save>Hapus akun saya</button></div></form>`);
     wireAccount(me);
+    // Tautan menu akun bisa membuka bagian tertentu di halaman akun.
+    const target = scrollTarget;
+    scrollTarget = null;
+    if (target && document.getElementById(target)) document.getElementById(target).scrollIntoView({ block: 'start' });
   }
 
   function wireAccount(me) {

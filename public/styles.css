@@ -780,3 +780,6 @@ tr.is-selected { background: var(--green-soft) !important; }
 
 /* Tautan menu utama tidak bergaris bawah, di tema terang maupun gelap. */
 .nav a, .nav a:hover, .nav a:focus-visible { text-decoration: none; }
+
+/* Bagian yang dituju dari menu akun tidak tertutup header yang lengket. */
+#alamat-tersimpan, #unduh-data { scroll-margin-top: 180px; }
