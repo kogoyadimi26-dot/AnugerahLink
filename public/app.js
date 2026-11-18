@@ -624,24 +624,53 @@
       </div>`);
   }
 
-  function viewTrack() {
-    const email = session('al-email') || '';
+  // Lacak pesanan: pembeli yang sudah masuk melihat daftar pesanannya. Tamu memakai nomor pesanan dan email.
+  async function viewTrack() {
+    let me = null;
+    if (buyerToken()) {
+      try { me = (await api('/api/buyer/me')).buyer; } catch { setBuyerToken(''); }
+    }
+    let list = '';
+    if (me) {
+      const { orders } = await api('/api/buyer/orders');
+      list = `
+        <h2>Pesanan saya</h2>
+        ${orders.length ? `<div class="table-wrap"><table>
+          <thead><tr><th>Nomor</th><th>Tanggal</th><th>Status</th><th class="num">Total</th><th></th></tr></thead>
+          <tbody>${orders.map((o) => `<tr>
+            <td>${esc(o.number)}</td>
+            <td>${tanggal(o.createdAt)}</td>
+            <td><span class="pill ${o.status === 'cancelled' ? 'bad' : 'ok'}">${esc(o.statusLabel)}</span></td>
+            <td class="num">${rp(o.total)}</td>
+            <td><a class="btn secondary small" href="#/lacak/${encodeURIComponent(o.number)}?email=${encodeURIComponent(me.email)}">Lihat</a></td>
+          </tr>`).join('')}</tbody></table></div>`
+          : '<div class="card"><p><strong>Belum ada pesanan.</strong></p><p class="muted">Pesanan yang Anda buat akan muncul di sini.</p><p><a class="btn" href="#/catalogue">Lihat katalog</a></p></div>'}`;
+    }
+    const email = me ? me.email : (session('al-email') || '');
     setMain(`
       <h1>Lacak pesanan Anda</h1>
+      ${list}
+      <h2 style="margin-top:24px">${me ? 'Lacak pesanan lain' : 'Lacak dengan nomor pesanan'}</h2>
+      <p class="muted">Masukkan nomor pesanan (ALO-…) dan email yang dipakai saat memesan.</p>
       <form id="track" class="card" style="max-width:520px" novalidate>
-        <div class="notice" data-form-error hidden role="alert"></div>
-        <div class="field"><label for="t-number">Nomor pesanan</label><input id="t-number" name="number" required placeholder="ALO-2611-001"></div>
-        <div class="field"><label for="t-email">Email yang dipakai saat memesan</label><input id="t-email" name="email" type="email" required value="${esc(email)}"></div>
+        <div class="notice bad" data-form-error hidden role="alert"></div>
+        <div class="field"><label for="t-number">Nomor pesanan</label><input id="t-number" name="number" required placeholder="ALO-2611-001" pattern="ALO-\\d{4}-\\d{3}" autocomplete="off"></div>
+        <div class="field"><label for="t-email">Email yang dipakai saat memesan</label><input id="t-email" name="email" type="email" required value="${esc(email)}" autocomplete="email"></div>
         <button class="btn" type="submit">Tampilkan pesanan</button>
       </form>`);
     const form = document.getElementById('track');
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
+      form.querySelector('[data-form-error]').hidden = true;
       const f = formData(form);
-      try {
-        setSession('al-email', f.email);
-        location.hash = '#/lacak/' + encodeURIComponent(f.number.trim()) + '?email=' + encodeURIComponent(f.email.trim());
-      } catch (err) { showFormError(form, err); }
+      const number = String(f.number || '').trim().toUpperCase();
+      const mail = String(f.email || '').trim();
+      if (!/^ALO-\d{4}-\d{3}$/.test(number)) {
+        showFormError(form, { message: 'Nomor pesanan harus berbentuk ALO-2611-001.', fields: { number: 'Format nomor pesanan salah.' } });
+        return;
+      }
+      setSession('al-email', mail);
+      location.hash = '#/lacak/' + encodeURIComponent(number) + '?email=' + encodeURIComponent(mail);
     });
   }
 
@@ -872,9 +901,6 @@ const ICONS = {
   }
 
   // ---------- tim (admin) ----------
-const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian', lots: 'lot', orders: 'pesanan', feedback: 'umpan-balik', users: 'pengguna', audit: 'riwayat', settings: 'pengaturan' };
-  const ADMIN_KEY = Object.fromEntries(Object.entries(ADMIN_SLUG).map(([k, v]) => [v, k]));
-  const adminPath = (k) => ADMIN_SLUG[k] || k;
 
   function adminShell(active, body) {
     const all = [['dashboard', 'Dasbor'], ['alur', 'Alur kerja'], ['intake', 'Pembelian'], ['lots', 'Lot'], ['orders', 'Pesanan'], ['feedback', 'Umpan balik'], ['users', 'Pengguna'], ['audit', 'Riwayat'], ['settings', 'Pengaturan']];
@@ -2253,7 +2279,7 @@ const ADMIN_SLUG = { dashboard: 'dasbor', alur: 'alur-kerja', intake: 'pembelian
       if (head === 'keranjang') return await viewCart();
       if (head === 'bayar') return viewCheckout();
       if (head === 'pesanan' && a) return viewOrderCreated(a);
-      if (head === 'lacak' && !a) return viewTrack();
+      if (head === 'lacak' && !a) return await viewTrack();
       if (head === 'lacak' && a) return await viewTrackDetail(a, query);
       if (head === 'umpan-balik' && a) return viewFeedback(a);
       if (head === 'tentang') return viewAbout();
