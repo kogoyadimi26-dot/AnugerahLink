@@ -584,7 +584,8 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 /* Product page: stock per tier */
 .tier-stock { margin: 0 0 20px; }
 .tier-stock h2 { font-size: 16px; margin: 0 0 10px; color: var(--heading); }
-.tier-stock-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.tier-stock-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.tier-stock-card .tier { white-space: nowrap; align-self: flex-start; }
 .tier-stock-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
 .tier-stock-card strong { font-size: 18px; color: var(--heading); }
 .tier-stock-total { background: var(--green-soft); }
