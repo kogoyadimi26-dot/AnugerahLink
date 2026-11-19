@@ -2236,18 +2236,10 @@ const ICONS = {
   async function viewAdminSettings() {
     const c = await api('/api/admin/config', { admin: true });
     const lb = await api('/api/admin/labels', { admin: true });
+    const rl = await api('/api/admin/rules', { admin: true });
     const ab = await api('/api/admin/about', { admin: true });
     setMain(adminShell('settings', `
-      <h2 class="ix-1">Aturan bisnis yang dipakai</h2>
-      <div class="table-wrap"><table><tbody>
-        <tr><td>Harga beli per kg</td><td class="num">${rp(c.buyPricePerKg)}</td></tr>
-        <tr><td>Kehilangan sortir dan pengeringan</td><td class="num">${Math.round(c.sortingLossPct * 100)}%</td></tr>
-        <tr><td>Ongkir per kg (jika berlaku)</td><td class="num">${rp(c.shippingPerKg)}</td></tr>
-        <tr><td>Biaya per kg</td><td class="num">${rp(c.feesPerKg)}</td></tr>
-        <tr><td>Biaya tetap per tahun (tim penuh)</td><td class="num">${rp(c.fixedCostsPerYear)}</td></tr>
-        <tr><td>Pesanan minimum per lot</td><td class="num">${c.minOrderKg} kg</td></tr>
-        <tr><td>Asumsi campuran grade (dipakai sebelum ada stok)</td><td class="num">${Object.entries(c.defaultMix).map(([k, v]) => esc(tierLabel(k)) + ' ' + Math.round(v * 100) + '%').join(' · ')}</td></tr>
-      </tbody></table></div>
+      ${rulesEditorHtml(rl)}
       <h2>Kategori</h2>
       <div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Harga per kg</th><th>Ongkir</th></tr></thead><tbody>
         ${Object.entries(c.tiers).map(([k, t]) => `<tr><td><span class="${tierClass(k)}">${esc(t.label)}</span></td><td class="num">${rp(t.pricePerKg)}</td><td>${esc(t.shippingBy === 'anugerah' ? 'Termasuk (ditanggung AnugerahLink)' : t.shippingBy === 'buyer' ? 'Pembeli membayar ' + rp(t.shippingPerKgExtra) + '/kg' : 'Diambil di Papua')}</td></tr>`).join('')}
@@ -2263,6 +2255,7 @@ const ICONS = {
     wireThemeEditor();
     wirePriceEditor();
     wireLabelsEditor(lb);
+    wireRulesEditor(rl);
     wireAboutEditor(ab.defaults);
     wireContentEditor();
   }
@@ -2354,6 +2347,83 @@ const ICONS = {
   // ---------- harga, teks situs, dan produk lot ----------
   const KATEGORI_HARGA = ['reserve', 'premium', 'verified', 'local'];
   const TEKS_SITUS = [['homeTitle', 'Judul beranda'], ['homeLead', 'Kalimat pembuka beranda'], ['footerTagline', 'Tagline di footer']];
+
+  // Aturan bisnis: isian dengan satuan, wajib alasan, dan riwayat perubahan. Nilai dicek juga di server.
+  const RULE_GRADE_LABEL = { reserve: 'Reserve', premium: 'Premium', verified: 'Standar Terverifikasi', local: 'Lokal' };
+  function ruleValueText(key, v) {
+    if (key === 'defaultMix') return Object.entries(v).map(([g, p]) => `${RULE_GRADE_LABEL[g] || g} ${Math.round(p * 100)}%`).join(' · ');
+    if (key === 'sortingLossPct') return `${Math.round(v * 100)}%`;
+    if (key === 'minOrderKg') return `${v} kg`;
+    return 'Rp ' + Math.round(v).toLocaleString('id-ID');
+  }
+  function rulesEditorHtml(rl) {
+    const f = rl.form;
+    const fields = Object.entries(rl.defs).map(([k, d]) => `<div class="field"><label for="ru-${k}">${esc(d.label)} <span class="muted">(${esc(d.unit)})</span></label>
+        <input id="ru-${k}" name="${k}" type="number" inputmode="numeric" min="${d.min}" max="${d.max}" step="${d.step}" value="${f[k]}"></div>`).join('');
+    const mix = rl.grades.map((g) => `<div class="field"><label for="ru-mix-${g}">${esc(RULE_GRADE_LABEL[g])} <span class="muted">(%)</span></label>
+        <input id="ru-mix-${g}" name="defaultMix.${g}" type="number" inputmode="numeric" min="0" max="100" step="1" value="${f.defaultMix[g]}"></div>`).join('');
+    const history = (rl.history || []).map((h) => `<li class="label-hist">
+        <div><span class="muted">${esc(new Date(h.at).toLocaleString('id-ID'))}</span> · <strong>${esc(h.reason)}</strong>
+          <ul class="label-changes">${h.changes.map((c) => `<li><strong>${esc(c.key === 'defaultMix' ? 'Campuran grade' : rl.defs[c.key].label)}</strong>: ${esc(ruleValueText(c.key, c.from))} → ${esc(ruleValueText(c.key, c.to))}</li>`).join('')}</ul></div>
+      </li>`).join('');
+    return `
+      <h2 class="ix-1">Aturan bisnis yang dipakai</h2>
+      <p class="muted">Angka ini dipakai untuk harga, margin, dan titik impas. Setiap perubahan wajib diberi alasan dan dicatat di riwayat.</p>
+      <form class="card" id="rules-form" novalidate>
+        <div data-form-error class="notice bad" hidden role="alert"></div>
+        <fieldset class="about-part"><legend>Biaya dan minimum</legend>${fields}</fieldset>
+        <fieldset class="about-part"><legend>Campuran grade (dipakai sebelum ada stok, harus berjumlah 100%)</legend>${mix}</fieldset>
+        <div class="field"><label for="ru-reason">Alasan perubahan</label><textarea id="ru-reason" name="reason" minlength="5" maxlength="300" placeholder="mis. harga beli naik dari petani Wamena"></textarea></div>
+        <div class="btn-row">
+          <button class="btn" type="submit" data-save>Simpan aturan</button>
+          <button class="btn secondary" type="button" data-reset-rules>Kembalikan standar</button>
+        </div>
+      </form>
+      ${history ? `<details class="card"><summary>Riwayat perubahan aturan</summary><ol class="label-history">${history}</ol></details>` : ''}`;
+  }
+  function wireRulesEditor(rl) {
+    const form = document.getElementById('rules-form');
+    if (!form) return;
+    const body = (values) => {
+      const out = { reason: form.elements.reason.value };
+      for (const key of Object.keys(rl.defs)) out[key] = values[key];
+      out.defaultMix = Object.fromEntries(rl.grades.map((g) => [g, values.defaultMix[g]]));
+      return out;
+    };
+    // Galat per kolom: tampilkan kolom pertama yang bermasalah, misalnya alasan yang belum diisi.
+    const showRulesError = (err) => {
+      showFormError(form, err);
+      const first = err.fields && Object.values(err.fields)[0];
+      if (first) form.querySelector('[data-form-error]').textContent = first;
+    };
+    const readForm = () => {
+      const out = {};
+      for (const key of Object.keys(rl.defs)) out[key] = form.elements[key].value;
+      out.defaultMix = Object.fromEntries(rl.grades.map((g) => [g, form.elements[`defaultMix.${g}`].value]));
+      return out;
+    };
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+      const btn = form.querySelector('[data-save]');
+      busy(btn, true, 'Menyimpan…');
+      try {
+        await api('/api/admin/rules', { method: 'PUT', body: body(readForm()), admin: true });
+        toast('Aturan bisnis disimpan.');
+        viewAdminSettings();
+      } catch (err) {
+        showRulesError(err);
+      } finally { busy(btn, false); }
+    });
+    form.querySelector('[data-reset-rules]').addEventListener('click', async () => {
+      if (!confirm('Kembalikan aturan bisnis ke nilai standar?')) return;
+      try {
+        await api('/api/admin/rules', { method: 'PUT', body: body(rl.base), admin: true });
+        toast('Aturan bisnis dikembalikan ke standar.');
+        viewAdminSettings();
+      } catch (err) { showRulesError(err); }
+    });
+  }
 
   function priceEditorHtml(tiers) {
     return `

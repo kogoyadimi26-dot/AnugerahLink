@@ -16,6 +16,7 @@ const documents = require('./lib/documents');
 const quicklogin = require('./lib/quicklogin');
 const about = require('./lib/about');
 const labels = require('./lib/labels');
+const rules = require('./lib/rules');
 const notify = require('./lib/notify');
 const invoice = require('./lib/invoice');
 const legal = require('./config/legal');
@@ -576,10 +577,30 @@ function buildRoutes(ctx) {
     if (changed.length === 0) throw new ApiError(400, 'invalid_input', 'Tidak ada harga yang berubah.');
     store.update((db) => { db.settings = { ...(db.settings || {}), prices }; });
     content.applySettings(store.read().settings);
+    rules.applyRules(store.read().settings);
     const detail = 'Harga: ' + changed.map((c) => `${c} ${before[c] || content.BASE_PRICES[c]} → ${prices[c]}`).join(', ') + `. Alasan: ${reason}`;
     return { status: 200, body: { prices }, auditDetail: detail };
   }, { perm: 'settings' });
 
+  // Aturan bisnis: harga beli, susut, ongkir, biaya, biaya tetap, minimum pesanan, dan campuran grade. Wajib ada alasan.
+  route('GET', /^\/api\/admin\/rules$/, () => {
+    const s = store.read().settings || {};
+    const values = rules.rulesFor(s);
+    return { status: 200, body: { values, form: rules.toForm(values), base: rules.toForm(rules.BASE), defs: rules.DEFS, grades: rules.GRADES, history: (s.rulesHistory || []).slice(0, 10) }, headers: { 'Cache-Control': 'no-store' } };
+  }, { perm: 'settings' });
+  route('PUT', /^\/api\/admin\/rules$/, (_p, body) => {
+    const { values, reason } = rules.validateRules(body);
+    const before = rules.rulesFor(store.read().settings);
+    const diff = rules.changesOf(before, { ...before, ...values });
+    if (diff.length === 0) throw new ApiError(400, 'invalid_input', 'Tidak ada aturan yang berubah.');
+    store.update((db) => {
+      const s = db.settings || {};
+      db.settings = { ...s, rules: { ...rules.rulesFor(s), ...values }, rulesHistory: rules.appendHistory(s.rulesHistory, { at: new Date().toISOString(), changes: diff, reason }) };
+    });
+    rules.applyRules(store.read().settings);
+    const detail = 'Aturan bisnis diubah: ' + diff.map((c) => c.key).join(', ') + '. Alasan: ' + reason;
+    return { status: 200, body: { values: rules.rulesFor(store.read().settings) }, auditDetail: detail };
+  }, { perm: 'settings' });
   // Teks situs (beranda dan footer).
   route('GET', /^\/api\/admin\/content$/, () => ({ status: 200, body: { content: content.contentFor(store.read().settings), defaults: content.defaults }, headers: { 'Cache-Control': 'no-store' } }), { perm: 'settings' });
   // Halaman Tentang: admin membaca dan menyimpan teks yang tampil di halaman Tentang.
@@ -817,6 +838,7 @@ function createApp({ dataFile, owner, demo = false }) {
   store.load();
   if (auth.ensureOwner(store.db, owner, new Date().toISOString())) store.save(store.db);
   content.applySettings(store.db.settings);
+  rules.applyRules(store.db.settings);
   if (demo) {
     store.update((db) => {
       db.users = db.users || [];
