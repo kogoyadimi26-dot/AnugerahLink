@@ -22,4 +22,15 @@ module.exports = {
   'admin.pembeli': { text: 'Pembeli', en: 'Buyers', where: 'Menu panel tim' },
   'admin.audit': { text: 'Riwayat', en: 'History', where: 'Menu panel tim' },
   'admin.settings': { text: 'Pengaturan', en: 'Settings', where: 'Menu panel tim' },
+  // Teks beranda dan judul halaman. max: batas panjang khusus (teks ini lebih panjang dari label menu).
+  'home.btn_lots': { text: 'Lihat lot tersedia', en: 'See available lots', where: 'Beranda' },
+  'home.btn_how': { text: 'Cara kerja kami', en: 'How we work', where: 'Beranda' },
+  'home.featured': { text: 'Lot tersedia sekarang', en: 'Lots available now', where: 'Beranda', max: 80 },
+  'home.all_lots': { text: 'Lihat semua lot', en: 'See all lots', where: 'Beranda' },
+  'home.empty_title': { text: 'Belum ada lot yang siap dijual.', en: 'No lots are ready to sell yet.', where: 'Beranda', max: 120 },
+  'home.empty_text': { text: 'Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi.', en: 'We are grading new coffee from partner farms. Check back in a few days.', where: 'Beranda', max: 240 },
+  'home.how': { text: 'Cara kami bekerja', en: 'How we work', where: 'Beranda', max: 80 },
+  'page.privasi.title': { text: 'Kebijakan privasi', en: 'Privacy policy', where: 'Halaman', max: 80 },
+  'page.syarat.title': { text: 'Syarat penggunaan', en: 'Terms of use', where: 'Halaman', max: 80 },
+  'page.pengembalian.title': { text: 'Klaim dan pengembalian', en: 'Claims and returns', where: 'Halaman', max: 80 },
 };

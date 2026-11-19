@@ -156,3 +156,20 @@ test('buang draf menghapusnya tanpa mengubah label yang terbit', async () => {
   assert.equal(read.json.draft, null);
   assert.equal(read.json.published.id['nav.tentang'], 'Tentang');
 });
+
+test('teks halaman boleh lebih panjang dari label menu, tetapi tetap ada batasnya', () => {
+  const ok = standard();
+  ok.id['home.empty_text'] = 'x'.repeat(240);
+  assert.equal(labels.validateLabelSet(ok).id['home.empty_text'].length, 240);
+
+  const tooLong = standard();
+  tooLong.id['home.empty_text'] = 'x'.repeat(241);
+  tooLong.id['nav.produk'] = 'x'.repeat(41);
+  try {
+    labels.validateLabelSet(tooLong);
+    assert.fail('seharusnya ditolak');
+  } catch (err) {
+    assert.match(err.fields['id.home.empty_text'], /Maksimal 240/);
+    assert.match(err.fields['id.nav.produk'], /Maksimal 40/);
+  }
+});
