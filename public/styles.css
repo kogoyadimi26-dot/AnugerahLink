@@ -8,6 +8,7 @@
 :root {
   --green: #003C18; --green-2: #0E5A2C; --green-soft: #E7EFE9;
   --gold: #C0900C; --gold-hi: #E0AE3A; --gold-soft: #F8EFD6; --gold-ink: #7A5A00;
+  --tier-reserve: #60300C; --tier-premium: #0E5A2C; --tier-verified: #56655A; --tier-local: #8A6500; --nav-bg: #336346; --nav-ink: #D7E2D4;
   --brown: #60300C; --bg: #FBF8F1; --surface: #FFFFFF; --ink: #1E2A21; --ink-muted: #56655A;
   --line: #E3DED0; --brand: #003C18; --on-primary: #FFFFFF; --accent: #0E5A2C; --danger: #A3262B;
   --heading: #003C18; --hero-from: #003C18; --hero-to: #0E5A2C; --hero-ink: #FFFFFF;
@@ -132,10 +133,10 @@ main:focus { outline: none; }
   border-radius: 999px; padding: 4px 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-muted);
 }
 .tier::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.tier-reserve { color: var(--brown); border-color: var(--brown); }
-.tier-premium { color: var(--green-2); border-color: var(--green-2); }
-.tier-verified { color: var(--ink-muted); }
-.tier-local { color: var(--gold-ink); border-color: var(--gold); }
+.tier-reserve { color: var(--tier-reserve); border-color: var(--tier-reserve); }
+.tier-premium { color: var(--tier-premium); border-color: var(--tier-premium); }
+.tier-verified { color: var(--tier-verified); }
+.tier-local { color: var(--tier-local); border-color: var(--tier-local); }
 .pill.ok { background: var(--green-soft); color: var(--green-2); border-color: transparent; }
 .pill.warn { background: var(--gold-soft); color: var(--gold-ink); border-color: transparent; }
 .pill.bad { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); border-color: transparent; }
@@ -332,10 +333,10 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 .cart-label { font-weight: 700; font-size: 15px; padding-bottom: 2px; }
 .cartlink .badge { position: absolute; top: 0; left: 18px; margin: 0; background: var(--gold-hi); color: #1B2A1F; min-width: 20px; height: 20px; line-height: 20px; font-size: 12px; }
 
-.menubar { background: color-mix(in srgb, var(--footer-bg) 80%, #FFFFFF); color: var(--footer-ink); }
+.menubar { background: var(--nav-bg); color: var(--nav-ink); }
 .menubar .nav { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 0; }
 .menubar .nav::-webkit-scrollbar { display: none; }
-.menubar .nav a { color: var(--footer-ink); background: none; border-radius: 0; padding: 10px 12px; min-height: 44px; font-weight: 600; font-size: 15px; white-space: nowrap; border: 1px solid transparent; }
+.menubar .nav a { color: var(--nav-ink); background: none; border-radius: 0; padding: 10px 12px; min-height: 44px; font-weight: 600; font-size: 15px; white-space: nowrap; border: 1px solid transparent; }
 .menubar .nav a:hover { border-color: var(--gold-hi); background: none; color: #FFFFFF; }
 .menubar .nav a[aria-current="page"] { border-color: var(--gold-hi); background: none; color: #FFFFFF; }
 .menubar .menu-all { font-weight: 700; }
