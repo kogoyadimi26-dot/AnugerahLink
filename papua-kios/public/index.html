@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pesan Kios Papua</title>
+<style>
+  :root { --ink:#1f2933; --muted:#6b7785; --line:#d9dee5; --bg:#f6f7f9; --card:#fff; --accent:#0f6b5c; --warn:#b4530b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:var(--accent); color:#fff; padding:16px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; font-size:13px; opacity:.9; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; display:grid; gap:16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  h2 { font-size:17px; margin:0 0 12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  select, input { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:16px; background:#fff; }
+  .row { display:grid; gap:12px; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .row { grid-template-columns: 1fr 1fr; } }
+  table { width:100%; border-collapse: collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 4px; border-bottom:1px solid var(--line); vertical-align: middle; }
+  td.num, th.num { text-align:right; white-space:nowrap; }
+  input.qty { width:90px; text-align:right; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 14px; font-size:15px; cursor:pointer; }
+  button.secondary { background:#fff; color:var(--accent); border:1px solid var(--accent); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .total { font-size:18px; font-weight:600; margin-top:12px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .msg { margin-top:10px; font-size:14px; }
+  .msg.err { color:var(--warn); }
+  .msg.ok { color:var(--accent); }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2f5; font-size:12px; }
+  .stats { display:grid; gap:10px; grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+  .stat { border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .stat b { display:block; font-size:18px; margin-top:4px; }
+  details summary { cursor:pointer; font-weight:600; }
+  .scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pesan Kios Papua</h1>
+  <p>Pesan barang untuk kios, warung, sekolah, dan gereja. Kirim dari hub Jayapura, Wamena, atau Timika.</p>
+</header>
+
+<main>
+  <section>
+    <h2>1. Pilih pembeli</h2>
+    <div class="row">
+      <div>
+        <label for="buyer">Akun pembeli</label>
+        <select id="buyer"></select>
+      </div>
+      <div>
+        <label>Saldo utang kredit</label>
+        <div id="balance" class="stat" style="margin-top:0"></div>
+      </div>
+    </div>
+    <p class="muted" id="buyerInfo"></p>
+  </section>
+
+  <section>
+    <h2>2. Pesan barang</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Produk</th><th class="num">Harga</th><th class="num">Stok hub</th><th class="num">Jumlah</th></tr></thead>
+        <tbody id="catalog"></tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label for="payment">Cara bayar</label>
+        <select id="payment"></select>
+      </div>
+      <div>
+        <label>Ringkasan</label>
+        <div id="quote" class="muted">Isi jumlah barang untuk melihat total.</div>
+      </div>
+    </div>
+    <div class="total" id="total"></div>
+    <button id="placeOrder" style="margin-top:12px">Kirim pesanan</button>
+    <div id="orderMsg" class="msg"></div>
+  </section>
+
+  <section>
+    <h2>3. Pesanan saya</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Tanggal</th><th>Isi</th><th class="num">Total</th><th>Status</th></tr></thead>
+      <tbody id="myOrders"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <details id="adminBox">
+      <summary>Panel admin (untuk pengelola)</summary>
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="token">Token admin</label>
+          <input id="token" type="password" autocomplete="off">
+        </div>
+        <div style="align-self:end"><button id="loadAdmin" class="secondary">Buka panel</button></div>
+      </div>
+      <div id="adminMsg" class="msg"></div>
+      <div id="adminBody" hidden style="margin-top:14px">
+        <div class="stats" id="stats"></div>
+        <h2 style="margin-top:16px">Semua pesanan</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Pembeli</th><th>Hub</th><th class="num">Total</th><th>Bayar</th><th>Status</th><th>Ubah</th></tr></thead>
+          <tbody id="allOrders"></tbody>
+        </table></div>
+        <h2 style="margin-top:16px">Catat pembayaran kredit</h2>
+        <div class="row">
+          <div><label for="payBuyer">Pembeli</label><select id="payBuyer"></select></div>
+          <div><label for="payAmount">Jumlah (Rp)</label><input id="payAmount" type="number" min="1" step="1"></div>
+        </div>
+        <button id="recordPay" style="margin-top:10px">Simpan pembayaran</button>
+        <div id="payMsg" class="msg"></div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+(() => {
+  const rp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  let config = null, products = [], buyers = [], orders = [];
+  let adminToken = '';
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      method: opts.method || 'GET', body: opts.body ? JSON.stringify(opts.body) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Gagal');
+    return data;
+  }
+
+  function currentBuyer() { return buyers.find((b) => b.id === $('buyer').value); }
+
+  function renderBuyers() {
+    $('buyer').innerHTML = buyers.map((b) => `<option value="${esc(b.id)}">${esc(b.name)} (${esc(b.hub)})</option>`).join('');
+    $('payBuyer').innerHTML = $('buyer').innerHTML;
+    renderBuyerInfo();
+    renderMyOrders();
+  }
+
+  function renderBuyerInfo() {
+    const b = currentBuyer();
+    if (!b) return;
+    const avail = b.creditLimit - b.balance;
+    $('balance').innerHTML = `Utang: <b>${rp(b.balance)}</b><span class="muted">Sisa limit: ${rp(avail)} dari ${rp(b.creditLimit)}</span>`;
+    $('buyerInfo').textContent = `Hub pengiriman: ${b.hub}. Jenis: ${b.type}.`;
+    renderQuote();
+  }
+
+  function renderCatalog() {
+    const b = currentBuyer();
+    $('catalog').innerHTML = products.map((p) => {
+      const stock = b ? p.stock[b.hub] : 0;
+      return `<tr>
+        <td>${esc(p.name)}<div class="muted">per ${esc(p.unit)}</div></td>
+        <td class="num">${rp(p.price)}</td>
+        <td class="num">${stock}</td>
+        <td class="num"><input class="qty" type="number" min="0" step="1" value="0" data-id="${esc(p.id)}"></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function collectItems() {
+    return [...document.querySelectorAll('input.qty')]
+      .map((i) => ({ productId: i.dataset.id, qty: Number(i.value) || 0 }))
+      .filter((i) => i.qty > 0);
+  }
+
+  function renderQuote() {
+    const b = currentBuyer();
+    if (!b || !config) return;
+    const items = collectItems();
+    if (items.length === 0) {
+      $('quote').textContent = 'Isi jumlah barang untuk melihat total.';
+      $('total').textContent = '';
+      return;
+    }
+    let subtotal = 0;
+    const lines = items.map((i) => {
+      const p = products.find((x) => x.id === i.productId);
+      subtotal += p.price * i.qty;
+      return `${esc(p.name)} x${i.qty}`;
+    });
+    const delivery = config.deliveryFee[b.hub] || 0;
+    const total = subtotal + delivery;
+    $('quote').innerHTML = `${lines.join('<br>')}<br>Ongkir ${esc(b.hub)}: ${rp(delivery)}`;
+    $('total').textContent = `Total: ${rp(total)}`;
+  }
+
+  function statusPill(s) { return `<span class="pill">${esc(s)}</span>`; }
+
+  function renderMyOrders() {
+    const b = currentBuyer();
+    const mine = orders.filter((o) => b && o.buyerId === b.id).slice().reverse();
+    $('myOrders').innerHTML = mine.length ? mine.map((o) => `<tr>
+      <td>${esc(new Date(o.createdAt).toLocaleDateString('id-ID'))}</td>
+      <td>${o.lines.map((l) => `${esc(l.name)} x${l.qty}`).join('<br>')}</td>
+      <td class="num">${rp(o.total)}</td>
+      <td>${statusPill(o.status)}${o.paid ? '' : ' <span class="muted">belum lunas</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="4" class="muted">Belum ada pesanan.</td></tr>';
+  }
+
+  async function reload() {
+    [products, buyers, orders] = await Promise.all([api('/api/products'), api('/api/buyers'), api('/api/orders')]);
+    renderBuyers();
+    renderCatalog();
+    renderQuote();
+  }
+
+  async function init() {
+    config = await api('/api/config');
+    $('payment').innerHTML = config.paymentMethods.map((m) => `<option value="${m}">${m}</option>`).join('');
+    await reload();
+  }
+
+  $('buyer').addEventListener('change', () => { renderBuyerInfo(); renderCatalog(); renderQuote(); renderMyOrders(); });
+  $('catalog').addEventListener('input', renderQuote);
+
+  $('placeOrder').addEventListener('click', async () => {
+    const b = currentBuyer();
+    const items = collectItems();
+    $('orderMsg').className = 'msg';
+    if (!b) return;
+    if (items.length === 0) { $('orderMsg').className = 'msg err'; $('orderMsg').textContent = 'Pilih minimal satu barang.'; return; }
+    try {
+      await api('/api/orders', { method: 'POST', body: { buyerId: b.id, items, paymentMethod: $('payment').value } });
+      $('orderMsg').className = 'msg ok';
+      $('orderMsg').textContent = 'Pesanan terkirim. Tim kami akan mengonfirmasi.';
+      document.querySelectorAll('input.qty').forEach((i) => { i.value = 0; });
+      await reload();
+    } catch (e) {
+      $('orderMsg').className = 'msg err';
+      $('orderMsg').textContent = e.message;
+    }
+  });
+
+  // Back office
+  async function adminApi(path, opts = {}) {
+    return api(path, { ...opts, headers: { 'X-Admin-Token': adminToken, ...(opts.headers || {}) } });
+  }
+
+  async function loadAdmin() {
+    adminToken = $('token').value;
+    $('adminMsg').className = 'msg';
+    try {
+      const s = await adminApi('/api/summary');
+      $('stats').innerHTML = [
+        ['Pesanan aktif', s.orderCount], ['Nilai transaksi', rp(s.gmv)],
+        ['Pendapatan platform', rp(s.platformFees)], ['Piutang kredit', rp(s.receivables)],
+      ].map(([k, v]) => `<div class="stat">${k}<b>${v}</b></div>`).join('');
+      renderAllOrders();
+      $('adminBody').hidden = false;
+      $('adminMsg').textContent = '';
+    } catch (e) {
+      $('adminBody').hidden = true;
+      $('adminMsg').className = 'msg err';
+      $('adminMsg').textContent = e.message;
+    }
+  }
+
+  function renderAllOrders() {
+    const statuses = config.statuses;
+    $('allOrders').innerHTML = orders.slice().reverse().map((o) => {
+      const buyer = buyers.find((b) => b.id === o.buyerId);
+      const opts = statuses.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('');
+      return `<tr>
+        <td>${esc(buyer ? buyer.name : o.buyerId)}</td>
+        <td>${esc(o.hub)}</td>
+        <td class="num">${rp(o.total)}</td>
+        <td>${esc(o.paymentMethod)}${o.paid ? '' : ' (kredit)'}</td>
+        <td>${statusPill(o.status)}</td>
+        <td><select data-order="${esc(o.id)}" class="statusSel">${opts}</select></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted">Belum ada pesanan.</td></tr>';
+  }
+
+  $('loadAdmin').addEventListener('click', loadAdmin);
+
+  $('allOrders').addEventListener('change', async (e) => {
+    if (!e.target.classList.contains('statusSel')) return;
+    try {
+      await adminApi(`/api/orders/${encodeURIComponent(e.target.dataset.order)}/status`,
+        { method: 'PATCH', body: { status: e.target.value } });
+      await reload();
+      await loadAdmin();
+    } catch (err) {
+      $('adminMsg').className = 'msg err';
+      $('adminMsg').textContent = err.message;
+    }
+  });
+
+  $('recordPay').addEventListener('click', async () => {
+    $('payMsg').className = 'msg';
+    try {
+      await adminApi('/api/payments', { method: 'POST',
+        body: { buyerId: $('payBuyer').value, amount: Number($('payAmount').value) } });
+      $('payMsg').className = 'msg ok';
+      $('payMsg').textContent = 'Pembayaran dicatat.';
+      $('payAmount').value = '';
+      await reload();
+      await loadAdmin();
+    } catch (e) {
+      $('payMsg').className = 'msg err';
+      $('payMsg').textContent = e.message;
+    }
+  });
+
+  init().catch((e) => { document.body.insertAdjacentHTML('beforeend', `<p class="msg err">${esc(e.message)}</p>`); });
+})();
+</script>
+</body>
+</html>
