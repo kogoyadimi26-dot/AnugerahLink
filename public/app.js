@@ -331,7 +331,7 @@
         <div class="hero-copy">
           <h1>${esc(state.config.content.homeTitle)}</h1>
           <p class="lead">${esc(state.config.content.homeLead)}</p>
-          <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a><a class="btn secondary" href="#/tentang">Cara kerja kami</a></div>
+          <div class="btn-row"><a class="btn" href="#/produk">${esc(L('home.btn_lots'))}</a><a class="btn secondary" href="#/tentang">${esc(L('home.btn_how'))}</a></div>
         </div>
         <div class="hero-carousel" id="hero-carousel" aria-roledescription="carousel" aria-label="Lot terbaru">
           ${carouselLots.length ? carouselLots.map(heroSlide).join('') : '<p class="muted">Lot baru segera tayang.</p>'}
@@ -342,12 +342,12 @@
       <div id="live-stock">${tierStockSection(lots)}</div>
       ${harvestStrip(lots)}
       <section aria-labelledby="featured">
-        <h2 id="featured">Lot tersedia sekarang</h2>
-        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : '<div class="card"><p><strong>Belum ada lot yang siap dijual.</strong></p><p class="muted">Kami sedang menilai kopi baru dari kebun mitra. Cek lagi beberapa hari lagi.</p></div>'}
-        <p class="ix-18"><a href="#/produk">Lihat semua lot</a></p>
+        <h2 id="featured">${esc(L('home.featured'))}</h2>
+        ${featured.length ? `<div class="grid lots">${featured.map(lotCard).join('')}</div>` : `<div class="card"><p><strong>${esc(L('home.empty_title'))}</strong></p><p class="muted">${esc(L('home.empty_text'))}</p></div>`}
+        <p class="ix-18"><a href="#/produk">${esc(L('home.all_lots'))}</a></p>
       </section>
       <section aria-labelledby="how">
-        <h2 id="how">Cara kami bekerja</h2>
+        <h2 id="how">${esc(L('home.how'))}</h2>
         <div class="pillars">
           ${(state.config.about.pillars || []).map((x) => `
             <article class="pillar">
@@ -1031,7 +1031,7 @@ const ICONS = {
         <p class="eyebrow">${esc(a.eyebrow)}</p>
         <h1>${esc(a.title)}</h1>
         ${a.lead ? `<p class="lead">${esc(a.lead)}</p>` : ''}
-        <div class="btn-row"><a class="btn" href="#/produk">Lihat lot tersedia</a></div>
+        <div class="btn-row"><a class="btn" href="#/produk">${esc(L('home.btn_lots'))}</a></div>
       </section>
       ${a.claim ? `<section class="about-claim" aria-labelledby="about-claim"><h2 id="about-claim">${esc(a.claim.title)}</h2><p>${esc(a.claim.text)}</p></section>` : ''}
       ${a.mission ? `<section class="about-mission" aria-labelledby="about-mission"><h2 id="about-mission">Misi kami</h2><p>${esc(a.mission)}</p></section>` : ''}
@@ -1098,8 +1098,8 @@ const ICONS = {
         <button class="btn secondary small" type="button" data-restore="${i}">Pulihkan sebelum perubahan ini</button>
       </li>`).join('');
     return `
-      <h2>Label menu dan tab</h2>
-      <p class="muted">Teks menu utama, pintasan produk, dan menu panel tim, dalam Bahasa Indonesia dan English. Simpan draf, lalu terbitkan agar berlaku untuk pengunjung.</p>
+      <h2>Teks dan label</h2>
+      <p class="muted">Menu, pintasan, menu panel tim, teks beranda, dan judul halaman, dalam Bahasa Indonesia dan English. Simpan draf, lalu terbitkan agar berlaku untuk pengunjung. Isi halaman hukum (kebijakan privasi, syarat, klaim) tidak diubah dari sini karena perlu ditinjau dan dicatat versinya.</p>
       ${draftNote}
       <form class="card" id="labels-form" novalidate>
         <div data-form-error class="notice bad" hidden></div>
@@ -1108,8 +1108,8 @@ const ICONS = {
             <div class="label-head muted"><span>Kunci</span><span>Bahasa Indonesia</span><span>English</span></div>
             ${keys.map((k) => `<div class="label-row">
               <code class="label-key">${esc(k)}</code>
-              <div class="field"><label class="sr" for="lb-id-${esc(k)}">Indonesia: ${esc(k)}</label><input id="lb-id-${esc(k)}" name="id.${esc(k)}" maxlength="40" value="${esc(pub.id[k])}"></div>
-              <div class="field"><label class="sr" for="lb-en-${esc(k)}">English: ${esc(k)}</label><input id="lb-en-${esc(k)}" name="en.${esc(k)}" maxlength="40" value="${esc(pub.en[k])}"></div>
+              <div class="field"><label class="sr" for="lb-id-${esc(k)}">Indonesia: ${esc(k)}</label><input id="lb-id-${esc(k)}" name="id.${esc(k)}" maxlength="${lb.defaults[k].max || 40}" value="${esc(pub.id[k])}"></div>
+              <div class="field"><label class="sr" for="lb-en-${esc(k)}">English: ${esc(k)}</label><input id="lb-en-${esc(k)}" name="en.${esc(k)}" maxlength="${lb.defaults[k].max || 40}" value="${esc(pub.en[k])}"></div>
             </div>`).join('')}
           </fieldset>`).join('')}
         <div class="btn-row">
@@ -2646,12 +2646,13 @@ const ICONS = {
   ];
 
   // ---------- kebijakan ----------
+  const LEGAL_TITLE_KEY = { 'kebijakan-privasi': 'page.privasi.title', syarat: 'page.syarat.title', pengembalian: 'page.pengembalian.title' };
   function viewLegal(key) {
     const legal = state.config.legal;
     const page = legal && legal.pages[key];
     if (!page) { setMain('<h1>Halaman tidak ditemukan</h1><p><a href="#/">Kembali ke beranda</a></p>'); return; }
     setMain(`
-      <h1>${esc(page.title)}</h1>
+      <h1>${esc(L(LEGAL_TITLE_KEY[key] || '') || page.title)}</h1>
       ${legal.reviewed ? '' : '<p class="notice">Draf. Teks ini sedang ditinjau dan belum berlaku.</p>'}
       <p class="muted">Berlaku sejak ${esc(legal.updatedAt)} · versi ${esc(legal.version)}</p>
       <div class="card ix-22">
