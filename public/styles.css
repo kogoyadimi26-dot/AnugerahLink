@@ -803,7 +803,7 @@ tr.is-selected { background: var(--green-soft) !important; }
 .buy-box { display: grid; gap: 14px; max-width: 420px; }
 .buy-stock { margin: 0; font-size: 18px; font-weight: 600; color: #2e7d32; }
 .buy-qty { display: grid; gap: 6px; font-size: 14px; color: var(--ink-muted); }
-.buy-add, .buy-now { width: 100%; border: 0; border-radius: 999px; padding: 13px 18px; font: inherit; font-size: 15px; font-weight: 600; color: #111; cursor: pointer; }
+.buy-add, .buy-now { width: auto; justify-self: start; min-width: 200px; border: 0; border-radius: 10px; padding: 10px 22px; font: inherit; font-size: 15px; font-weight: 600; color: #111; cursor: pointer; }
 .buy-add { background: #f7d64e; }
 .buy-add:hover { background: #f1c931; }
 .buy-now { background: #f0a846; }
