@@ -30,6 +30,12 @@ module.exports = {
     heroInk: '#FFFFFF',
     footerBg: '#003C18',
     footerInk: '#D7E2D4',
+    tierReserve: '#60300C',   // kategori Reserve (cokelat)
+    tierPremium: '#0E5A2C',   // kategori Premium (hijau)
+    tierVerified: '#56655A',  // kategori Standar Terverifikasi (abu-abu hijau)
+    tierLocal: '#8A6500',     // kategori Lokal (emas tua)
+    navBg: '#336346',         // latar menu dan tab
+    navInk: '#D7E2D4',        // teks menu dan tab
   },
   dark: {
     primary: '#E0AE3A',
@@ -54,6 +60,12 @@ module.exports = {
     heroInk: '#EEF0E6',
     footerBg: '#08120B',
     footerInk: '#D7E2D4',
+    tierReserve: '#D9A37A',
+    tierPremium: '#7CC79A',
+    tierVerified: '#A9B5A8',
+    tierLocal: '#E8B04A',
+    navBg: '#39413C',
+    navInk: '#D7E2D4',
   },
   radius: { sm: '8px', md: '12px', lg: '16px' },
   font: '"Inter AL", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',

@@ -1519,7 +1519,8 @@ const ICONS = {
     if (pct === null) return '';
     return `<span class="dash-chip ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
   }
-  const TIER_COLOR = { reserve: '#7a4a1f', premium: '#1e6b3f', verified: '#5b9a74', local: '#c9962b' };
+  // Warna kategori mengikuti tema (variabel --tier-*), sehingga ikut berubah saat admin mengubahnya.
+  const tierColor = (t) => getComputedStyle(document.documentElement).getPropertyValue('--tier-' + t).trim() || '#999';
   function dashLineChart(series, metric) {
     const W = 640, H = 240, P = 28, TOP = 16;
     const fmt = metric === 'revenue' ? (v) => rp(v) : (v) => `${v} pesanan`;
@@ -1546,11 +1547,11 @@ const ICONS = {
     let acc = 0;
     const arcs = total > 0 ? mix.filter((m) => m.kg > 0).map((m) => {
       const len = (m.kg / total) * C;
-      const el = `<circle r="44" cx="60" cy="60" fill="none" stroke="${TIER_COLOR[m.tier] || '#999'}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+      const el = `<circle r="44" cx="60" cy="60" fill="none" stroke="${tierColor(m.tier)}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
       acc += len;
       return el;
     }).join('') : '';
-    const legend = mix.map((m) => `<li><span class="dash-swatch" data-bg="${TIER_COLOR[m.tier] || '#999'}"></span><span class="dash-leg-name">${esc(m.label)}</span><span class="dash-leg-kg num">${kg(m.kg)}</span><strong class="num dash-leg-pct">${m.pct}%</strong></li>`).join('');
+    const legend = mix.map((m) => `<li><span class="dash-swatch" data-bg="${tierColor(m.tier)}"></span><span class="dash-leg-name">${esc(m.label)}</span><span class="dash-leg-kg num">${kg(m.kg)}</span><strong class="num dash-leg-pct">${m.pct}%</strong></li>`).join('');
     return `<div class="dash-donut-wrap">
       <svg viewBox="0 0 120 120" class="dash-donut" role="img" aria-label="Persentase kg terjual per tingkat">
         <g transform="rotate(-90 60 60)"><circle r="44" cx="60" cy="60" fill="none" stroke="var(--green-soft)" stroke-width="16"/>${arcs}</g>
@@ -2267,7 +2268,7 @@ const ICONS = {
   }
 
   // ---------- tampilan: admin mengubah warna dan sudut ----------
-  const TEMA_KOLOM = [['primary', 'Warna utama (tombol, navigasi)'], ['accent', 'Warna aksen (emas, sorotan)'], ['background', 'Latar halaman'], ['text', 'Warna teks']];
+  const TEMA_KOLOM = [['primary', 'Warna utama (tombol, navigasi)'], ['accent', 'Warna aksen (emas, sorotan)'], ['background', 'Latar halaman'], ['text', 'Warna teks'], ['navBg', 'Latar menu dan tab'], ['navInk', 'Teks menu dan tab'], ['tierReserve', 'Kategori Reserve'], ['tierPremium', 'Kategori Premium'], ['tierVerified', 'Kategori Standar Terverifikasi'], ['tierLocal', 'Kategori Lokal']];
   const SUDUT = { tajam: { sm: '4px', md: '6px', lg: '8px' }, ramah: { sm: '8px', md: '12px', lg: '16px' }, bulat: { sm: '12px', md: '18px', lg: '24px' } };
   const SUDUT_LABEL = { tajam: 'Tajam (sudut kecil)', ramah: 'Ramah (sedang)', bulat: 'Bulat (sudut besar)' };
 
@@ -2305,8 +2306,7 @@ const ICONS = {
         const v = form.elements[`${mode}.${k}`].value;
         if (k === 'primary') { t[mode].primary = v; t[mode].primaryHover = v; }
         else if (k === 'accent') { t[mode].accent = v; t[mode].accentStrong = v; }
-        else if (k === 'background') t[mode].background = v;
-        else t[mode].text = v;
+        else t[mode][k] = v;
       }
     }
     t.radius = { ...SUDUT[form.elements.radius.value] };

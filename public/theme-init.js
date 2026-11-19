@@ -17,7 +17,9 @@
     '--brown': 'brown', '--bg': 'background', '--surface': 'surface', '--ink': 'text', '--ink-muted': 'textMuted',
     '--line': 'border', '--brand': 'primary', '--on-primary': 'onPrimary', '--accent': 'success', '--danger': 'danger',
     '--heading': 'heading', '--hero-from': 'heroFrom', '--hero-to': 'heroTo', '--hero-ink': 'heroInk',
-    '--footer-bg': 'footerBg', '--footer-ink': 'footerInk'
+    '--footer-bg': 'footerBg', '--footer-ink': 'footerInk',
+    '--tier-reserve': 'tierReserve', '--tier-premium': 'tierPremium', '--tier-verified': 'tierVerified', '--tier-local': 'tierLocal',
+    '--nav-bg': 'navBg', '--nav-ink': 'navInk'
   };
 
   function isDark() {
