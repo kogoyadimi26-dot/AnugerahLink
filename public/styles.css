@@ -350,7 +350,7 @@ main.wrap:has(.admin-layout) { max-width: 1320px; }
 /* Banner beranda: kuning emas, seperti banner promosi pada marketplace */
 .hero { background: linear-gradient(90deg, #E0AE3A 0%, #F3CF73 100%); color: #1B2A1F; border-radius: 0; margin: 0 -16px; padding: 44px 24px; }
 .hero::after { display: none; }
-.hero h1 { color: #003C18; font-size: clamp(1.9rem, 1.2rem + 2.4vw, 3rem); max-width: 26ch; }
+.hero h1 { color: #003C18; font-size: clamp(1.5rem, 1.1rem + 1.5vw, 2.25rem); line-height: 1.15; max-width: 18ch; }
 .hero p.lead { color: #1B2A1F; opacity: .9; }
 .hero .btn { background: #003C18; border-color: #003C18; color: #FFFFFF; }
 .hero .btn:hover:not(:disabled) { background: #0E5A2C; border-color: #0E5A2C; }
