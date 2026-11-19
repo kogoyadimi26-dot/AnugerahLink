@@ -191,6 +191,7 @@ function publicConfig(demoOn, settings) {
     theme: mergeTheme(require('./config/theme'), settings && settings.theme),
     content: content.contentFor(settings),
     labels: labels.labelsFor(settings),
+    labelsEn: labels.labelsEnFor(settings),
     legal,
   };
 }
@@ -588,20 +589,35 @@ function buildRoutes(ctx) {
     store.update((db) => { db.settings = { ...(db.settings || {}), about: out }; });
     return { status: 200, body: { about: about.aboutFor(store.read().settings) }, auditDetail: 'Halaman Tentang diperbarui.' };
   }, { perm: 'settings' });
-  // Label menu dan tab: setiap penyimpanan mencatat nilai lama dan baru, sehingga bisa dipulihkan.
+  // Label menu dan tab: simpan draf, lalu terbitkan. Setiap penerbitan dicatat dengan nilai lama dan baru.
   route('GET', /^\/api\/admin\/labels$/, () => {
     const s = store.read().settings || {};
-    return { status: 200, body: { labels: labels.labelsFor(s), defaults: labels.defaults, history: (s.labelsHistory || []).slice(0, 10) }, headers: { 'Cache-Control': 'no-store' } };
+    return { status: 200, body: { published: labels.publishedFor(s), defaults: labels.defaults, draft: s.labelsDraft || null, history: (s.labelsHistory || []).slice(0, 10) }, headers: { 'Cache-Control': 'no-store' } };
   }, { perm: 'settings' });
-  route('PUT', /^\/api\/admin\/labels$/, (_p, body) => {
-    const out = labels.validateLabels(body);
+  route('PUT', /^\/api\/admin\/labels\/draft$/, (_p, body) => {
+    const set = labels.validateLabelSet(body);
+    const draft = { ...set, savedAt: new Date().toISOString() };
+    store.update((db) => { db.settings = { ...(db.settings || {}), labelsDraft: draft }; });
+    return { status: 200, body: { draft }, auditDetail: 'Draf label disimpan.' };
+  }, { perm: 'settings' });
+  route('POST', /^\/api\/admin\/labels\/draft\/discard$/, () => {
+    store.update((db) => { const s = { ...(db.settings || {}) }; delete s.labelsDraft; db.settings = s; });
+    return { status: 200, body: {}, auditDetail: 'Draf label dibuang.' };
+  }, { perm: 'settings' });
+  route('POST', /^\/api\/admin\/labels\/publish$/, () => {
     const changes = store.update((db) => {
-      const diff = labels.changesOf(labels.labelsFor(db.settings), out);
-      if (!diff.length) return [];
-      db.settings = { ...(db.settings || {}), labels: out, labelsHistory: labels.appendHistory(db.settings && db.settings.labelsHistory, { at: new Date().toISOString(), changes: diff }) };
+      const s = db.settings || {};
+      if (!s.labelsDraft) throw new ApiError(409, 'no_draft', 'Belum ada draf label untuk diterbitkan.');
+      const next = { id: s.labelsDraft.id, en: s.labelsDraft.en };
+      const diff = labels.changesOf(labels.publishedFor(s), next);
+      const kept = { ...s };
+      delete kept.labelsDraft;
+      db.settings = diff.length
+        ? { ...kept, labels: next.id, labelsEn: next.en, labelsHistory: labels.appendHistory(s.labelsHistory, { at: new Date().toISOString(), changes: diff }) }
+        : kept;
       return diff;
     });
-    return { status: 200, body: { labels: labels.labelsFor(store.read().settings) }, auditDetail: changes.length ? 'Label menu diubah: ' + changes.map((c) => c.key).join(', ') + '.' : 'Label menu tidak berubah.' };
+    return { status: 200, body: { published: labels.publishedFor(store.read().settings) }, auditDetail: changes.length ? 'Label menu diterbitkan: ' + [...new Set(changes.map((c) => c.key))].join(', ') + '.' : 'Label menu diterbitkan tanpa perubahan.' };
   }, { perm: 'settings' });
   route('PUT', /^\/api\/admin\/content$/, (_p, body) => {
     const out = content.validateContent(body);
